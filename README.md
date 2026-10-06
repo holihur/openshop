@@ -3,9 +3,11 @@
 A production-grade, **horizontally scalable** e-commerce storefront.
 
 - **Backend** — Go · Gin · GORM · PostgreSQL · NATS (JetStream) · Redis
-- **Frontends** — two React 19 + TypeScript + Vite + TailwindCSS v4 + shadcn/ui
-  SPAs: `front` (storefront) and `ops` (admin console). Both are compiled and
-  **embedded into the Go binary**, so one process serves the API and both UIs.
+- **Two binaries** — `openshop` (storefront + public API) and `openshop-ops`
+  (admin console + ops API), **isolated at the binary level** so the admin
+  surface can be deployed on an internal network. Both embed their SPA.
+- **Frontends** — React 19 · TypeScript · Vite · TailwindCSS v4 · shadcn/ui,
+  as two SPAs sharing one `lib/` (`front` storefront, `ops` admin console).
   Package management is pnpm (workspace).
 
 Every third-party integration is reached through a **port interface**, so the
@@ -19,7 +21,8 @@ composition root (`internal/bootstrap`).
 full-text search, reviews with ratings, cart, coupons, shipping methods and tax,
 saved addresses, checkout, order tracking and self-service cancellation.
 
-**Operations** — a routed admin console (`/ops`) with a sidebar: merchant
+**Operations** — a routed admin console (its own `openshop-ops` binary, built for
+an internal network) with a sidebar: merchant
 dashboard (revenue, order counts, low stock), product/variant management with
 image upload, order fulfilment (ship with tracking, complete, refund), coupon
 and shipping-method/zone management, exchange rates, an audit trail (including
@@ -35,10 +38,11 @@ Prometheus metrics; OpenTelemetry tracing across the async boundary; versioned
 migrations; SEO (robots/sitemap/JSON-LD); Docker Compose, Kubernetes manifests,
 CI, a smoke test and a k6 load test.
 
-**Delivery** — a single self-contained binary that serves the API, the storefront
-(`/`) and the admin console (`/ops`); GoReleaser publishes signed-checksum
-binaries for Linux/macOS/Windows to GitHub Releases, and a one-line install
-script downloads the right build for the host.
+**Delivery** — two self-contained binaries: `openshop` serves the public API and
+the storefront SPA, `openshop-ops` serves the ops API and the admin console SPA
+(meant for an internal network). GoReleaser publishes checksummed builds for
+Linux/macOS/Windows to GitHub Releases, and a one-line install script downloads
+the right build for the host.
 
 ---
 
@@ -167,7 +171,8 @@ Swap an adapter by changing one line in `internal/bootstrap/app.go`.
 openshop/
 ├── backend/
 │   ├── cmd/
-│   │   ├── server/         # API + workers
+│   │   ├── server/         # storefront binary: public API + storefront SPA + workers
+│   │   ├── ops/            # ops binary: admin API + console SPA (no workers)
 │   │   ├── migrate/        # versioned SQL migrations (advisory-locked)
 │   │   └── seed/           # demo admin, categories, products
 │   ├── internal/
@@ -175,16 +180,22 @@ openshop/
 │   │   ├── port/           # interfaces (the dependency boundary)
 │   │   ├── service/        # use cases + tests with fakes
 │   │   ├── adapter/        # postgres, redis, nats, payment, storage, mail, sms, security, logger, metrics
-│   │   ├── http/           # router, middleware, handlers, response, docs (OpenAPI), web (embedded SPAs)
+│   │   ├── http/
+│   │   │   ├── front/      # storefront surface (routes + engine)
+│   │   │   ├── ops/        # operations surface (routes + engine)
+│   │   │   ├── handler/    # shared handlers used by both surfaces
+│   │   │   ├── middleware/ # auth, rate limit, idempotency, tracing, …
+│   │   │   ├── web/        # embedded front + ops SPAs
+│   │   │   └── docs/       # OpenAPI document + Swagger UI
 │   │   ├── worker/         # event consumers, order sweeper, outbox relay
 │   │   ├── config/         # 12-factor env configuration
 │   │   ├── version/        # build metadata injected by GoReleaser
-│   │   └── bootstrap/      # composition root
+│   │   └── bootstrap/      # composition root (surface injected by the command)
 │   └── migrations/         # *.sql up + down/ (reversible)
 ├── lib/                    # shared frontend code: api client, auth, types, ui, hooks
 ├── front/                  # storefront SPA (Vite, built to front/dist)
-├── ops/                    # admin console SPA (Vite base /ops, built to ops/dist)
-├── deploy/k8s/             # namespace/config, infra, backend (HPA+PDB), ingress
+├── ops/                    # admin console SPA (served at the root of the ops binary)
+├── deploy/k8s/             # namespace/config, infra, backend (HPA+PDB), ops (internal), ingress
 ├── scripts/                # dev-setup.sh, embed-frontend.sh, install.sh, smoke.sh, loadtest.js
 ├── .github/workflows/      # CI (backend, frontends, docker) + release (GoReleaser)
 ├── .goreleaser.yaml        # release binaries for GitHub Releases
@@ -205,8 +216,9 @@ curl -fsSL https://raw.githubusercontent.com/holihur/openshop/main/scripts/insta
 ```
 
 The installer detects the OS/arch, verifies the SHA-256 checksum, installs
-`openshop`, `openshop-migrate` and `openshop-seed` (plus the SQL migrations) and
-prints the next steps. Then point it at PostgreSQL/Redis/NATS, migrate and run:
+`openshop`, `openshop-ops`, `openshop-migrate` and `openshop-seed` (plus the SQL
+migrations) and prints the next steps. Then point it at PostgreSQL/Redis/NATS,
+migrate and run both binaries:
 
 ```bash
 export POSTGRES_DSN='host=localhost port=5432 user=openshop password=openshop dbname=openshop sslmode=disable TimeZone=UTC'
@@ -214,28 +226,29 @@ export REDIS_ADDR='localhost:6379'
 export NATS_URL='nats://localhost:4222'
 export JWT_SECRET="$(head -c 32 /dev/urandom | base64)"
 openshop-migrate -dir ~/.local/share/openshop/migrations
-openshop
-# storefront http://localhost:8080/ · admin http://localhost:8080/ops · docs /docs
+openshop                      # storefront + public API  -> http://localhost:8080/
+OPS_ADDR=:8081 openshop-ops   # admin console (internal) -> http://localhost:8081/
 ```
 
 ### Option A — Docker Compose (everything)
 
-One image contains the API and both embedded SPAs.
+One image contains both binaries and the embedded SPAs; Compose runs them as two
+services.
 
 ```bash
-docker compose up --build -d          # builds the image, migrates, starts backend
+docker compose up --build -d          # builds the image, migrates, starts storefront + ops
 docker compose run --rm seed          # optional demo data (profile: seed)
 ```
 
-- Storefront: <http://localhost:8080/>
-- Admin console (ops): <http://localhost:8080/ops>
+- Storefront (public): <http://localhost:8080/>
+- Ops console (internal): <http://localhost:8081/>
 - API: <http://localhost:8080/api/v1> · docs <http://localhost:8080/docs>
 - NATS monitoring: <http://localhost:8222>
 
 A root `.env` (generated by `install.sh`, or copy `backend/.env.example`) can set
-`POSTGRES_PASSWORD`, `JWT_SECRET`, `HTTP_PORT`, `APP_CURRENCY`, …
+`POSTGRES_PASSWORD`, `JWT_SECRET`, `HTTP_PORT`, `OPS_PORT`, `APP_CURRENCY`, …
 
-Run several API replicas to see horizontal scaling:
+Run several storefront replicas to see horizontal scaling:
 
 ```bash
 docker compose up --scale backend=3
@@ -247,23 +260,24 @@ docker compose up --scale backend=3
 # 1. Prepare Postgres, Redis and NATS (idempotent)
 ./scripts/dev-setup.sh
 
-# 2. Backend
+# 2. Backend binaries
 cd backend
 cp .env.example .env
 go run ./cmd/migrate -dir migrations
 # Roll back the last N migrations (paired *.down.sql files live in migrations/down/):
 # go run ./cmd/migrate -dir migrations -down 1
 go run ./cmd/seed
-go run ./cmd/server
+go run ./cmd/server          # storefront on :8080
+go run ./cmd/ops             # ops console on :8081
 
-# 3. Frontends (separate terminals)
+# 3. Frontends (separate terminals, optional in dev)
 pnpm install
-pnpm --filter @openshop/front dev   # storefront on :5173
-pnpm --filter @openshop/ops dev     # admin console on :5174
+pnpm --filter @openshop/front dev   # storefront on :5173 (proxies to :8080)
+pnpm --filter @openshop/ops dev     # admin console on :5174 (proxies to :8081)
 ```
 
-To serve the built SPAs from the Go binary locally, run `make fe-build` before
-`go run ./cmd/server`; it builds `front`/`ops` and copies them into the module.
+To serve the built SPAs from the Go binaries locally, run `make fe-build` before
+running them; it builds `front`/`ops` and copies them into the module.
 
 Demo credentials created by the seed: `admin@openshop.local` / `admin12345`.
 
@@ -275,11 +289,13 @@ make infra       # start postgres/redis/nats via docker
 make migrate     # apply migrations
 make migrate-down N=1   # revert the last migration
 make seed        # insert demo data
-make run         # run the API
+make run         # run the storefront binary
+make run-ops     # run the ops binary on :8081
 make test        # go test ./... -race
-make fe-build    # build front + ops and embed them into the backend
+make fe-build    # build front + ops and embed them into the binaries
 make fe-dev      # storefront dev server
 make ops-dev     # admin console dev server
+make e2e         # Playwright browser tests (both binaries)
 make release     # local GoReleaser snapshot build
 ```
 
@@ -298,8 +314,9 @@ All configuration is environment-based (see `backend/.env.example`). Highlights:
 | `ORDER_TTL` | `30m` | unpaid-order expiry window |
 | `PAYMENT_PROVIDER` | `mock` | active payment gateway |
 | `STORAGE_DRIVER` | `local` | `local` or `s3` |
-| `WORKER_ENABLED` | `true` | run event consumers + sweeper |
+| `WORKER_ENABLED` | `true` | run event consumers + sweeper (storefront binary) |
 | `HTTP_CORS_ORIGINS` | `http://localhost:5173,http://localhost:5174` | allowed SPA dev origins |
+| `OPS_ADDR` | `:8081` | listen address of the `openshop-ops` binary (internal) |
 
 ---
 
@@ -307,6 +324,13 @@ All configuration is environment-based (see `backend/.env.example`). Highlights:
 
 Base path: `/api/v1`. Responses are enveloped as `{ "data": … }` or
 `{ "error": { "code", "message" } }`; list endpoints also return `meta`.
+
+The API is split across the two binaries:
+
+- **Storefront** (`openshop`, public) — catalog, cart, checkout, auth, reviews,
+  addresses, wishlist, guest orders, SEO. Sections below up to *Orders & payments*.
+- **Ops** (`openshop-ops`, internal) — everything under `/api/v1/ops` plus the
+  auth/category/currency reads the console needs.
 
 - Interactive docs: `GET /docs`
 - OpenAPI document: `GET /api/v1/openapi.yaml`
@@ -388,42 +412,45 @@ retries safe.
 | `POST` | `/guest/orders/:token/cancel` | — | Cancel a guest order |
 | `POST` | `/guest/orders/:token/complete` | — | Confirm receipt of a guest order |
 
-### Admin
+### Ops API (admin)
+
+Served by the `openshop-ops` binary only (deploy it on an internal network); it
+is not present on the public storefront binary. All routes require an admin JWT.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `POST` | `/admin/categories` | Create a category |
-| `POST` | `/admin/products` | Create a product |
-| `PATCH` | `/admin/products/:id` | Update a product |
-| `POST` | `/admin/uploads` | Upload an image (multipart) |
-| `GET` | `/admin/orders` | List all orders |
-| `GET` | `/admin/stats` | Dashboard: revenue, order counts, recent orders, low stock |
-| `PATCH` | `/admin/coupons/:id` | Update or deactivate a coupon |
-| `GET` | `/admin/reviews` | List reviews for moderation |
-| `GET` | `/admin/inventory/low-stock` | Products/variants at or below the threshold |
-| `GET` | `/admin/audit-logs` | Audit trail (security and admin actions) |
-| `PUT` | `/admin/currencies/:code` | Set an exchange rate |
-| `POST` | `/admin/orders/:id/refund` | Refund a paid order (restores stock) |
-| `POST` | `/admin/orders/:id/ship` | Mark a paid order shipped (tracking number) |
-| `POST` | `/admin/orders/:id/complete` | Mark a shipped order completed |
-| `GET` | `/admin/orders/:id/invoice` | Download any order's invoice as PDF |
-| `GET` | `/admin/shipping-methods` | List shipping methods |
-| `POST` | `/admin/shipping-methods` | Create a shipping method |
-| `PATCH` | `/admin/shipping-methods/:id` | Update a shipping method |
-| `GET` | `/admin/shipping-zones` | List shipping zones |
-| `POST` | `/admin/shipping-zones` | Create a shipping zone |
-| `PATCH` | `/admin/shipping-zones/:id` | Update a shipping zone |
-| `PUT` | `/admin/shipping-zones/:zoneId/rates/:methodId` | Set a zone rate (flat + per-kg) |
-| `GET` | `/admin/coupons` | List coupons |
-| `POST` | `/admin/coupons` | Create a coupon |
-| `GET` | `/admin/products/:id/variants` | List a product's variants |
-| `POST` | `/admin/products/:id/variants` | Create a variant (SKU) |
-| `PATCH` | `/admin/variants/:id` | Update a variant |
+| `POST` | `/ops/categories` | Create a category |
+| `POST` | `/ops/products` | Create a product |
+| `PATCH` | `/ops/products/:id` | Update a product |
+| `POST` | `/ops/uploads` | Upload an image (multipart) |
+| `GET` | `/ops/orders` | List all orders |
+| `GET` | `/ops/stats` | Dashboard: revenue, order counts, recent orders, low stock |
+| `PATCH` | `/ops/coupons/:id` | Update or deactivate a coupon |
+| `GET` | `/ops/reviews` | List reviews for moderation |
+| `GET` | `/ops/inventory/low-stock` | Products/variants at or below the threshold |
+| `GET` | `/ops/audit-logs` | Audit trail (security and admin actions) |
+| `PUT` | `/ops/currencies/:code` | Set an exchange rate |
+| `POST` | `/ops/orders/:id/refund` | Refund a paid order (restores stock) |
+| `POST` | `/ops/orders/:id/ship` | Mark a paid order shipped (tracking number) |
+| `POST` | `/ops/orders/:id/complete` | Mark a shipped order completed |
+| `GET` | `/ops/orders/:id/invoice` | Download any order's invoice as PDF |
+| `GET` | `/ops/shipping-methods` | List shipping methods |
+| `POST` | `/ops/shipping-methods` | Create a shipping method |
+| `PATCH` | `/ops/shipping-methods/:id` | Update a shipping method |
+| `GET` | `/ops/shipping-zones` | List shipping zones |
+| `POST` | `/ops/shipping-zones` | Create a shipping zone |
+| `PATCH` | `/ops/shipping-zones/:id` | Update a shipping zone |
+| `PUT` | `/ops/shipping-zones/:zoneId/rates/:methodId` | Set a zone rate (flat + per-kg) |
+| `GET` | `/ops/coupons` | List coupons |
+| `POST` | `/ops/coupons` | Create a coupon |
+| `GET` | `/ops/products/:id/variants` | List a product's variants |
+| `POST` | `/ops/products/:id/variants` | Create a variant (SKU) |
+| `PATCH` | `/ops/variants/:id` | Update a variant |
 
-### Ops
+### Health & meta
 
 `GET /healthz` (liveness) · `GET /readyz` (dependency readiness) ·
-`GET /api/v1/version`
+`GET /api/v1/version` (build metadata)
 
 ### Example: checkout
 
@@ -483,15 +510,23 @@ API_BASE=http://localhost:8080/api/v1 ./scripts/smoke.sh
 It verifies login, catalog, stock reservation, **idempotent replay**, payment
 and the resulting paid order.
 
-To verify the Go binary serves both embedded SPAs (build them first with
+To verify the Go binaries serve their embedded SPAs (build them first with
 `make fe-build`):
 
 ```bash
-WEB_BASE=http://localhost:8080 ./scripts/smoke-web.sh
+WEB_BASE=http://localhost:8080 OPS_BASE=http://localhost:8081 ./scripts/smoke-web.sh
 ```
 
-It checks the storefront shell, SPA fallback routes, the admin console under
-`/ops`, the hashed JS assets and `GET /api/v1/version`.
+It checks the storefront shell and SPA fallback on the public binary, the ops
+console on the internal binary, the hashed JS assets and `GET /api/v1/version`.
+Set `OPS_BASE=` to skip the ops checks.
+
+Browser end-to-end tests (Playwright) boot both binaries and drive the storefront
+and the ops console:
+
+```bash
+make e2e        # or: pnpm --filter @openshop/e2e test
+```
 
 ### Load test
 
@@ -547,16 +582,27 @@ OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4318 OTEL_INSECURE=true go run ./cmd/serve
 
 - `00-namespace-config.yaml` — namespace, ConfigMap, Secret
 - `10-infra.yaml` — PostgreSQL / Redis / NATS StatefulSets (swap for managed services in production)
-- `20-backend.yaml` — Deployment (3 replicas, rolling update, anti-affinity,
-  topology spread), readiness/liveness probes, **HPA** (3→20 on CPU/memory), **PDB**,
-  and an **init container** that runs migrations (safe on every pod via the advisory lock)
-- `30-ingress.yaml` — Ingress routing everything to the backend, which serves the
-  API and both embedded SPAs
+- `20-backend.yaml` — storefront Deployment (3 replicas, rolling update,
+  anti-affinity, topology spread), readiness/liveness probes, **HPA** (3→20 on
+  CPU/memory), **PDB**, and an **init container** that runs migrations (safe on
+  every pod via the advisory lock)
+- `25-ops.yaml` — the `openshop-ops` Deployment and a **ClusterIP Service** with
+  no public Ingress, so the admin console lives on the internal network only
+- `30-ingress.yaml` — Ingress routing everything to the storefront service
+  (API + embedded storefront SPA); it does not reference the ops service
 
 ```bash
 kubectl apply -f deploy/k8s/
 kubectl -n openshop rollout status deploy/openshop-backend
+kubectl -n openshop rollout status deploy/openshop-ops
 kubectl -n openshop scale deploy/openshop-backend --replicas=6
+```
+
+Expose the ops console internally, for example by port-forwarding through a
+bastion or adding an internal-only ingress:
+
+```bash
+kubectl -n openshop port-forward svc/openshop-ops 8081:8081
 ```
 
 ### Release binaries (GoReleaser)
@@ -567,9 +613,9 @@ Tag a release and GitHub Actions builds and publishes the binaries:
 git tag v1.0.0 && git push origin v1.0.0
 ```
 
-`.goreleaser.yaml` cross-compiles `openshop`, `openshop-migrate` and
-`openshop-seed` for Linux/macOS/Windows (amd64 + arm64), embeds both SPAs into
-the server binary, injects the version/commit/date, and ships the SQL migrations
+`.goreleaser.yaml` cross-compiles `openshop`, `openshop-ops`, `openshop-migrate`
+and `openshop-seed` for Linux/macOS/Windows (amd64 + arm64), embeds each SPA
+into its binary, injects the version/commit/date, and ships the SQL migrations
 in each archive. `scripts/install.sh` installs the right build for the host and
 verifies its checksum.
 
@@ -609,6 +655,12 @@ Honest gaps a buyer should know about:
 
 ## Design decisions
 
+- **Binary-level isolation of admin and business surfaces.** The storefront and
+the admin console are separate binaries (`openshop`, `openshop-ops`). Each
+command injects its HTTP surface into the shared composition root, so the ops
+binary links only the ops routes and can be deployed on an internal network
+while the public binary carries no admin endpoints. Handlers are shared code
+(the API analogue of the frontend's `lib/`).
 - **Money as integers.** Prices are stored in minor units (`price_cents`) to
   avoid floating-point drift.
 - **UUID primary keys.** Any replica can generate ids without a central
@@ -631,7 +683,7 @@ Honest gaps a buyer should know about:
   synchronously (and the event consumer does so again as a safety net), so the
   catalog reflects reservations immediately.
 - **Least privilege in the catalog.** Public product listings are forced to
-  `published`; only admins can list drafts via `/admin/products`.
+  `published`; only admins can list drafts via `/ops/products`.
 - **Discounts are integers too.** Percent coupons use integer math and caps so
   rounding never produces fractional money; the discount can never exceed the
   subtotal.

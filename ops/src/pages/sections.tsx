@@ -850,7 +850,7 @@ export function AdminOrders() {
 
   const refund = useMutation({
     mutationFn: (orderId: string) =>
-      api.post<Order>(`/admin/orders/${orderId}/refund`, { reason: "admin refund" }),
+      api.post<Order>(`/ops/orders/${orderId}/refund`, { reason: "admin refund" }),
     onSuccess: () => {
       toast.success("Order refunded");
       void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
@@ -860,7 +860,7 @@ export function AdminOrders() {
 
   const ship = useMutation({
     mutationFn: ({ id, trackingNo }: { id: string; trackingNo: string }) =>
-      api.post<Order>(`/admin/orders/${id}/ship`, { trackingNo }),
+      api.post<Order>(`/ops/orders/${id}/ship`, { trackingNo }),
     onSuccess: () => {
       toast.success("Order shipped");
       void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
@@ -869,7 +869,7 @@ export function AdminOrders() {
   });
 
   const complete = useMutation({
-    mutationFn: (id: string) => api.post<Order>(`/admin/orders/${id}/complete`),
+    mutationFn: (id: string) => api.post<Order>(`/ops/orders/${id}/complete`),
     onSuccess: () => {
       toast.success("Order completed");
       void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });

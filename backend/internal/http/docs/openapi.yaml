@@ -432,9 +432,9 @@ paths:
       responses:
         "200": { description: Accepted }
         "400": { $ref: "#/components/responses/Error" }
-  /admin/categories:
+  /ops/categories:
     post:
-      tags: [Admin]
+      tags: [Ops]
       summary: Create a category
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -458,9 +458,9 @@ paths:
                 type: object
                 properties:
                   data: { $ref: "#/components/schemas/Category" }
-  /admin/products:
+  /ops/products:
     post:
-      tags: [Admin]
+      tags: [Ops]
       summary: Create a product
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -477,9 +477,9 @@ paths:
                 type: object
                 properties:
                   data: { $ref: "#/components/schemas/Product" }
-  /admin/products/{id}:
+  /ops/products/{id}:
     patch:
-      tags: [Admin]
+      tags: [Ops]
       summary: Update a product
       security: [{ bearerAuth: [] }]
       parameters:
@@ -498,9 +498,9 @@ paths:
                 type: object
                 properties:
                   data: { $ref: "#/components/schemas/Product" }
-  /admin/uploads:
+  /ops/uploads:
     post:
-      tags: [Admin]
+      tags: [Ops]
       summary: Upload an image
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -632,15 +632,15 @@ paths:
                       totalCents: { type: integer, format: int64 }
         "400": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
-  /admin/coupons:
+  /ops/coupons:
     get:
-      tags: [Admin]
+      tags: [Ops]
       summary: List coupons
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Coupons }
     post:
-      tags: [Admin]
+      tags: [Ops]
       summary: Create a coupon
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -664,9 +664,9 @@ paths:
                 active: { type: boolean }
       responses:
         "201": { description: Created }
-  /admin/orders/{id}/refund:
+  /ops/orders/{id}/refund:
     post:
-      tags: [Admin]
+      tags: [Ops]
       summary: Refund a paid order and return its stock
       security: [{ bearerAuth: [] }]
       parameters:
@@ -688,9 +688,9 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/Order" }
         "409": { $ref: "#/components/responses/Error" }
-  /admin/products/{id}/variants:
+  /ops/products/{id}/variants:
     get:
-      tags: [Admin]
+      tags: [Ops]
       summary: List a product's variants
       security: [{ bearerAuth: [] }]
       parameters:
@@ -698,7 +698,7 @@ paths:
       responses:
         "200": { description: Variants }
     post:
-      tags: [Admin]
+      tags: [Ops]
       summary: Create a variant (SKU)
       security: [{ bearerAuth: [] }]
       parameters:
@@ -720,9 +720,9 @@ paths:
                 active: { type: boolean }
       responses:
         "201": { description: Created }
-  /admin/variants/{id}:
+  /ops/variants/{id}:
     patch:
-      tags: [Admin]
+      tags: [Ops]
       summary: Update a variant
       security: [{ bearerAuth: [] }]
       parameters:
@@ -809,9 +809,9 @@ paths:
       responses:
         "200": { description: Completed }
         "409": { $ref: "#/components/responses/Error" }
-  /admin/orders/{id}/ship:
+  /ops/orders/{id}/ship:
     post:
-      tags: [Admin]
+      tags: [Ops]
       summary: Mark a paid order as shipped
       security: [{ bearerAuth: [] }]
       parameters:
@@ -826,18 +826,18 @@ paths:
       responses:
         "200": { description: Shipped }
         "409": { $ref: "#/components/responses/Error" }
-  /admin/orders/{id}/complete:
+  /ops/orders/{id}/complete:
     post:
-      tags: [Admin]
+      tags: [Ops]
       summary: Mark a shipped order as completed
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
       responses:
         "200": { description: Completed }
-  /admin/stats:
+  /ops/stats:
     get:
-      tags: [Admin]
+      tags: [Ops]
       summary: Merchant dashboard (revenue, order counts, recent orders)
       security: [{ bearerAuth: [] }]
       responses:
@@ -848,15 +848,15 @@ paths:
       summary: List active shipping methods (public)
       responses:
         "200": { description: Shipping methods }
-  /admin/shipping-methods:
+  /ops/shipping-methods:
     get:
-      tags: [Admin]
+      tags: [Ops]
       summary: List all shipping methods
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Shipping methods }
     post:
-      tags: [Admin]
+      tags: [Ops]
       summary: Create a shipping method
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -866,9 +866,9 @@ paths:
             schema: { $ref: "#/components/schemas/ShippingMethodInput" }
       responses:
         "201": { description: Created }
-  /admin/shipping-methods/{id}:
+  /ops/shipping-methods/{id}:
     patch:
-      tags: [Admin]
+      tags: [Ops]
       summary: Update a shipping method
       security: [{ bearerAuth: [] }]
       parameters:
@@ -940,9 +940,9 @@ paths:
       summary: List the base currency and exchange rates
       responses:
         "200": { description: Currencies }
-  /admin/currencies/{code}:
+  /ops/currencies/{code}:
     put:
-      tags: [Admin]
+      tags: [Ops]
       summary: Set an exchange rate (micro units, base -> code)
       security: [{ bearerAuth: [] }]
       parameters:
@@ -958,9 +958,9 @@ paths:
                 rateMicro: { type: integer, format: int64 }
       responses:
         "200": { description: Saved }
-  /admin/audit-logs:
+  /ops/audit-logs:
     get:
-      tags: [Admin]
+      tags: [Ops]
       summary: Read the audit trail
       security: [{ bearerAuth: [] }]
       parameters:
@@ -1017,9 +1017,9 @@ paths:
                 provider: { type: string }
       responses:
         "200": { description: Confirmed }
-  /admin/coupons/{id}:
+  /ops/coupons/{id}:
     patch:
-      tags: [Admin]
+      tags: [Ops]
       summary: Update or deactivate a coupon
       security: [{ bearerAuth: [] }]
       parameters:
@@ -1040,31 +1040,31 @@ paths:
                 active: { type: boolean }
       responses:
         "200": { description: Updated }
-  /admin/reviews:
+  /ops/reviews:
     get:
-      tags: [Admin]
+      tags: [Ops]
       summary: List reviews across products for moderation
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: query, name: page, schema: { type: integer, default: 1 } }
       responses:
         "200": { description: A page of reviews }
-  /admin/inventory/low-stock:
+  /ops/inventory/low-stock:
     get:
-      tags: [Admin]
+      tags: [Ops]
       summary: Products and variants at or below the low-stock threshold
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Low-stock items }
-  /admin/shipping-zones:
+  /ops/shipping-zones:
     get:
-      tags: [Admin]
+      tags: [Ops]
       summary: List shipping zones
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Zones }
     post:
-      tags: [Admin]
+      tags: [Ops]
       summary: Create a shipping zone
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -1081,18 +1081,18 @@ paths:
                 sort: { type: integer }
       responses:
         "201": { description: Created }
-  /admin/shipping-zones/{id}:
+  /ops/shipping-zones/{id}:
     patch:
-      tags: [Admin]
+      tags: [Ops]
       summary: Update a shipping zone
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
       responses:
         "200": { description: Updated }
-  /admin/shipping-zones/{zoneId}/rates/{methodId}:
+  /ops/shipping-zones/{zoneId}/rates/{methodId}:
     put:
-      tags: [Admin]
+      tags: [Ops]
       summary: Set a zone rate for a method (flat + per-kg)
       security: [{ bearerAuth: [] }]
       parameters:

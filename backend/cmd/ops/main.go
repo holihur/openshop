@@ -1,6 +1,6 @@
-// Command server starts the OpenShop HTTP API, event consumers and background
-// workers. The same binary runs on every replica; scaling out is just running
-// more copies behind a load balancer.
+// Command ops runs the operations (admin) console and its API. It is a separate
+// binary from the storefront server so it can be deployed on an internal
+// network; it serves the admin SPA at / and the admin API under /api/v1/ops.
 package main
 
 import (
@@ -17,7 +17,7 @@ import (
 
 	"github.com/holihur/openshop/internal/bootstrap"
 	"github.com/holihur/openshop/internal/config"
-	apphttpfront "github.com/holihur/openshop/internal/http/front"
+	apphttpops "github.com/holihur/openshop/internal/http/ops"
 	"github.com/holihur/openshop/internal/version"
 )
 
@@ -42,10 +42,10 @@ func main() {
 	defer stop()
 
 	app, err := bootstrap.New(ctx, cfg, bootstrap.Options{
-		Addr:       cfg.HTTP.Addr,
-		RunWorkers: true,
+		Addr:       cfg.Ops.Addr,
+		RunWorkers: false,
 		BuildHTTP: func(d bootstrap.HTTPDeps) http.Handler {
-			return apphttpfront.New(d.Config, d.Tokens, d.Auth, d.Cache, d.Limiter, d.Metrics, d.Tracer, d.Handler)
+			return apphttpops.New(d.Config, d.Tokens, d.Auth, d.Limiter, d.Metrics, d.Tracer, d.Handler)
 		},
 	})
 	if err != nil {

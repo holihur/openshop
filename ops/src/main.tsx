@@ -18,11 +18,12 @@ const queryClient = new QueryClient({
   },
 });
 
-// The console is mounted at /ops, so the router uses that as its basename.
+// The console is the whole app on the ops listener, so the router uses the
+// default base.
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename="/ops">
+      <BrowserRouter>
         <AuthProvider>
           <App />
           <Toaster richColors position="top-center" />

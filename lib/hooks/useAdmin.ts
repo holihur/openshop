@@ -29,28 +29,28 @@ export function useCategories() {
 export function useAdminProducts(page = 1, pageSize = 100) {
   return useQuery({
     queryKey: ["admin", "products", page, pageSize],
-    queryFn: () => api.getPage<Product[]>(`/admin/products?page=${page}&pageSize=${pageSize}`),
+    queryFn: () => api.getPage<Product[]>(`/ops/products?page=${page}&pageSize=${pageSize}`),
   });
 }
 
 export function useAdminOrders(page = 1, pageSize = 50) {
   return useQuery({
     queryKey: ["admin", "orders", page, pageSize],
-    queryFn: () => api.getPage<Order[]>(`/admin/orders?page=${page}&pageSize=${pageSize}`),
+    queryFn: () => api.getPage<Order[]>(`/ops/orders?page=${page}&pageSize=${pageSize}`),
   });
 }
 
 export function useDashboard() {
   return useQuery({
     queryKey: ["admin", "dashboard"],
-    queryFn: () => api.get<Dashboard>("/admin/stats"),
+    queryFn: () => api.get<Dashboard>("/ops/stats"),
   });
 }
 
 export function useAuditLogs() {
   return useQuery({
     queryKey: ["admin", "audit"],
-    queryFn: () => api.getPage<AuditLog[]>("/admin/audit-logs?pageSize=100"),
+    queryFn: () => api.getPage<AuditLog[]>("/ops/audit-logs?pageSize=100"),
   });
 }
 
@@ -65,7 +65,7 @@ export function useSetCurrencyRate() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ code, rateMicro }: { code: string; rateMicro: number }) =>
-      api.put<ExchangeRate>(`/admin/currencies/${code}`, { rateMicro }),
+      api.put<ExchangeRate>(`/ops/currencies/${code}`, { rateMicro }),
     onSuccess: () => {
       toast.success("Exchange rate saved");
       void queryClient.invalidateQueries({ queryKey: ["currencies"] });
@@ -77,7 +77,7 @@ export function useSetCurrencyRate() {
 export function useAdminCoupons() {
   return useQuery({
     queryKey: ["admin", "coupons"],
-    queryFn: () => api.get<Coupon[]>("/admin/coupons"),
+    queryFn: () => api.get<Coupon[]>("/ops/coupons"),
   });
 }
 
@@ -96,7 +96,7 @@ export interface CouponInput {
 export function useCreateCoupon() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CouponInput) => api.post<Coupon>("/admin/coupons", input),
+    mutationFn: (input: CouponInput) => api.post<Coupon>("/ops/coupons", input),
     onSuccess: () => {
       toast.success("Coupon created");
       void queryClient.invalidateQueries({ queryKey: ["admin", "coupons"] });
@@ -109,7 +109,7 @@ export function useUpdateCoupon() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<CouponInput> }) =>
-      api.patch<Coupon>(`/admin/coupons/${id}`, input),
+      api.patch<Coupon>(`/ops/coupons/${id}`, input),
     onSuccess: () => {
       toast.success("Coupon updated");
       void queryClient.invalidateQueries({ queryKey: ["admin", "coupons"] });
@@ -121,7 +121,7 @@ export function useUpdateCoupon() {
 export function useAdminReviews() {
   return useQuery({
     queryKey: ["admin", "reviews"],
-    queryFn: () => api.getPage<Review[]>("/admin/reviews?pageSize=100"),
+    queryFn: () => api.getPage<Review[]>("/ops/reviews?pageSize=100"),
   });
 }
 
@@ -146,7 +146,7 @@ function invalidateCatalog(queryClient: ReturnType<typeof useQueryClient>) {
 export function useCreateProduct() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: ProductInput) => api.post<Product>("/admin/products", input),
+    mutationFn: (input: ProductInput) => api.post<Product>("/ops/products", input),
     onSuccess: () => {
       toast.success("Product created");
       invalidateCatalog(queryClient);
@@ -159,7 +159,7 @@ export function useUpdateProduct() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<ProductInput> }) =>
-      api.patch<Product>(`/admin/products/${id}`, input),
+      api.patch<Product>(`/ops/products/${id}`, input),
     onSuccess: () => {
       toast.success("Product updated");
       invalidateCatalog(queryClient);
@@ -170,7 +170,7 @@ export function useUpdateProduct() {
 
 export function useUploadImage() {
   return useMutation({
-    mutationFn: (file: File) => api.upload<{ key: string; url: string }>("/admin/uploads", file),
+    mutationFn: (file: File) => api.upload<{ key: string; url: string }>("/ops/uploads", file),
     onError: (error: Error) => toast.error(error.message),
   });
 }
@@ -187,7 +187,7 @@ export interface VariantInput {
 export function useVariants(productId: string) {
   return useQuery({
     queryKey: ["admin", "variants", productId],
-    queryFn: () => api.get<Variant[]>(`/admin/products/${productId}/variants`),
+    queryFn: () => api.get<Variant[]>(`/ops/products/${productId}/variants`),
     enabled: Boolean(productId),
   });
 }
@@ -201,7 +201,7 @@ export function useCreateVariant(productId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: VariantInput) =>
-      api.post<Variant>(`/admin/products/${productId}/variants`, input),
+      api.post<Variant>(`/ops/products/${productId}/variants`, input),
     onSuccess: () => {
       toast.success("Variant added");
       invalidateVariants(queryClient, productId);
@@ -214,7 +214,7 @@ export function useUpdateVariant(productId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<VariantInput> }) =>
-      api.patch<Variant>(`/admin/variants/${id}`, input),
+      api.patch<Variant>(`/ops/variants/${id}`, input),
     onSuccess: () => {
       invalidateVariants(queryClient, productId);
     },

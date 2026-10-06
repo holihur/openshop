@@ -125,7 +125,7 @@ main() {
   tar -xzf "$tmp/$archive" -C "$tmp"
 
   mkdir -p "$bin_dir"
-  for bin in openshop openshop-migrate openshop-seed; do
+  for bin in openshop openshop-ops openshop-migrate openshop-seed; do
     [ -f "$tmp/$bin" ] || err "expected binary $bin missing from archive"
     install -m 0755 "$tmp/$bin" "$bin_dir/$bin" 2>/dev/null || {
       cp "$tmp/$bin" "$bin_dir/$bin"
@@ -150,10 +150,12 @@ Next steps:
        export JWT_SECRET="\$(head -c 32 /dev/urandom | base64)"
   2. Apply migrations:  $bin_dir/openshop-migrate -dir $DATA_DIR/migrations
   3. Seed demo data:    $bin_dir/openshop-seed        (optional)
-  4. Run the server:    $bin_dir/openshop
+  4. Run the storefront: $bin_dir/openshop
        storefront  http://localhost:8080/
-       admin (ops) http://localhost:8080/ops
        API docs    http://localhost:8080/docs
+  5. Run the admin console (deploy on an internal network):
+       OPS_ADDR=:8081 $bin_dir/openshop-ops
+       console     http://localhost:8081/
 
 EOF
   case ":$PATH:" in

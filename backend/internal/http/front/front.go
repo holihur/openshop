@@ -1,6 +1,8 @@
-// Package http wires the Gin engine: middleware chain and route table. It is
-// the only package that imports Gin, keeping the framework at the edge.
-package http
+// Package front builds the public storefront HTTP surface: the customer API,
+// the storefront SPA, health/metrics/docs and the SEO endpoints. It is compiled
+// into the openshop-server binary only; the operations API lives in the
+// separate internal/http/ops package and openshop-ops binary.
+package front
 
 import (
 	"net/http"
@@ -18,9 +20,8 @@ import (
 	"github.com/holihur/openshop/internal/service"
 )
 
-// NewRouter builds the HTTP engine. The same engine is created on every
-// replica; there is no instance-local state in the routing layer.
-func NewRouter(
+// New builds the storefront engine.
+func New(
 	cfg *config.Config,
 	tokens port.TokenIssuer,
 	auth *service.AuthService,
@@ -51,7 +52,6 @@ func NewRouter(
 		middleware.RateLimit(limiter, cfg.HTTP.RateLimitRPS),
 	)
 
-	// Prometheus exposition endpoint.
 	if h.Metrics != nil {
 		r.GET("/metrics", gin.WrapH(h.Metrics))
 	}
@@ -66,8 +66,6 @@ func NewRouter(
 	r.GET("/readyz", h.Readyz)
 	r.GET("/robots.txt", h.RobotsTxt)
 	r.GET("/sitemap.xml", h.Sitemap)
-
-	// API documentation: interactive UI and the raw OpenAPI document.
 	r.GET("/docs", func(c *gin.Context) {
 		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(docs.SwaggerHTML))
 	})
@@ -151,61 +149,20 @@ func NewRouter(
 		api.POST("/guest/orders/:token/cancel", h.GuestCancel)
 		api.POST("/guest/orders/:token/complete", h.GuestComplete)
 		api.POST("/guest/payments/simulate", h.GuestSimulate)
-
-		// Admin area.
-		admin := api.Group("/admin")
-		admin.Use(middleware.Auth(tokens, auth, false), middleware.RequireAdmin())
-		{
-			admin.POST("/categories", h.CreateCategory)
-			admin.GET("/products", h.ListProducts)
-			admin.POST("/products", h.CreateProduct)
-			admin.PATCH("/products/:id", h.UpdateProduct)
-			admin.GET("/products/:id/variants", h.ListVariants)
-			admin.POST("/products/:id/variants", h.CreateVariant)
-			admin.PATCH("/variants/:id", h.UpdateVariant)
-			admin.POST("/uploads", h.UploadImage)
-			admin.GET("/orders", h.ListOrders)
-			admin.GET("/orders/:id/invoice", h.DownloadInvoice)
-			admin.GET("/stats", h.Dashboard)
-			admin.GET("/inventory/low-stock", h.LowStock)
-			admin.GET("/audit-logs", h.ListAuditLogs)
-			admin.GET("/shipping-methods", h.AdminListShippingMethods)
-			admin.POST("/shipping-methods", h.CreateShippingMethod)
-			admin.PATCH("/shipping-methods/:id", h.UpdateShippingMethod)
-			admin.GET("/shipping-zones", h.ListShippingZones)
-			admin.POST("/shipping-zones", h.CreateShippingZone)
-			admin.PATCH("/shipping-zones/:id", h.UpdateShippingZone)
-			admin.PUT("/shipping-zones/:zoneId/rates/:methodId", h.SetShippingRate)
-			admin.PUT("/currencies/:code", h.SetCurrencyRate)
-			admin.POST("/orders/:id/refund", h.RefundOrder)
-			admin.POST("/orders/:id/ship", h.ShipOrder)
-			admin.POST("/orders/:id/complete", h.CompleteOrder)
-			admin.GET("/coupons", h.ListCoupons)
-			admin.GET("/reviews", h.ListAllReviews)
-			admin.POST("/coupons", h.CreateCoupon)
-			admin.PATCH("/coupons/:id", h.UpdateCoupon)
-		}
 	}
 
 	// Everything that is not an API, docs, metrics or upload route is served by
-	// an embedded single-page app: the admin console under /ops, the storefront
-	// everywhere else. Each falls back to index.html for client-side routes.
-	front := web.Front()
-	ops := web.Ops()
+	// the embedded storefront SPA, falling back to index.html for client routes.
+	spa := web.Front()
 	r.NoRoute(func(c *gin.Context) {
-		path := c.Request.URL.Path
-		if strings.HasPrefix(path, "/api/") {
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "not_found", "message": "route not found"}})
 			return
 		}
-		// Gin sets a 404 status before invoking NoRoute; reset it so the SPA
-		// handlers can serve their content with a 200.
+		// Gin sets a 404 before invoking NoRoute; reset it so the SPA handler
+		// can serve its content with a 200.
 		c.Status(http.StatusOK)
-		if path == "/ops" || strings.HasPrefix(path, "/ops/") {
-			ops.ServeHTTP(c.Writer, c.Request)
-			return
-		}
-		front.ServeHTTP(c.Writer, c.Request)
+		spa.ServeHTTP(c.Writer, c.Request)
 	})
 
 	return r

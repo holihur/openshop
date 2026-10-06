@@ -105,6 +105,40 @@ services:
     deploy:
       replicas: 1
 
+  # Operations console + admin API. A separate binary so it can be exposed only
+  # on an internal network. It shares the JWT secret and database with the
+  # storefront but runs no background workers.
+  ops:
+    <<: *backend-image
+    command: ["/app/ops"]
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      OPS_ADDR: ":8081"
+      POSTGRES_DSN: host=postgres port=5432 user=${POSTGRES_USER:-openshop} password=${POSTGRES_PASSWORD:-openshop} dbname=${POSTGRES_DB:-openshop} sslmode=disable TimeZone=UTC
+      REDIS_ADDR: redis:6379
+      NATS_URL: nats://nats:4222
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please}
+      APP_CURRENCY: ${APP_CURRENCY:-CNY}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_DIR: /app/data/uploads
+      STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:-http://localhost:8080/uploads}
+      WORKER_ENABLED: "false"
+    ports:
+      - "${OPS_PORT:-8081}:8081"
+    volumes:
+      - uploads:/app/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:

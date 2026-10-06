@@ -2,6 +2,7 @@ packages:
   - lib
   - front
   - ops
+  - e2e
 
 allowBuilds:
   esbuild: true

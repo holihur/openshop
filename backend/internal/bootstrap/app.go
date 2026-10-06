@@ -24,7 +24,6 @@ import (
 	"github.com/holihur/openshop/internal/adapter/storage"
 	"github.com/holihur/openshop/internal/adapter/tracing"
 	"github.com/holihur/openshop/internal/config"
-	apphttp "github.com/holihur/openshop/internal/http"
 	"github.com/holihur/openshop/internal/http/handler"
 	"github.com/holihur/openshop/internal/http/web"
 	"github.com/holihur/openshop/internal/port"
@@ -51,8 +50,33 @@ type App struct {
 	shutdownTracing func(context.Context) error
 }
 
+// HTTPDeps are the wired dependencies a surface package (internal/http/front
+// or internal/http/ops) needs to build its engine. Injecting the builder keeps
+// each binary free of the other surface: the linker drops whatever is unused.
+type HTTPDeps struct {
+	Config  *config.Config
+	Handler *handler.Handler
+	Tokens  port.TokenIssuer
+	Auth    *service.AuthService
+	Cache   port.Cache
+	Limiter port.RateLimiter
+	Metrics port.Metrics
+	Tracer  port.Tracer
+}
+
+// Options selects the HTTP surface and whether background workers run. The
+// storefront binary runs workers; the ops binary does not.
+type Options struct {
+	// BuildHTTP constructs the surface's HTTP handler. Required.
+	BuildHTTP func(HTTPDeps) http.Handler
+	// RunWorkers starts the event consumers and scheduled jobs.
+	RunWorkers bool
+	// Addr overrides the listen address (defaults to cfg.HTTP.Addr).
+	Addr string
+}
+
 // New builds the full dependency graph and returns a ready-to-run App.
-func New(ctx context.Context, cfg *config.Config) (*App, error) {
+func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	log := logger.New(cfg.App.LogLevel, cfg.App.IsProduction(), cfg.App.Name, "instance", cfg.App.InstanceID)
 	log.Info("starting", "version", version.Version, "commit", version.Commit, "front_embedded", web.FrontBuilt(), "ops_embedded", web.OpsBuilt())
 
@@ -158,53 +182,65 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 			{Name: "nats", Check: func(context.Context) error { return bus.Ready() }},
 		},
 	}
-	router := apphttp.NewRouter(cfg, tokens, authSvc, cache, limiter, promMetrics, tracer, h)
+	if opts.BuildHTTP == nil {
+		return nil, fmt.Errorf("bootstrap: Options.BuildHTTP is required")
+	}
+	addr := opts.Addr
+	if addr == "" {
+		addr = cfg.HTTP.Addr
+	}
+	engine := opts.BuildHTTP(HTTPDeps{
+		Config: cfg, Handler: h, Tokens: tokens, Auth: authSvc,
+		Cache: cache, Limiter: limiter, Metrics: promMetrics, Tracer: tracer,
+	})
 
 	app := &App{
 		cfg: cfg, log: log, db: db, redis: rdb, bus: bus, handlers: h,
 		shutdownTracing: shutdownTracing,
 		server: &http.Server{
-			Addr:         cfg.HTTP.Addr,
-			Handler:      router,
+			Addr:         addr,
+			Handler:      engine,
 			ReadTimeout:  cfg.HTTP.ReadTimeout,
 			WriteTimeout: cfg.HTTP.WriteTimeout,
 			IdleTimeout:  60 * time.Second,
 		},
 	}
 
-	// --- event consumers ---
-	consumers := worker.NewConsumers(bus, catalogSvc, mailer, log, tracer)
-	if err := consumers.Start(); err != nil {
-		app.Close(context.Background())
-		return nil, err
-	}
+	// Event consumers and scheduled jobs run only on the storefront binary; the
+	// ops binary is a pure admin surface and stays worker-free.
+	if opts.RunWorkers {
+		consumers := worker.NewConsumers(bus, catalogSvc, mailer, log, tracer)
+		if err := consumers.Start(); err != nil {
+			app.Close(context.Background())
+			return nil, err
+		}
 
-	// --- scheduled jobs ---
-	workerCtx, workerCancel := context.WithCancel(context.Background())
-	app.workerCancel = workerCancel
-	if cfg.Worker.Enabled {
-		sweeper := worker.NewOrderSweeper(orderSvc, catalogSvc, locker, clock, log,
-			cfg.Worker.OrderSweepInterval, cfg.Worker.OrderSweepBatch, cfg.Worker.LeaderLockTTL)
-		app.wg.Add(1)
-		go func() {
-			defer app.wg.Done()
-			app.runWorker(workerCtx, "order-sweeper", sweeper.Run)
-		}()
+		workerCtx, workerCancel := context.WithCancel(context.Background())
+		app.workerCancel = workerCancel
+		if cfg.Worker.Enabled {
+			sweeper := worker.NewOrderSweeper(orderSvc, catalogSvc, locker, clock, log,
+				cfg.Worker.OrderSweepInterval, cfg.Worker.OrderSweepBatch, cfg.Worker.LeaderLockTTL)
+			app.wg.Add(1)
+			go func() {
+				defer app.wg.Done()
+				app.runWorker(workerCtx, "order-sweeper", sweeper.Run)
+			}()
 
-		// The outbox relay is safe to run on every replica; Claim uses SKIP LOCKED.
-		relay := worker.NewOutboxRelay(outbox, bus, clock, log, promMetrics, tracer,
-			cfg.Worker.OutboxInterval, cfg.Worker.OutboxBatch)
-		app.wg.Add(1)
-		go func() {
-			defer app.wg.Done()
-			app.runWorker(workerCtx, "outbox-relay", relay.Run)
-		}()
+			// The outbox relay is safe to run on every replica; Claim uses SKIP LOCKED.
+			relay := worker.NewOutboxRelay(outbox, bus, clock, log, promMetrics, tracer,
+				cfg.Worker.OutboxInterval, cfg.Worker.OutboxBatch)
+			app.wg.Add(1)
+			go func() {
+				defer app.wg.Done()
+				app.runWorker(workerCtx, "outbox-relay", relay.Run)
+			}()
+		}
 	}
 
 	log.Info("application initialised",
-		"env", cfg.App.Env, "currency", cfg.App.Currency,
+		"env", cfg.App.Env, "currency", cfg.App.Currency, "addr", addr,
 		"storage", cfg.Storage.Driver, "paymentProvider", cfg.Payment.DefaultProvider,
-		"workers", cfg.Worker.Enabled)
+		"workers", opts.RunWorkers && cfg.Worker.Enabled)
 	return app, nil
 }
 

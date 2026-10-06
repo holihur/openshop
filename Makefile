@@ -47,8 +47,12 @@ fmt: ## Format Go code
 	cd $(BACKEND) && gofmt -w .
 
 .PHONY: run
-run: ## Run the API locally (expects postgres/redis/nats)
+run: ## Run the storefront API locally (expects postgres/redis/nats)
 	cd $(BACKEND) && go run ./cmd/server
+
+.PHONY: run-ops
+run-ops: ## Run the admin (ops) API locally on :8081
+	cd $(BACKEND) && OPS_ADDR=:8081 go run ./cmd/ops
 
 .PHONY: migrate
 migrate: ## Apply database migrations
@@ -93,3 +97,8 @@ fe-build: ## Build both SPAs and copy them into the backend
 .PHONY: release
 release: ## Build release artifacts locally with GoReleaser (snapshot)
 	goreleaser release --snapshot --clean
+
+.PHONY: e2e
+
+e2e: ## Run the Playwright browser tests (boots a server on :18081)
+	pnpm --filter @openshop/e2e test

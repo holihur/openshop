@@ -15,7 +15,7 @@ export function useShippingMethods() {
 export function useAdminShippingMethods() {
   return useQuery({
     queryKey: ["admin", "shipping-methods"],
-    queryFn: () => api.get<ShippingMethod[]>("/admin/shipping-methods"),
+    queryFn: () => api.get<ShippingMethod[]>("/ops/shipping-methods"),
   });
 }
 
@@ -32,7 +32,7 @@ export function useCreateShippingMethod() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: ShippingMethodInput) =>
-      api.post<ShippingMethod>("/admin/shipping-methods", input),
+      api.post<ShippingMethod>("/ops/shipping-methods", input),
     onSuccess: () => {
       toast.success("Shipping method created");
       void queryClient.invalidateQueries({ queryKey: ["admin", "shipping-methods"] });
@@ -46,7 +46,7 @@ export function useUpdateShippingMethod() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: ShippingMethodInput }) =>
-      api.patch<ShippingMethod>(`/admin/shipping-methods/${id}`, input),
+      api.patch<ShippingMethod>(`/ops/shipping-methods/${id}`, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin", "shipping-methods"] });
       void queryClient.invalidateQueries({ queryKey: ["shipping-methods"] });
@@ -58,7 +58,7 @@ export function useUpdateShippingMethod() {
 export function useAdminShippingZones() {
   return useQuery({
     queryKey: ["admin", "shipping-zones"],
-    queryFn: () => api.get<ShippingZone[]>("/admin/shipping-zones"),
+    queryFn: () => api.get<ShippingZone[]>("/ops/shipping-zones"),
   });
 }
 
@@ -66,7 +66,7 @@ export function useCreateShippingZone() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { name: string; provinces: string[]; active?: boolean; sort?: number }) =>
-      api.post<ShippingZone>("/admin/shipping-zones", input),
+      api.post<ShippingZone>("/ops/shipping-zones", input),
     onSuccess: () => {
       toast.success("Zone created");
       void queryClient.invalidateQueries({ queryKey: ["admin", "shipping-zones"] });
@@ -81,7 +81,7 @@ export function useSetShippingRate() {
       zoneId: string;
       methodId: string;
       input: { flatRateCents: number; freeThresholdCents: number; perKgCents: number };
-    }) => api.put(`/admin/shipping-zones/${zoneId}/rates/${methodId}`, input),
+    }) => api.put(`/ops/shipping-zones/${zoneId}/rates/${methodId}`, input),
     onSuccess: () => toast.success("Rate saved"),
     onError: (error: Error) => toast.error(error.message),
   });

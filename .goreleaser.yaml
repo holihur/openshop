@@ -49,6 +49,19 @@ builds:
       - -X github.com/holihur/openshop/internal/version.Commit={{.Commit}}
       - -X github.com/holihur/openshop/internal/version.Date={{.Date}}
 
+  - id: openshop-ops
+    dir: backend
+    main: ./cmd/ops
+    binary: openshop-ops
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/holihur/openshop/internal/version.Version={{.Version}}
+      - -X github.com/holihur/openshop/internal/version.Commit={{.Commit}}
+      - -X github.com/holihur/openshop/internal/version.Date={{.Date}}
+
 archives:
   - id: openshop
     formats: [tar.gz]
@@ -93,5 +106,8 @@ release:
     ```
 
     This downloads the latest release for your OS/arch, verifies its checksum and
-    installs `openshop`, `openshop-migrate` and `openshop-seed` into
-    `~/.local/bin` (or `/usr/local/bin` when writable).
+    installs `openshop`, `openshop-ops`, `openshop-migrate` and `openshop-seed`
+    into `~/.local/bin` (or `/usr/local/bin` when writable).
+
+    `openshop` serves the storefront and the public API; `openshop-ops` serves
+    the admin console and the ops API and is intended for an internal network.

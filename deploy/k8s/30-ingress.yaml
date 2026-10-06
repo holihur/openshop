@@ -1,5 +1,6 @@
-# The backend serves the API, the storefront and the admin console (both are
-# embedded in the binary), so a single ingress rule routes everything to it.
+# The storefront binary serves the public API and the embedded storefront SPA, so
+# a single ingress rule routes everything to it. The admin console is a separate
+# service (openshop-ops) and is intentionally not exposed here.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

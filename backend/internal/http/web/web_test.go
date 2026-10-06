@@ -7,16 +7,10 @@ import (
 )
 
 func TestFrontAndOpsServeOK(t *testing.T) {
-	cases := map[string]struct {
-		handler http.Handler
-		path    string
-	}{
-		"front": {Front(), "/"},
-		"ops":   {Ops(), "/ops"},
-	}
-	for name, tc := range cases {
+	cases := map[string]http.Handler{"front": Front(), "ops": Ops()}
+	for name, handler := range cases {
 		rec := httptest.NewRecorder()
-		tc.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 		if rec.Code != http.StatusOK {
 			t.Errorf("%s: status = %d, want 200", name, rec.Code)
 		}
@@ -26,18 +20,10 @@ func TestFrontAndOpsServeOK(t *testing.T) {
 	}
 }
 
-func TestOpsRejectsNonOpsPath(t *testing.T) {
+func TestServesClientRoutes(t *testing.T) {
+	// A client-side route must fall back to index (200), not 404.
 	rec := httptest.NewRecorder()
-	Ops().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/not-ops", nil))
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("status = %d, want 404", rec.Code)
-	}
-}
-
-func TestOpsStripsPrefix(t *testing.T) {
-	// A client-side route under /ops must fall back to index (200), not 404.
-	rec := httptest.NewRecorder()
-	Ops().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/ops/products", nil))
+	Front().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/products/abc", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}

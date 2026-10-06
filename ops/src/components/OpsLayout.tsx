@@ -3,6 +3,7 @@ import {
   BadgePercent,
   BarChart3,
   Boxes,
+  ExternalLink,
   LogOut,
   ScrollText,
   ShoppingCart,
@@ -15,6 +16,10 @@ import {
 import { Button } from "@lib/components/ui/button";
 import { cn } from "@lib/utils";
 import { useAuth } from "@lib/auth";
+
+// The public storefront lives on a different host/port (this console is on the
+// intranet), so the link is configurable at build time.
+const storefrontURL = import.meta.env.VITE_STOREFRONT_URL ?? "http://localhost:8080";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: BarChart3, end: true },
@@ -48,7 +53,8 @@ export function OpsLayout() {
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground hidden sm:inline">{user?.email}</span>
             <Button variant="outline" size="sm" asChild>
-              <a href="/" target="_blank" rel="noreferrer">
+              <a href={storefrontURL} target="_blank" rel="noreferrer">
+                <ExternalLink className="size-4" />
                 Storefront
               </a>
             </Button>

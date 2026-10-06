@@ -23,6 +23,12 @@ node_modules/
 /backend/internal/http/web/ops/dist/*
 !/backend/internal/http/web/ops/dist/.gitkeep
 
+# Playwright
+/e2e/test-results/
+/e2e/playwright-report/
+/e2e/blob-report/
+/e2e/.playwright/
+
 # Editors / OS
 .DS_Store
 .idea/

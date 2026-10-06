@@ -14,6 +14,7 @@ import (
 type Config struct {
 	App      AppConfig
 	HTTP     HTTPConfig
+	Ops      OpsConfig
 	Postgres PostgresConfig
 	Redis    RedisConfig
 	NATS     NATSConfig
@@ -54,6 +55,12 @@ type HTTPConfig struct {
 	// TrustedProxies lists CIDRs whose X-Forwarded-For is trusted for ClientIP
 	// and rate limiting. Empty trusts all proxies (Gin default).
 	TrustedProxies []string
+}
+
+// OpsConfig configures the operations (admin) binary, which is deployed on an
+// internal network separately from the public storefront.
+type OpsConfig struct {
+	Addr string
 }
 
 type PostgresConfig struct {
@@ -159,6 +166,9 @@ func Load() (*Config, error) {
 			RateLimitRPS:     envInt("HTTP_RATE_LIMIT_RPS", 50),
 			RateLimitUserRPS: envInt("HTTP_RATE_LIMIT_USER_RPS", 100),
 			TrustedProxies:   envList("HTTP_TRUSTED_PROXIES", nil),
+		},
+		Ops: OpsConfig{
+			Addr: env("OPS_ADDR", ":8081"),
 		},
 		Postgres: PostgresConfig{
 			DSN:             env("POSTGRES_DSN", "host=localhost port=5432 user=openshop password=openshop dbname=openshop sslmode=disable TimeZone=UTC"),

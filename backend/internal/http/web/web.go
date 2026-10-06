@@ -26,8 +26,9 @@ var opsFS embed.FS
 // Front returns the handler for the customer storefront, mounted at "/".
 func Front() http.Handler { return spa(frontFS, "front/dist", "") }
 
-// Ops returns the handler for the admin console, mounted under "/ops".
-func Ops() http.Handler { return spa(opsFS, "ops/dist", "/ops") }
+// Ops returns the handler for the admin console. It is served at the root of
+// the internal ops listener (see internal/http/ops).
+func Ops() http.Handler { return spa(opsFS, "ops/dist", "") }
 
 // FrontBuilt reports whether a real storefront build is embedded.
 func FrontBuilt() bool { return built(frontFS, "front/dist") }

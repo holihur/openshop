@@ -1,0 +1,69 @@
+# Operations console + admin API, deployed as its own binary on an internal
+# network. It is a ClusterIP Service with no public Ingress; expose it through a
+# VPN, a bastion or an internal-only ingress as needed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshop-ops
+  namespace: openshop
+  labels: { app: openshop-ops }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: openshop-ops }
+  template:
+    metadata:
+      labels: { app: openshop-ops }
+    spec:
+      initContainers:
+        - name: migrate
+          image: ghcr.io/holihur/openshop-backend:latest
+          command: ["/app/migrate", "-dir", "/app/migrations"]
+          envFrom:
+            - configMapRef: { name: openshop-config }
+            - secretRef: { name: openshop-secrets }
+      containers:
+        - name: ops
+          image: ghcr.io/holihur/openshop-backend:latest
+          command: ["/app/ops"]
+          ports:
+            - { name: http, containerPort: 8081 }
+          env:
+            - { name: OPS_ADDR, value: ":8081" }
+            - { name: WORKER_ENABLED, value: "false" }
+          envFrom:
+            - configMapRef: { name: openshop-config }
+            - secretRef: { name: openshop-secrets }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "50m", memory: "96Mi" }
+            limits: { cpu: "500m", memory: "384Mi" }
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshop-ops
+  namespace: openshop
+spec:
+  # Internal only. The public Ingress does not reference this service.
+  type: ClusterIP
+  selector: { app: openshop-ops }
+  ports:
+    - { name: http, port: 8081, targetPort: http }
