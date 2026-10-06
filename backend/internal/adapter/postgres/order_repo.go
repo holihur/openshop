@@ -84,6 +84,18 @@ func (r *OrderRepository) FindExpiredPending(ctx context.Context, now time.Time,
 	return out, nil
 }
 
+// AnonymizeByUser detaches orders from a user for GDPR erasure, keeping the
+// financial record but dropping identity and shipping data.
+func (r *OrderRepository) AnonymizeByUser(ctx context.Context, userID string) error {
+	return translate(r.db.session(ctx).Model(&orderModel{}).Where("user_id = ?", userID).
+		Updates(map[string]any{
+			"user_id":          nil,
+			"shipping_address": nil,
+			"guest_email":      "",
+			"guest_phone":      "",
+		}).Error)
+}
+
 func (r *OrderRepository) List(ctx context.Context, f domain.OrderFilter) (domain.Page[domain.Order], error) {
 	page, size := normalizePage(f.Page, f.PageSize, 10)
 

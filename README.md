@@ -285,6 +285,8 @@ retries safe.
 | `POST` | `/auth/password/change` | ✔ | Change password (revokes sessions) |
 | `POST` | `/auth/logout` | ✔ | Revoke the current tokens |
 | `GET` | `/auth/me` | ✔ | Current profile |
+| `GET` | `/auth/me/export` | ✔ | Export all personal data (GDPR) |
+| `DELETE` | `/auth/me` | ✔ | Erase account and personal data |
 
 ### Catalog
 

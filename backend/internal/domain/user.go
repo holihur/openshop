@@ -17,12 +17,12 @@ const (
 )
 
 // User is the account aggregate root. It never stores a raw password, only a
-// hash produced by the PasswordHasher port.
+// hash produced by the PasswordHasher port. PasswordHash is never serialised.
 type User struct {
 	ID              string
 	Email           string
 	Phone           string
-	PasswordHash    string
+	PasswordHash    string `json:"-"`
 	Name            string
 	Role            UserRole
 	Status          UserStatus

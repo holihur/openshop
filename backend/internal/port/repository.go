@@ -19,6 +19,7 @@ type CartRepository interface {
 type UserRepository interface {
 	Create(ctx context.Context, u *domain.User) error
 	Update(ctx context.Context, u *domain.User) error
+	Delete(ctx context.Context, id string) error
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	FindByPhone(ctx context.Context, phone string) (*domain.User, error)
@@ -55,6 +56,9 @@ type OrderRepository interface {
 	// auto-cancel worker. Scoped by limit so each run stays bounded.
 	FindExpiredPending(ctx context.Context, now time.Time, limit int) ([]domain.Order, error)
 	List(ctx context.Context, f domain.OrderFilter) (domain.Page[domain.Order], error)
+	// AnonymizeByUser detaches a user's orders from their identity (GDPR erasure)
+	// while keeping the financial record.
+	AnonymizeByUser(ctx context.Context, userID string) error
 }
 
 // PaymentRepository persists payment attempts.
@@ -92,6 +96,8 @@ type ReviewRepository interface {
 	// List returns reviews across products for moderation; an empty ProductID
 	// means all products.
 	List(ctx context.Context, f domain.ReviewFilter) (domain.Page[domain.Review], error)
+	ListByUser(ctx context.Context, userID string) ([]domain.Review, error)
+	DeleteByUser(ctx context.Context, userID string) error
 	Summary(ctx context.Context, productID string) (domain.ReviewSummary, error)
 }
 
@@ -118,6 +124,7 @@ type AddressRepository interface {
 	// ClearDefault unsets the default flag for every address of a user, so a new
 	// default can be set atomically by the caller.
 	ClearDefault(ctx context.Context, userID string) error
+	DeleteByUser(ctx context.Context, userID string) error
 }
 
 // AnalyticsRepository provides aggregate reads for the merchant dashboard.
@@ -161,6 +168,7 @@ type WishlistRepository interface {
 	Add(ctx context.Context, userID, productID string) error
 	Remove(ctx context.Context, userID, productID string) error
 	ListByUser(ctx context.Context, userID string) ([]domain.Product, error)
+	DeleteByUser(ctx context.Context, userID string) error
 }
 
 // CurrencyRepository persists exchange rates from the base currency.

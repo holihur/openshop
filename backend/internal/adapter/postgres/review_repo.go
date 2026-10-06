@@ -71,6 +71,22 @@ func (r *ReviewRepository) List(ctx context.Context, f domain.ReviewFilter) (dom
 	return r.list(ctx, f, false)
 }
 
+func (r *ReviewRepository) ListByUser(ctx context.Context, userID string) ([]domain.Review, error) {
+	var models []reviewModel
+	if err := r.db.session(ctx).Where("user_id = ?", userID).Order("created_at desc").Find(&models).Error; err != nil {
+		return nil, translate(err)
+	}
+	out := make([]domain.Review, 0, len(models))
+	for i := range models {
+		out = append(out, *toReview(&models[i]))
+	}
+	return out, nil
+}
+
+func (r *ReviewRepository) DeleteByUser(ctx context.Context, userID string) error {
+	return translate(r.db.session(ctx).Delete(&reviewModel{}, "user_id = ?", userID).Error)
+}
+
 func (r *ReviewRepository) list(ctx context.Context, f domain.ReviewFilter, requireProduct bool) (domain.Page[domain.Review], error) {
 	page, size := normalizePage(f.Page, f.PageSize, 10)
 	q := r.db.session(ctx).Model(&reviewModel{})

@@ -79,4 +79,8 @@ func (r *AddressRepository) ClearDefault(ctx context.Context, userID string) err
 		Update("is_default", false).Error)
 }
 
+func (r *AddressRepository) DeleteByUser(ctx context.Context, userID string) error {
+	return translate(r.db.session(ctx).Delete(&addressModel{}, "user_id = ?", userID).Error)
+}
+
 var _ port.AddressRepository = (*AddressRepository)(nil)

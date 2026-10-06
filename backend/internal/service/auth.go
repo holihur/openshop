@@ -440,6 +440,12 @@ func (s *AuthService) addUserFamily(ctx context.Context, userID, family string) 
 	_ = s.cache.SetJSON(ctx, userFamiliesKeyPrefix+userID, families, s.refreshTTL)
 }
 
+// RevokeAllSessions invalidates every refresh token of a user (used on password
+// change/reset and account deletion).
+func (s *AuthService) RevokeAllSessions(ctx context.Context, userID string) {
+	s.revokeAllSessions(ctx, userID)
+}
+
 // revokeAllSessions invalidates every refresh token of a user. It is called
 // after a password change or reset, so a compromised session cannot outlive the
 // credential change.

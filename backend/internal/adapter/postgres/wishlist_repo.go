@@ -33,6 +33,10 @@ func (r *WishlistRepository) Remove(ctx context.Context, userID, productID strin
 		Delete(&wishlistModel{}, "user_id = ? AND product_id = ?", userID, productID).Error)
 }
 
+func (r *WishlistRepository) DeleteByUser(ctx context.Context, userID string) error {
+	return translate(r.db.session(ctx).Delete(&wishlistModel{}, "user_id = ?", userID).Error)
+}
+
 func (r *WishlistRepository) ListByUser(ctx context.Context, userID string) ([]domain.Product, error) {
 	var models []productModel
 	err := r.db.session(ctx).

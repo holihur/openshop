@@ -35,6 +35,17 @@ func (r *UserRepository) Update(ctx context.Context, u *domain.User) error {
 	return nil
 }
 
+func (r *UserRepository) Delete(ctx context.Context, id string) error {
+	res := r.db.session(ctx).Delete(&userModel{}, "id = ?", id)
+	if res.Error != nil {
+		return translate(res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 func (r *UserRepository) FindByID(ctx context.Context, id string) (*domain.User, error) {
 	var m userModel
 	if err := r.db.session(ctx).First(&m, "id = ?", id).Error; err != nil {

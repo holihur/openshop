@@ -31,6 +31,7 @@ type Handler struct {
 	Audit     *service.AuditService
 	Wishlist  *service.WishlistService
 	Currency  *service.CurrencyService
+	Account   *service.AccountService
 	Storage   port.ObjectStorage
 	SiteURL   string
 	IDs       port.IDGenerator

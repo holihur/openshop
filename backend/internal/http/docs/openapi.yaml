@@ -141,6 +141,20 @@ paths:
                 refreshToken: { type: string }
       responses:
         "204": { description: Revoked }
+  /auth/me/export:
+    get:
+      tags: [Auth]
+      summary: Export the caller's personal data (GDPR access)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: A JSON bundle of profile, addresses, orders, reviews and wishlist }
+  /auth/me:
+    delete:
+      tags: [Auth]
+      summary: Erase the caller's account and personal data (GDPR erasure)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: Deleted }
   /auth/me:
     get:
       tags: [Auth]

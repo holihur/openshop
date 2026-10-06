@@ -18,6 +18,7 @@ import { GuestOrderPage } from "@/pages/GuestOrder";
 import { PaymentResultPage } from "@/pages/PaymentResult";
 import { AddressesPage } from "@/pages/Addresses";
 import { WishlistPage } from "@/pages/Wishlist";
+import { AccountSettingsPage } from "@/pages/AccountSettings";
 import { AdminPage } from "@/pages/admin/AdminPage";
 import { NotFoundPage } from "@/pages/NotFound";
 
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="account/addresses" element={<AddressesPage />} />
           <Route path="account/wishlist" element={<WishlistPage />} />
+          <Route path="account/settings" element={<AccountSettingsPage />} />
         </Route>
 
         <Route element={<AdminRoute />}>

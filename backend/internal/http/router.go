@@ -102,6 +102,8 @@ func NewRouter(
 		{
 			authed.POST("/auth/logout", h.Logout)
 			authed.GET("/auth/me", h.Me)
+			authed.GET("/auth/me/export", h.ExportAccount)
+			authed.DELETE("/auth/me", h.DeleteAccount)
 			authed.POST("/auth/password/change", h.ChangePassword)
 
 			authed.GET("/wishlist", h.ListWishlist)

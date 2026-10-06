@@ -50,6 +50,13 @@ func (r *fakeUserRepo) Update(_ context.Context, u *domain.User) error {
 	return nil
 }
 
+func (r *fakeUserRepo) Delete(_ context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.byID, id)
+	return nil
+}
+
 func (r *fakeUserRepo) FindByID(_ context.Context, id string) (*domain.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -213,6 +220,18 @@ func (r *fakeOrderRepo) Update(_ context.Context, o *domain.Order) error {
 	defer r.mu.Unlock()
 	cp := *o
 	r.data[o.ID] = &cp
+	return nil
+}
+
+func (r *fakeOrderRepo) AnonymizeByUser(_ context.Context, userID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, o := range r.data {
+		if o.UserID == userID {
+			o.UserID = ""
+			o.ShippingAddress = nil
+		}
+	}
 	return nil
 }
 
@@ -564,6 +583,17 @@ func (r *fakeAddressRepo) ClearDefault(_ context.Context, userID string) error {
 	for _, a := range r.data {
 		if a.UserID == userID {
 			a.Default = false
+		}
+	}
+	return nil
+}
+
+func (r *fakeAddressRepo) DeleteByUser(_ context.Context, userID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for id, a := range r.data {
+		if a.UserID == userID {
+			delete(r.data, id)
 		}
 	}
 	return nil
