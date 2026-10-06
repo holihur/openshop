@@ -37,6 +37,7 @@ type ProductRepository interface {
 	Create(ctx context.Context, p *domain.Product) error
 	Update(ctx context.Context, p *domain.Product) error
 	FindByID(ctx context.Context, id string) (*domain.Product, error)
+	FindBySlug(ctx context.Context, slug string) (*domain.Product, error)
 	List(ctx context.Context, f domain.ProductFilter) (domain.Page[domain.Product], error)
 	// DecreaseStock atomically decrements stock when enough is available. It
 	// returns ErrInsufficientStock when the guard fails, which makes it safe for

@@ -53,6 +53,14 @@ func (r *ProductRepository) FindByID(ctx context.Context, id string) (*domain.Pr
 	return toProduct(&m), nil
 }
 
+func (r *ProductRepository) FindBySlug(ctx context.Context, slug string) (*domain.Product, error) {
+	var m productModel
+	if err := r.db.session(ctx).First(&m, "slug = ?", slug).Error; err != nil {
+		return nil, translate(err)
+	}
+	return toProduct(&m), nil
+}
+
 func (r *ProductRepository) List(ctx context.Context, f domain.ProductFilter) (domain.Page[domain.Product], error) {
 	page, size := normalizePage(f.Page, f.PageSize, 20)
 

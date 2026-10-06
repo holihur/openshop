@@ -127,6 +127,18 @@ func (r *fakeProductRepo) FindByID(_ context.Context, id string) (*domain.Produc
 	return nil, domain.ErrNotFound
 }
 
+func (r *fakeProductRepo) FindBySlug(_ context.Context, slug string) (*domain.Product, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, p := range r.data {
+		if p.Slug == slug {
+			cp := *p
+			return &cp, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
 func (r *fakeProductRepo) List(_ context.Context, _ domain.ProductFilter) (domain.Page[domain.Product], error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

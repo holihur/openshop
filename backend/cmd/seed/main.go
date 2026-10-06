@@ -104,16 +104,18 @@ func main() {
 	}
 	for i, spec := range productSpecs {
 		slug := fmt.Sprintf("%s-%d", slugify(spec.title), i+1)
+		// Skip products that already exist so re-running the seed is silent.
+		if _, err := products.FindBySlug(ctx, slug); err == nil {
+			continue
+		} else if !errors.Is(err, domain.ErrNotFound) {
+			fatal("find product", err)
+		}
 		p := &domain.Product{
 			ID: ids.NewID(), CategoryID: catIDs[spec.catSlug], Title: spec.title, Slug: slug,
 			Description: spec.desc, PriceCents: spec.price, Currency: cfg.App.Currency,
 			Status: domain.ProductPublished, Stock: spec.stock, CreatedAt: now, UpdatedAt: now,
 		}
 		if err := products.Create(ctx, p); err != nil {
-			// Unique slug violation means the seed already ran.
-			if errors.Is(err, domain.ErrConflict) {
-				continue
-			}
 			fatal("create product", err)
 		}
 		fmt.Println("created product:", spec.title)
