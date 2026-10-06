@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +58,19 @@ export function OrderDetailPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const [downloading, setDownloading] = useState(false);
+  async function downloadInvoice() {
+    if (!order) return;
+    setDownloading(true);
+    try {
+      await api.download(`/orders/${order.id}/invoice`, `invoice-${order.orderNo}.pdf`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not download invoice");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -98,25 +112,31 @@ export function OrderDetailPage() {
           </p>
         </div>
 
-        {order.status === "pending_payment" && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              disabled={cancel.isPending}
-              onClick={() => cancel.mutate()}
-            >
-              Cancel
+        <div className="flex flex-wrap items-center gap-2">
+          {order.status === "pending_payment" && (
+            <>
+              <Button
+                variant="outline"
+                disabled={cancel.isPending}
+                onClick={() => cancel.mutate()}
+              >
+                Cancel
+              </Button>
+              <Button disabled={payNow.isPending} onClick={() => payNow.mutate()}>
+                {payNow.isPending ? "Redirecting…" : "Pay now"}
+              </Button>
+            </>
+          )}
+          {order.status === "shipped" && (
+            <Button disabled={confirmReceipt.isPending} onClick={() => confirmReceipt.mutate()}>
+              {confirmReceipt.isPending ? "Confirming…" : "Confirm receipt"}
             </Button>
-            <Button disabled={payNow.isPending} onClick={() => payNow.mutate()}>
-              {payNow.isPending ? "Redirecting…" : "Pay now"}
-            </Button>
-          </div>
-        )}
-        {order.status === "shipped" && (
-          <Button disabled={confirmReceipt.isPending} onClick={() => confirmReceipt.mutate()}>
-            {confirmReceipt.isPending ? "Confirming…" : "Confirm receipt"}
+          )}
+          <Button variant="outline" disabled={downloading} onClick={downloadInvoice}>
+            <Download className="size-4" />
+            Invoice
           </Button>
-        )}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">

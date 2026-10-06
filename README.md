@@ -328,6 +328,7 @@ retries safe.
 | `POST` | `/orders` | ✔ | Checkout (reserves stock atomically) |
 | `GET` | `/orders` | ✔ | List orders (admins see all) |
 | `GET` | `/orders/:id` | ✔ | Order detail |
+| `GET` | `/orders/:id/invoice` | ✔ | Download the order invoice as PDF |
 | `POST` | `/orders/:id/cancel` | ✔ | Cancel & release stock |
 | `POST` | `/orders/:id/complete` | ✔ | Confirm receipt of a shipped order |
 | `GET` | `/addresses` | ✔ | List shipping addresses |
@@ -361,6 +362,7 @@ retries safe.
 | `POST` | `/admin/orders/:id/refund` | Refund a paid order (restores stock) |
 | `POST` | `/admin/orders/:id/ship` | Mark a paid order shipped (tracking number) |
 | `POST` | `/admin/orders/:id/complete` | Mark a shipped order completed |
+| `GET` | `/admin/orders/:id/invoice` | Download any order's invoice as PDF |
 | `GET` | `/admin/shipping-methods` | List shipping methods |
 | `POST` | `/admin/shipping-methods` | Create a shipping method |
 | `PATCH` | `/admin/shipping-methods/:id` | Update a shipping method |

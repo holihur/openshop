@@ -132,6 +132,17 @@ func (h *Handler) GetOrder(c *gin.Context) {
 	response.OK(c, toOrderView(*order))
 }
 
+// DownloadInvoice streams the order as a PDF. Owners and admins may fetch it.
+func (h *Handler) DownloadInvoice(c *gin.Context) {
+	pdf, err := h.Orders.Invoice(c.Request.Context(), c.Param("id"), middleware.UserID(c), middleware.IsAdmin(c))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	c.Header("Content-Disposition", `attachment; filename="invoice.pdf"`)
+	c.Data(200, "application/pdf", pdf)
+}
+
 func (h *Handler) CancelOrder(c *gin.Context) {
 	order, err := h.Orders.Cancel(c.Request.Context(), middleware.UserID(c), c.Param("id"), middleware.IsAdmin(c))
 	if err != nil {

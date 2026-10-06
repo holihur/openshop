@@ -34,13 +34,14 @@ func newOrderFixtureTax(taxBps int) *orderFixture {
 	zones := newFakeZoneRepo()
 	carts := newFakeCartRepo()
 	orders := newFakeOrderRepo()
+	users := newFakeUserRepo()
 	coupons := newFakeCouponRepo()
 	outbox := newFakeOutbox()
 	locker := newFakeLocker()
 	svc := NewOrderService(
-		orders, products, coupons, variants, addresses, shipping, zones, nil, carts, locker, fakeTx{}, outbox,
+		orders, users, products, coupons, variants, addresses, shipping, zones, nil, carts, locker, fakeTx{}, outbox,
 		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
-		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, taxBps, 30*time.Minute, "CNY",
+		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, nil, taxBps, 30*time.Minute, "CNY",
 	)
 	return &orderFixture{
 		svc: svc, products: products, variants: variants, addresses: addresses, shipping: shipping,
@@ -483,14 +484,15 @@ func TestCheckoutConvertsCurrency(t *testing.T) {
 	zones := newFakeZoneRepo()
 	carts := newFakeCartRepo()
 	orders := newFakeOrderRepo()
+	users := newFakeUserRepo()
 	coupons := newFakeCouponRepo()
 	outbox := newFakeOutbox()
 	locker := newFakeLocker()
 	svc := NewOrderService(
-		orders, products, coupons, variants, addresses, shipping, zones, fakeRates{rate: 7_000_000},
+		orders, users, products, coupons, variants, addresses, shipping, zones, fakeRates{rate: 7_000_000},
 		carts, locker, fakeTx{}, outbox,
 		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
-		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, 0, 30*time.Minute, "CNY",
+		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, nil, 0, 30*time.Minute, "CNY",
 	)
 	products.put(&domain.Product{ID: "p1", Title: "Tee", PriceCents: 1000, Currency: "CNY", Status: domain.ProductPublished, Stock: 5})
 	_ = carts.Save(context.Background(), &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 2}}})

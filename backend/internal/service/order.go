@@ -25,6 +25,7 @@ type ProductCacheInvalidator interface {
 // transactional outbox in the same transaction, so they are never lost.
 type OrderService struct {
 	orders       port.OrderRepository
+	users        port.UserRepository
 	products     port.ProductRepository
 	coupons      port.CouponRepository
 	variants     port.VariantRepository
@@ -42,6 +43,7 @@ type OrderService struct {
 	productCache ProductCacheInvalidator
 	metrics      port.Metrics
 	tracer       port.Tracer
+	invoices     port.InvoiceRenderer
 	taxRateBps   int
 	ttl          time.Duration
 	currency     string
@@ -49,6 +51,7 @@ type OrderService struct {
 
 func NewOrderService(
 	orders port.OrderRepository,
+	users port.UserRepository,
 	products port.ProductRepository,
 	coupons port.CouponRepository,
 	variants port.VariantRepository,
@@ -66,6 +69,7 @@ func NewOrderService(
 	productCache ProductCacheInvalidator,
 	metrics port.Metrics,
 	tracer port.Tracer,
+	invoices port.InvoiceRenderer,
 	taxRateBps int,
 	ttl time.Duration,
 	currency string,
@@ -77,16 +81,67 @@ func NewOrderService(
 		tracer = port.NoopTracer{}
 	}
 	return &OrderService{
-		orders: orders, products: products, coupons: coupons, variants: variants, addresses: addresses,
+		orders: orders, users: users, products: products, coupons: coupons, variants: variants, addresses: addresses,
 		shipping: shipping, zones: zones, rates: rates, carts: carts, locker: locker, tx: tx,
 		outbox: outbox, ids: ids, clock: clock, logger: logger, productCache: productCache,
-		metrics: metrics, tracer: tracer, taxRateBps: taxRateBps, ttl: ttl, currency: currency,
+		metrics: metrics, tracer: tracer, invoices: invoices, taxRateBps: taxRateBps, ttl: ttl, currency: currency,
 	}
 }
 
 // Checkout converts the user's cart into a pending order, reserving stock. The
 // per-user lock prevents duplicate submissions from retries or double clicks;
 // the transaction guarantees stock and order move together.
+// Invoice renders the order as a document (PDF) for download. Only the owner
+// or an admin may fetch it.
+func (s *OrderService) Invoice(ctx context.Context, orderID, requesterID string, admin bool) ([]byte, error) {
+	order, err := s.orders.FindByID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if !admin && order.UserID != requesterID {
+		return nil, domain.ErrForbidden
+	}
+	if s.invoices == nil {
+		return nil, domain.ErrNotFound
+	}
+
+	data := port.InvoiceData{
+		OrderNumber:   order.OrderNo,
+		IssuedAt:      order.CreatedAt,
+		Status:        string(order.Status),
+		Currency:      order.Currency,
+		SubtotalCents: order.SubtotalCents,
+		DiscountCents: order.DiscountCents,
+		ShippingCents: order.ShippingCents,
+		TaxCents:      order.TaxCents,
+		TotalCents:    order.TotalCents,
+		Email:         order.GuestEmail,
+	}
+	if order.ShippingAddress != nil {
+		data.Customer = order.ShippingAddress.Recipient
+		data.ShippingAddress = order.ShippingAddress.OneLine()
+	}
+	if order.UserID != "" {
+		if u, err := s.users.FindByID(ctx, order.UserID); err == nil {
+			if u.Name != "" {
+				data.Customer = u.Name
+			}
+			data.Email = u.Email
+		}
+	}
+	for _, it := range order.Items {
+		name := it.Title
+		if it.VariantName != "" {
+			name = fmt.Sprintf("%s (%s)", name, it.VariantName)
+		}
+		data.Items = append(data.Items, port.InvoiceItem{
+			Name: name, SKU: it.SKU, Quantity: it.Quantity,
+			UnitCents: it.PriceCents, TotalCents: it.Subtotal,
+		})
+	}
+	return s.invoices.Render(data)
+}
+
 // CheckoutInput describes a checkout request. Coupon, address and shipping are
 // optional. Subject is the cart owner (a user id or a guest id).
 type CheckoutInput struct {

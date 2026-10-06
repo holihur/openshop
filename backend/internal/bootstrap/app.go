@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/holihur/openshop/internal/adapter/invoice"
 	"github.com/holihur/openshop/internal/adapter/logger"
 	"github.com/holihur/openshop/internal/adapter/mail"
 	"github.com/holihur/openshop/internal/adapter/metrics"
@@ -137,7 +138,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	wishlistSvc := service.NewWishlistService(wishlistRepo, products)
 	accountSvc := service.NewAccountService(users, addressRepo, wishlistRepo, reviewRepo, orders, authSvc, log)
 	currencySvc := service.NewCurrencyService(currencyRepo, cfg.App.Currency, cache)
-	orderSvc := service.NewOrderService(orders, products, couponRepo, variantRepo, addressRepo, shippingRepo, zoneRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, cfg.App.TaxRateBps, cfg.App.OrderTTL, cfg.App.Currency)
+	orderSvc := service.NewOrderService(orders, users, products, couponRepo, variantRepo, addressRepo, shippingRepo, zoneRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, invoice.NewPDFRenderer(), cfg.App.TaxRateBps, cfg.App.OrderTTL, cfg.App.Currency)
 	paymentSvc := service.NewPaymentService(paymentRepo, orders, payments, orderSvc, ids, clock, log, promMetrics)
 
 	// --- HTTP surface ---

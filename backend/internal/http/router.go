@@ -112,6 +112,7 @@ func NewRouter(
 
 			authed.GET("/orders", h.ListOrders)
 			authed.GET("/orders/:id", h.GetOrder)
+			authed.GET("/orders/:id/invoice", h.DownloadInvoice)
 			authed.POST("/orders/:id/cancel", h.CancelOrder)
 			authed.POST("/orders/:id/complete", h.ConfirmReceipt)
 
@@ -161,6 +162,7 @@ func NewRouter(
 			admin.PATCH("/variants/:id", h.UpdateVariant)
 			admin.POST("/uploads", h.UploadImage)
 			admin.GET("/orders", h.ListOrders)
+			admin.GET("/orders/:id/invoice", h.DownloadInvoice)
 			admin.GET("/stats", h.Dashboard)
 			admin.GET("/inventory/low-stock", h.LowStock)
 			admin.GET("/audit-logs", h.ListAuditLogs)

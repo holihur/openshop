@@ -329,6 +329,20 @@ paths:
                         type: array
                         items: { $ref: "#/components/schemas/Order" }
                       meta: { $ref: "#/components/schemas/Meta" }
+  /orders/{id}/invoice:
+    get:
+      tags: [Orders]
+      summary: Download the order invoice as a PDF
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: A PDF invoice
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "403": { description: Not the order owner }
   /orders/{id}:
     get:
       tags: [Orders]

@@ -223,4 +223,34 @@ export const api = {
     }
     return envelope.data as T;
   },
+  /** Download a binary resource (e.g. an invoice PDF) with auth + refresh. */
+  async download(path: string, filename: string): Promise<void> {
+    const send = () =>
+      fetch(`${API_BASE}${path}`, {
+        headers: tokenStore.access()
+          ? { Authorization: `Bearer ${tokenStore.access()}` }
+          : {},
+      });
+
+    let res = await send();
+    if (res.status === 401 && tokenStore.refresh()) {
+      const ok = await refreshAccessToken();
+      if (ok) res = await send();
+    }
+    if (!res.ok) {
+      const envelope = await parse<unknown>(res);
+      throw new ApiError({
+        code: envelope.error?.code ?? "error",
+        message: envelope.error?.message ?? `Download failed with status ${res.status}`,
+        status: res.status,
+      });
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };
