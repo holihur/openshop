@@ -22,13 +22,24 @@ ok() { printf '\033[32m✓\033[0m %s\n' "$1"; }
 need() { command -v "$1" >/dev/null 2>&1; }
 
 download() {
-  # download <url> <output>
+  # download <url> <output>; fatal on failure.
   if need curl; then
-    curl -fsSL "$1" -o "$2"
+    curl -fsSL "$1" -o "$2" || err "download failed: $1"
   elif need wget; then
-    wget -qO "$2" "$1"
+    wget -qO "$2" "$1" || err "download failed: $1"
   else
     err "curl or wget is required"
+  fi
+}
+
+try_download() {
+  # try_download <url> <output>; non-fatal, returns non-zero on failure.
+  if need curl; then
+    curl -fsSL "$1" -o "$2" 2>/dev/null
+  elif need wget; then
+    wget -qO "$2" "$1" 2>/dev/null
+  else
+    return 1
   fi
 }
 
@@ -92,10 +103,10 @@ main() {
   trap 'rm -rf "$tmp"' EXIT INT TERM
 
   info "downloading $archive"
-  download "$base/$archive" "$tmp/$archive" || err "download failed: $base/$archive"
+  download "$base/$archive" "$tmp/$archive"
 
   info "verifying checksum"
-  if download "$base/checksums.txt" "$tmp/checksums.txt" 2>/dev/null; then
+  if try_download "$base/checksums.txt" "$tmp/checksums.txt"; then
     expected="$(sed -n "s/^\([0-9a-f]*\)[[:space:]]*$archive$/\1/p" "$tmp/checksums.txt")"
     if [ -n "$expected" ]; then
       if need sha256sum; then
