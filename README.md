@@ -3,7 +3,7 @@
 A production-grade, **horizontally scalable** e-commerce storefront.
 
 - **Backend** — Go · Gin · GORM · PostgreSQL · NATS (JetStream) · Redis
-- **Frontend** — React 19 · TypeScript · Vite · TailwindCSS v4 · shadcn/ui
+- **Frontend** — React 19 · TypeScript · Vite · TailwindCSS v4 · shadcn/ui · pnpm
 
 Every third-party integration is reached through a **port interface**, so the
 business logic never depends on a concrete database, cache, broker, payment
@@ -221,8 +221,8 @@ go run ./cmd/server
 
 # 3. Frontend (separate terminal)
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 Demo credentials created by the seed: `admin@openshop.local` / `admin12345`.
@@ -502,7 +502,7 @@ kubectl -n openshop scale deploy/openshop-backend --replicas=6
 
 - **backend**: `gofmt` check, `go vet`, `go build`, `go test -race` with real
   PostgreSQL + Redis services (integration tests included), coverage summary
-- **frontend**: `npm ci`, type-check, production build
+- **frontend**: `pnpm install --frozen-lockfile`, type-check, production build
 - **docker**: builds both images
 
 ## Known limitations

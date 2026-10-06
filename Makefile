@@ -65,12 +65,12 @@ down: ## Stop the stack
 
 .PHONY: fe-install
 fe-install: ## Install frontend dependencies
-	cd $(FRONTEND) && npm install
+	cd $(FRONTEND) && pnpm install
 
 .PHONY: fe-dev
 fe-dev: ## Run the frontend dev server
-	cd $(FRONTEND) && npm run dev
+	cd $(FRONTEND) && pnpm run dev
 
 .PHONY: fe-build
 fe-build: ## Build the frontend
-	cd $(FRONTEND) && npm run build
+	cd $(FRONTEND) && pnpm run build
