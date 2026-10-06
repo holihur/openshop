@@ -24,6 +24,7 @@ func NewRouter(
 	auth *service.AuthService,
 	cache port.Cache,
 	metrics port.Metrics,
+	tracer port.Tracer,
 	h *handler.Handler,
 ) *gin.Engine {
 	if cfg.App.IsProduction() {
@@ -34,6 +35,7 @@ func NewRouter(
 	r.RedirectTrailingSlash = false
 	r.Use(
 		middleware.RequestID(),
+		middleware.Tracing(tracer),
 		middleware.Recovery(h.Logger),
 		middleware.Logger(h.Logger),
 		middleware.Metrics(metrics),

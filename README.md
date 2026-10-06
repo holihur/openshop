@@ -404,6 +404,24 @@ Logging is structured (`log/slog`, JSON in production) with a per-request
 correlation id propagated from `X-Request-Id`. The `Metrics` and `Logger` ports
 keep both swappable and no-op in tests.
 
+### Distributed tracing
+
+Tracing is behind the `port.Tracer` port with an OpenTelemetry adapter. When
+`OTEL_EXPORTER_OTLP_ENDPOINT` is set, spans are exported over OTLP/HTTP;
+otherwise a no-op tracer is used, so the binary carries no runtime vendor
+dependency. Trace context is propagated with W3C `traceparent`:
+
+- the HTTP middleware continues an inbound trace (or starts one),
+- checkout injects the `traceparent` into the outbox event,
+- the relay extracts it when publishing, and consumers extract it again when
+  handling — so **checkout → outbox → relay → consumer is a single trace**,
+  including the asynchronous hop.
+
+```bash
+# point at any OTLP collector (Jaeger, Tempo, Grafana Agent, …)
+OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4318 OTEL_INSECURE=true go run ./cmd/server
+```
+
 ## Deployment
 
 ### Kubernetes

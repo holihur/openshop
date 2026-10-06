@@ -17,10 +17,14 @@ type Consumers struct {
 	catalog *service.CatalogService
 	mailer  port.Mailer
 	logger  port.Logger
+	tracer  port.Tracer
 }
 
-func NewConsumers(bus port.EventBus, catalog *service.CatalogService, mailer port.Mailer, logger port.Logger) *Consumers {
-	return &Consumers{bus: bus, catalog: catalog, mailer: mailer, logger: logger}
+func NewConsumers(bus port.EventBus, catalog *service.CatalogService, mailer port.Mailer, logger port.Logger, tracer port.Tracer) *Consumers {
+	if tracer == nil {
+		tracer = port.NoopTracer{}
+	}
+	return &Consumers{bus: bus, catalog: catalog, mailer: mailer, logger: logger, tracer: tracer}
 }
 
 // Start wires subscriptions. It returns an error if the broker rejects any
@@ -38,12 +42,29 @@ func (c *Consumers) Start() error {
 		{service.SubjectOrderRefunded, "order-refunded", "order-refunded", c.onOrderRefunded},
 	}
 	for _, h := range handlers {
-		if err := c.bus.Subscribe(h.subject, h.queue, h.durable, h.fn); err != nil {
+		if err := c.bus.Subscribe(h.subject, h.queue, h.durable, c.withSpan(h.subject, h.fn)); err != nil {
 			return fmt.Errorf("subscribe %s: %w", h.subject, err)
 		}
 	}
 	c.logger.Info("event consumers started", "subjects", len(handlers))
 	return nil
+}
+
+// withSpan continues the producer's trace and records the outcome of handling.
+func (c *Consumers) withSpan(subject string, fn port.EventHandler) port.EventHandler {
+	return func(ctx context.Context, evt port.Event) error {
+		ctx = c.tracer.Extract(ctx, evt.TraceParent)
+		ctx, span := c.tracer.Start(ctx, "consume "+subject,
+			port.Attribute{Key: "messaging.system", Value: "nats"},
+			port.Attribute{Key: "messaging.destination", Value: subject},
+		)
+		defer span.End()
+		if err := fn(ctx, evt); err != nil {
+			span.RecordError(err)
+			return err
+		}
+		return nil
+	}
 }
 
 func (c *Consumers) decode(evt port.Event) (*service.OrderEvent, error) {

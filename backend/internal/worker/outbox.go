@@ -18,6 +18,7 @@ type OutboxRelay struct {
 	clock     port.Clock
 	logger    port.Logger
 	metrics   port.Metrics
+	tracer    port.Tracer
 	interval  time.Duration
 	batch     int
 	lease     time.Duration
@@ -31,6 +32,7 @@ func NewOutboxRelay(
 	clock port.Clock,
 	logger port.Logger,
 	metrics port.Metrics,
+	tracer port.Tracer,
 	interval time.Duration,
 	batch int,
 ) *OutboxRelay {
@@ -40,8 +42,11 @@ func NewOutboxRelay(
 	if batch <= 0 {
 		batch = 100
 	}
+	if tracer == nil {
+		tracer = port.NoopTracer{}
+	}
 	return &OutboxRelay{
-		outbox: outbox, bus: bus, clock: clock, logger: logger, metrics: metrics,
+		outbox: outbox, bus: bus, clock: clock, logger: logger, metrics: metrics, tracer: tracer,
 		interval: interval, batch: batch, lease: 30 * time.Second,
 		baseDelay: time.Second, maxDelay: time.Minute,
 	}
@@ -75,8 +80,22 @@ func (r *OutboxRelay) relayOnce(ctx context.Context) {
 		return
 	}
 	for _, msg := range msgs {
-		evt := port.Event{ID: msg.ID, Subject: msg.Subject, Payload: msg.Payload}
-		if err := r.bus.Publish(ctx, evt); err != nil {
+		// Continue the trace that produced the event, so the async hop is visible
+		// as part of one end-to-end trace.
+		msgCtx := r.tracer.Extract(ctx, msg.TraceParent)
+		msgCtx, span := r.tracer.Start(msgCtx, "outbox.publish "+msg.Subject,
+			port.Attribute{Key: "messaging.system", Value: "nats"},
+			port.Attribute{Key: "messaging.destination", Value: msg.Subject},
+			port.Attribute{Key: "outbox.attempts", Value: msg.Attempts},
+		)
+		evt := port.Event{ID: msg.ID, Subject: msg.Subject, Payload: msg.Payload, TraceParent: r.tracer.Inject(msgCtx)}
+		err := r.bus.Publish(msgCtx, evt)
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.End()
+
+		if err != nil {
 			retryAt := now.Add(r.backoff(msg.Attempts))
 			r.logger.Error("outbox: publish failed", "subject", msg.Subject, "id", msg.ID, "attempts", msg.Attempts, "error", err)
 			if mErr := r.outbox.MarkFailed(ctx, msg, err.Error(), retryAt); mErr != nil {

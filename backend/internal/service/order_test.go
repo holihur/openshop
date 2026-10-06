@@ -30,7 +30,7 @@ func newOrderFixture() *orderFixture {
 	svc := NewOrderService(
 		orders, products, coupons, carts, locker, fakeTx{}, outbox,
 		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
-		nopLogger{}, nil, port.NopMetrics{}, 30*time.Minute, "CNY",
+		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, 30*time.Minute, "CNY",
 	)
 	return &orderFixture{
 		svc: svc, products: products, carts: carts, orders: orders,

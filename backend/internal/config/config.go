@@ -23,6 +23,7 @@ type Config struct {
 	Mail     MailConfig
 	SMS      SMSConfig
 	Worker   WorkerConfig
+	Tracing  TracingConfig
 }
 
 type AppConfig struct {
@@ -99,6 +100,13 @@ type MailConfig struct {
 type SMSConfig struct {
 	Driver string // "log" | "aliyun"
 	Sign   string
+}
+
+type TracingConfig struct {
+	// Endpoint is an OTLP/HTTP endpoint (host:port). Empty disables tracing.
+	Endpoint    string
+	Insecure    bool
+	SampleRatio float64
 }
 
 type WorkerConfig struct {
@@ -182,6 +190,11 @@ func Load() (*Config, error) {
 			Driver: env("SMS_DRIVER", "log"),
 			Sign:   env("SMS_SIGN", "OpenShop"),
 		},
+		Tracing: TracingConfig{
+			Endpoint:    env("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+			Insecure:    envBool("OTEL_INSECURE", true),
+			SampleRatio: envFloat("OTEL_SAMPLE_RATIO", 1.0),
+		},
 		Worker: WorkerConfig{
 			Enabled:            envBool("WORKER_ENABLED", true),
 			OrderSweepInterval: envDuration("ORDER_SWEEP_INTERVAL", time.Minute),
@@ -222,6 +235,15 @@ func envBool(key string, def bool) bool {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
 			return b
+		}
+	}
+	return def
+}
+
+func envFloat(key string, def float64) float64 {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
 		}
 	}
 	return def

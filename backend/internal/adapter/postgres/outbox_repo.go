@@ -27,6 +27,7 @@ type outboxModel struct {
 	AvailableAt time.Time `gorm:"not null"`
 	LockedUntil *time.Time
 	LastError   string    `gorm:"type:text;not null;default:''"`
+	TraceParent string    `gorm:"size:128;not null;default:''"`
 	CreatedAt   time.Time `gorm:"not null"`
 	PublishedAt *time.Time
 }
@@ -45,6 +46,7 @@ func (r *OutboxRepository) Enqueue(ctx context.Context, evt port.Event) error {
 		Payload:     payload,
 		Status:      "pending",
 		AvailableAt: now,
+		TraceParent: evt.TraceParent,
 		CreatedAt:   now,
 	}
 	if m.ID == "" {
@@ -109,6 +111,7 @@ func (r *OutboxRepository) Claim(ctx context.Context, limit int, lease time.Dura
 	for _, m := range claimed {
 		out = append(out, port.OutboxMessage{
 			ID: m.ID, Subject: m.Subject, Payload: m.Payload, Attempts: m.Attempts,
+			TraceParent: m.TraceParent,
 		})
 	}
 	return out, nil

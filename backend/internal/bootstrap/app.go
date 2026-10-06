@@ -21,6 +21,7 @@ import (
 	"github.com/holihur/openshop/internal/adapter/security"
 	"github.com/holihur/openshop/internal/adapter/sms"
 	"github.com/holihur/openshop/internal/adapter/storage"
+	"github.com/holihur/openshop/internal/adapter/tracing"
 	"github.com/holihur/openshop/internal/config"
 	apphttp "github.com/holihur/openshop/internal/http"
 	"github.com/holihur/openshop/internal/http/handler"
@@ -42,8 +43,9 @@ type App struct {
 	handlers *handler.Handler
 
 	// worker management
-	wg           sync.WaitGroup
-	workerCancel context.CancelFunc
+	wg              sync.WaitGroup
+	workerCancel    context.CancelFunc
+	shutdownTracing func(context.Context) error
 }
 
 // New builds the full dependency graph and returns a ready-to-run App.
@@ -93,6 +95,13 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	smsSender := sms.New(cfg.SMS, log)
 	_ = smsSender // reserved for OTP / notification flows
 	promMetrics := metrics.New()
+	tracer, shutdownTracing, err := tracing.Setup(ctx, tracing.Config{
+		ServiceName: cfg.App.Name, InstanceID: cfg.App.InstanceID,
+		Endpoint: cfg.Tracing.Endpoint, Insecure: cfg.Tracing.Insecure, SampleRatio: cfg.Tracing.SampleRatio,
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	// --- repositories ---
 	users := postgres.NewUserRepository(db)
@@ -112,7 +121,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	cartSvc := service.NewCartService(cartRepo, products)
 	couponSvc := service.NewCouponService(couponRepo, ids, clock)
 	reviewSvc := service.NewReviewService(reviewRepo, products, cache, ids, clock)
-	orderSvc := service.NewOrderService(orders, products, couponRepo, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, cfg.App.OrderTTL, cfg.App.Currency)
+	orderSvc := service.NewOrderService(orders, products, couponRepo, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, cfg.App.OrderTTL, cfg.App.Currency)
 	paymentSvc := service.NewPaymentService(paymentRepo, orders, payments, orderSvc, ids, clock, log, promMetrics)
 
 	// --- HTTP surface ---
@@ -127,10 +136,11 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 			{Name: "nats", Check: func(context.Context) error { return bus.Ready() }},
 		},
 	}
-	router := apphttp.NewRouter(cfg, tokens, authSvc, cache, promMetrics, h)
+	router := apphttp.NewRouter(cfg, tokens, authSvc, cache, promMetrics, tracer, h)
 
 	app := &App{
 		cfg: cfg, log: log, db: db, redis: rdb, bus: bus, handlers: h,
+		shutdownTracing: shutdownTracing,
 		server: &http.Server{
 			Addr:         cfg.HTTP.Addr,
 			Handler:      router,
@@ -141,7 +151,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	}
 
 	// --- event consumers ---
-	consumers := worker.NewConsumers(bus, catalogSvc, mailer, log)
+	consumers := worker.NewConsumers(bus, catalogSvc, mailer, log, tracer)
 	if err := consumers.Start(); err != nil {
 		app.Close(context.Background())
 		return nil, err
@@ -160,7 +170,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 		}()
 
 		// The outbox relay is safe to run on every replica; Claim uses SKIP LOCKED.
-		relay := worker.NewOutboxRelay(outbox, bus, clock, log, promMetrics,
+		relay := worker.NewOutboxRelay(outbox, bus, clock, log, promMetrics, tracer,
 			cfg.Worker.OutboxInterval, cfg.Worker.OutboxBatch)
 		app.wg.Add(1)
 		go func() {
@@ -226,6 +236,9 @@ func (a *App) Run(ctx context.Context) error {
 
 // Close releases infrastructure resources. It is safe to call more than once.
 func (a *App) Close(ctx context.Context) {
+	if a.shutdownTracing != nil {
+		_ = a.shutdownTracing(ctx)
+	}
 	if a.bus != nil {
 		_ = a.bus.Close()
 	}

@@ -13,6 +13,9 @@ type Event struct {
 	ID string
 	// Payload is the JSON-encoded body.
 	Payload []byte
+	// TraceParent is a W3C traceparent carried across the async boundary so a
+	// checkout and the worker reacting to it share one trace.
+	TraceParent string
 }
 
 // EventBus abstracts a message broker (NATS JetStream in production). It
@@ -32,10 +35,11 @@ type EventHandler func(ctx context.Context, evt Event) error
 
 // OutboxMessage is a persisted event awaiting publication.
 type OutboxMessage struct {
-	ID       string
-	Subject  string
-	Payload  []byte
-	Attempts int
+	ID          string
+	Subject     string
+	Payload     []byte
+	Attempts    int
+	TraceParent string
 }
 
 // Outbox implements the transactional-outbox pattern: events are written in the

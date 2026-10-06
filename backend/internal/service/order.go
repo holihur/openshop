@@ -35,6 +35,7 @@ type OrderService struct {
 	logger       port.Logger
 	productCache ProductCacheInvalidator
 	metrics      port.Metrics
+	tracer       port.Tracer
 	ttl          time.Duration
 	currency     string
 }
@@ -52,23 +53,38 @@ func NewOrderService(
 	logger port.Logger,
 	productCache ProductCacheInvalidator,
 	metrics port.Metrics,
+	tracer port.Tracer,
 	ttl time.Duration,
 	currency string,
 ) *OrderService {
 	if metrics == nil {
 		metrics = port.NopMetrics{}
 	}
+	if tracer == nil {
+		tracer = port.NoopTracer{}
+	}
 	return &OrderService{
 		orders: orders, products: products, coupons: coupons, carts: carts, locker: locker, tx: tx,
 		outbox: outbox, ids: ids, clock: clock, logger: logger, productCache: productCache,
-		metrics: metrics, ttl: ttl, currency: currency,
+		metrics: metrics, tracer: tracer, ttl: ttl, currency: currency,
 	}
 }
 
 // Checkout converts the user's cart into a pending order, reserving stock. The
 // per-user lock prevents duplicate submissions from retries or double clicks;
 // the transaction guarantees stock and order move together.
-func (s *OrderService) Checkout(ctx context.Context, userID, couponCode string) (*domain.Order, error) {
+func (s *OrderService) Checkout(ctx context.Context, userID, couponCode string) (out *domain.Order, err error) {
+	ctx, span := s.tracer.Start(ctx, "order.checkout",
+		port.Attribute{Key: "user.id", Value: userID},
+		port.Attribute{Key: "coupon", Value: couponCode},
+	)
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.End()
+	}()
+
 	lock, err := s.locker.Acquire(ctx, "lock:checkout:"+userID, 15*time.Second, 3*time.Second)
 	if err != nil {
 		return nil, err
@@ -387,6 +403,7 @@ func (s *OrderService) enqueue(ctx context.Context, subject string, o *domain.Or
 	}
 	return s.outbox.Enqueue(ctx, port.Event{
 		ID: s.ids.NewID(), Subject: subject, Payload: encodeEvent(evt),
+		TraceParent: s.tracer.Inject(ctx),
 	})
 }
 

@@ -73,7 +73,7 @@ func TestOutboxRelayPublishesAndRetries(t *testing.T) {
 	)
 	bus := &stubBus{fail: map[string]bool{"boom": true}}
 
-	relay := NewOutboxRelay(outbox, bus, port.SystemClock{}, stubLogger{}, port.NopMetrics{}, time.Second, 10)
+	relay := NewOutboxRelay(outbox, bus, port.SystemClock{}, stubLogger{}, port.NopMetrics{}, port.NoopTracer{}, time.Second, 10)
 	relay.relayOnce(context.Background())
 
 	if !outbox.published["ok"] {
@@ -88,7 +88,7 @@ func TestOutboxRelayPublishesAndRetries(t *testing.T) {
 }
 
 func TestOutboxRelayBackoffGrowsAndCaps(t *testing.T) {
-	relay := NewOutboxRelay(newStubOutbox(), &stubBus{}, port.SystemClock{}, stubLogger{}, port.NopMetrics{}, time.Second, 10)
+	relay := NewOutboxRelay(newStubOutbox(), &stubBus{}, port.SystemClock{}, stubLogger{}, port.NopMetrics{}, port.NoopTracer{}, time.Second, 10)
 
 	if got := relay.backoff(1); got != time.Second {
 		t.Fatalf("backoff(1) = %v, want 1s", got)
