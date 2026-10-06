@@ -122,6 +122,7 @@ func (h *Handler) CancelOrder(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "order.cancel", "order", order.ID, nil)
 	response.OK(c, toOrderView(*order))
 }
 
@@ -139,6 +140,7 @@ func (h *Handler) RefundOrder(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "order.refund", "order", order.ID, nil)
 	response.OK(c, toOrderView(*order))
 }
 
@@ -155,6 +157,7 @@ func (h *Handler) ShipOrder(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "order.ship", "order", order.ID, map[string]string{"trackingNo": req.TrackingNo})
 	response.OK(c, toOrderView(*order))
 }
 
@@ -165,6 +168,7 @@ func (h *Handler) CompleteOrder(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "order.complete", "order", order.ID, nil)
 	response.OK(c, toOrderView(*order))
 }
 

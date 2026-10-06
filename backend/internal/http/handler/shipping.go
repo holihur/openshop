@@ -64,6 +64,7 @@ func (h *Handler) CreateShippingMethod(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "shipping.create", "shipping_method", m.ID, nil)
 	response.Created(c, toShippingView(*m))
 }
 
@@ -85,6 +86,7 @@ func (h *Handler) UpdateShippingMethod(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "shipping.update", "shipping_method", m.ID, nil)
 	response.OK(c, toShippingView(*m))
 }
 

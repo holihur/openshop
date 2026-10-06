@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
-import type { Category, Coupon, Dashboard, Order, Product, Variant } from "@/lib/types";
+import type { AuditLog, Category, Coupon, Dashboard, Order, Product, Variant } from "@/lib/types";
 
 export interface ProductInput {
   categoryId?: string;
@@ -43,6 +43,13 @@ export function useDashboard() {
   return useQuery({
     queryKey: ["admin", "dashboard"],
     queryFn: () => api.get<Dashboard>("/admin/stats"),
+  });
+}
+
+export function useAuditLogs() {
+  return useQuery({
+    queryKey: ["admin", "audit"],
+    queryFn: () => api.getPage<AuditLog[]>("/admin/audit-logs?pageSize=100"),
   });
 }
 

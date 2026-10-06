@@ -155,6 +155,18 @@ export interface ShippingMethod {
   sort: number;
 }
 
+export interface AuditLog {
+  id: string;
+  actorId: string;
+  actorRole: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  metadata?: Record<string, string>;
+  ip: string;
+  createdAt: string;
+}
+
 export interface Dashboard {
   revenueCents: number;
   paidOrders: number;

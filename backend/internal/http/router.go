@@ -89,7 +89,7 @@ func NewRouter(
 
 		// Authenticated customer area.
 		authed := api.Group("")
-		authed.Use(middleware.Auth(tokens, auth, false))
+		authed.Use(middleware.Auth(tokens, auth, false), middleware.RateLimitUser(cache, cfg.HTTP.RateLimitUserRPS))
 		{
 			authed.POST("/auth/logout", h.Logout)
 			authed.GET("/auth/me", h.Me)
@@ -136,6 +136,7 @@ func NewRouter(
 			admin.POST("/uploads", h.UploadImage)
 			admin.GET("/orders", h.ListOrders)
 			admin.GET("/stats", h.Dashboard)
+			admin.GET("/audit-logs", h.ListAuditLogs)
 			admin.GET("/shipping-methods", h.AdminListShippingMethods)
 			admin.POST("/shipping-methods", h.CreateShippingMethod)
 			admin.PATCH("/shipping-methods/:id", h.UpdateShippingMethod)

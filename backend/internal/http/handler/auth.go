@@ -91,6 +91,12 @@ func (h *Handler) Login(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	if h.Audit != nil {
+		h.Audit.Record(c.Request.Context(), service.Entry{
+			ActorID: res.User.ID, ActorRole: res.User.Role, Action: "auth.login",
+			ResourceType: "user", ResourceID: res.User.ID, IP: c.ClientIP(),
+		})
+	}
 	response.OK(c, toAuthView(res))
 }
 
@@ -115,6 +121,7 @@ func (h *Handler) Logout(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "auth.logout", "user", middleware.UserID(c), nil)
 	response.NoContent(c)
 }
 
@@ -175,6 +182,7 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "auth.password_reset", "user", "", nil)
 	response.OK(c, gin.H{"reset": true})
 }
 
@@ -188,6 +196,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "auth.password_change", "user", middleware.UserID(c), nil)
 	response.OK(c, gin.H{"changed": true})
 }
 

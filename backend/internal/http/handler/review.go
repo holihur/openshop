@@ -83,6 +83,7 @@ func (h *Handler) DeleteReview(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "review.delete", "review", c.Param("id"), nil)
 	response.NoContent(c)
 }
 

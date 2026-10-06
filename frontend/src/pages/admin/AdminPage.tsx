@@ -20,7 +20,7 @@ import {
 import { ProductForm } from "@/components/admin/product-form";
 import { VariantsEditor } from "@/components/admin/variants-editor";
 import { OrderStatusBadge } from "@/components/order-status-badge";
-import { useAdminCoupons, useAdminOrders, useAdminProducts, useCreateCoupon, useDashboard } from "@/hooks/useAdmin";
+import { useAdminCoupons, useAdminOrders, useAdminProducts, useAuditLogs, useCreateCoupon, useDashboard } from "@/hooks/useAdmin";
 import {
   useAdminShippingMethods,
   useCreateShippingMethod,
@@ -28,9 +28,9 @@ import {
 } from "@/hooks/useShipping";
 import { api } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
-import type { Coupon, Order, Product, ShippingMethod } from "@/lib/types";
+import type { AuditLog, Coupon, Order, Product, ShippingMethod } from "@/lib/types";
 
-type Tab = "dashboard" | "products" | "orders" | "coupons" | "shipping";
+type Tab = "dashboard" | "products" | "orders" | "coupons" | "shipping" | "audit";
 
 export function AdminPage() {
   const [tab, setTab] = useState<Tab>("dashboard");
@@ -43,7 +43,7 @@ export function AdminPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(["dashboard", "products", "orders", "coupons", "shipping"] as Tab[]).map((t) => (
+        {(["dashboard", "products", "orders", "coupons", "shipping", "audit"] as Tab[]).map((t) => (
           <Button
             key={t}
             variant={tab === t ? "default" : "outline"}
@@ -61,7 +61,50 @@ export function AdminPage() {
       {tab === "orders" && <AdminOrders />}
       {tab === "coupons" && <AdminCoupons />}
       {tab === "shipping" && <AdminShipping />}
+      {tab === "audit" && <AdminAudit />}
     </div>
+  );
+}
+
+function AdminAudit() {
+  const { data, isLoading } = useAuditLogs();
+
+  if (isLoading) {
+    return <Skeleton className="h-64 w-full" />;
+  }
+
+  return (
+    <Card className="py-0">
+      <CardContent className="px-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Time</TableHead>
+              <TableHead>Actor</TableHead>
+              <TableHead>Action</TableHead>
+              <TableHead>Resource</TableHead>
+              <TableHead>IP</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data?.items.map((l: AuditLog) => (
+              <TableRow key={l.id}>
+                <TableCell className="text-muted-foreground whitespace-nowrap text-xs">
+                  {formatDate(l.createdAt)}
+                </TableCell>
+                <TableCell className="text-sm">{l.actorRole || "—"}</TableCell>
+                <TableCell className="font-mono text-xs">{l.action}</TableCell>
+                <TableCell className="text-muted-foreground text-xs">
+                  {l.resourceType}
+                  {l.resourceId ? ` · ${l.resourceId.slice(0, 8)}` : ""}
+                </TableCell>
+                <TableCell className="text-muted-foreground text-xs">{l.ip}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
 

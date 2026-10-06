@@ -165,6 +165,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "product.create", "product", p.ID, nil)
 	response.Created(c, toProductView(*p))
 }
 
@@ -187,6 +188,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "product.update", "product", p.ID, nil)
 	response.OK(c, toProductView(*p))
 }
 
@@ -278,6 +280,7 @@ func (h *Handler) CreateVariant(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "variant.create", "variant", v.ID, nil)
 	response.Created(c, variantView{
 		ID: v.ID, SKU: v.SKU, Name: v.Name, PriceCents: v.PriceCents,
 		Stock: v.Stock, Attributes: v.Attributes, Sort: v.Sort, Active: v.Active,
@@ -298,6 +301,7 @@ func (h *Handler) UpdateVariant(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "variant.update", "variant", v.ID, nil)
 	response.OK(c, variantView{
 		ID: v.ID, SKU: v.SKU, Name: v.Name, PriceCents: v.PriceCents,
 		Stock: v.Stock, Attributes: v.Attributes, Sort: v.Sort, Active: v.Active,

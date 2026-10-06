@@ -130,3 +130,9 @@ type ShippingMethodRepository interface {
 	// customer does not choose one.
 	Default(ctx context.Context) (*domain.ShippingMethod, error)
 }
+
+// AuditRepository persists the append-only audit trail.
+type AuditRepository interface {
+	Create(ctx context.Context, entry *domain.AuditLog) error
+	List(ctx context.Context, f domain.AuditFilter) (domain.Page[domain.AuditLog], error)
+}

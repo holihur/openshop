@@ -41,12 +41,13 @@ type AppConfig struct {
 }
 
 type HTTPConfig struct {
-	Addr            string
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	ShutdownTimeout time.Duration
-	CORSOrigins     []string
-	RateLimitRPS    int
+	Addr             string
+	ReadTimeout      time.Duration
+	WriteTimeout     time.Duration
+	ShutdownTimeout  time.Duration
+	CORSOrigins      []string
+	RateLimitRPS     int
+	RateLimitUserRPS int
 }
 
 type PostgresConfig struct {
@@ -142,12 +143,13 @@ func Load() (*Config, error) {
 			TaxRateBps:               envInt("TAX_RATE_BPS", 0),
 		},
 		HTTP: HTTPConfig{
-			Addr:            env("HTTP_ADDR", ":8080"),
-			ReadTimeout:     envDuration("HTTP_READ_TIMEOUT", 15*time.Second),
-			WriteTimeout:    envDuration("HTTP_WRITE_TIMEOUT", 30*time.Second),
-			ShutdownTimeout: envDuration("HTTP_SHUTDOWN_TIMEOUT", 15*time.Second),
-			CORSOrigins:     envList("HTTP_CORS_ORIGINS", []string{"http://localhost:5173"}),
-			RateLimitRPS:    envInt("HTTP_RATE_LIMIT_RPS", 50),
+			Addr:             env("HTTP_ADDR", ":8080"),
+			ReadTimeout:      envDuration("HTTP_READ_TIMEOUT", 15*time.Second),
+			WriteTimeout:     envDuration("HTTP_WRITE_TIMEOUT", 30*time.Second),
+			ShutdownTimeout:  envDuration("HTTP_SHUTDOWN_TIMEOUT", 15*time.Second),
+			CORSOrigins:      envList("HTTP_CORS_ORIGINS", []string{"http://localhost:5173"}),
+			RateLimitRPS:     envInt("HTTP_RATE_LIMIT_RPS", 50),
+			RateLimitUserRPS: envInt("HTTP_RATE_LIMIT_USER_RPS", 100),
 		},
 		Postgres: PostgresConfig{
 			DSN:             env("POSTGRES_DSN", "host=localhost port=5432 user=openshop password=openshop dbname=openshop sslmode=disable TimeZone=UTC"),

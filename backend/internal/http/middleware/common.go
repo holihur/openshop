@@ -115,6 +115,38 @@ func RateLimit(cache port.Cache, rps int) gin.HandlerFunc {
 	}
 }
 
+// RateLimitUser enforces a per-authenticated-user fixed window using the shared
+// cache. It runs after Auth so it can key on the user id, complementing the
+// per-IP limiter that protects unauthenticated traffic.
+func RateLimitUser(cache port.Cache, rps int) gin.HandlerFunc {
+	if rps <= 0 {
+		rps = 100
+	}
+	return func(c *gin.Context) {
+		userID := UserID(c)
+		if userID == "" {
+			c.Next()
+			return
+		}
+		window := time.Now().Unix()
+		key := "ratelimit:user:" + userID + ":" + strconv.FormatInt(window, 10)
+		count, err := cache.Incr(c.Request.Context(), key, 1)
+		if err == nil {
+			if count == 1 {
+				_ = cache.Expire(c.Request.Context(), key, 2*time.Second)
+			}
+			if count > int64(rps) {
+				c.Header("Retry-After", "1")
+				c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+					"error": gin.H{"code": "rate_limited", "message": "too many requests"},
+				})
+				return
+			}
+		}
+		c.Next()
+	}
+}
+
 // generateID is a tiny helper kept local to avoid an extra import cycle.
 func generateID() string {
 	return strconv.FormatInt(time.Now().UnixNano(), 36) + "-" + strconv.Itoa(randInt())

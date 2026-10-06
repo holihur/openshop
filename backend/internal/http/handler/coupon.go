@@ -77,6 +77,7 @@ func (h *Handler) CreateCoupon(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
+	h.audit(c, "coupon.create", "coupon", coupon.ID, map[string]string{"code": coupon.Code})
 	response.Created(c, toCouponView(*coupon))
 }
 
