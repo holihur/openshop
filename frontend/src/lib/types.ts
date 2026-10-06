@@ -99,6 +99,9 @@ export interface Order {
   subtotalCents: number;
   discountCents: number;
   couponCode?: string;
+  shippingCents: number;
+  taxCents: number;
+  shippingMethod?: string;
   totalCents: number;
   items: OrderItem[];
   paymentId: string;
@@ -139,6 +142,16 @@ export interface Coupon {
   usedCount: number;
   perUserLimit: number;
   active: boolean;
+}
+
+export interface ShippingMethod {
+  id: string;
+  code: string;
+  name: string;
+  flatRateCents: number;
+  freeThresholdCents: number;
+  active: boolean;
+  sort: number;
 }
 
 export interface Dashboard {

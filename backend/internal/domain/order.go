@@ -38,9 +38,15 @@ type Order struct {
 	DiscountCents int64
 	CouponID      string
 	CouponCode    string
-	TotalCents    int64
-	Items         []OrderItem
-	PaymentID     string
+	// ShippingCents and TaxCents are computed at checkout; TotalCents is the
+	// grand total the customer pays.
+	ShippingCents      int64
+	TaxCents           int64
+	ShippingMethodID   string
+	ShippingMethodName string
+	TotalCents         int64
+	Items              []OrderItem
+	PaymentID          string
 	// ShippingAddress is a snapshot taken at checkout (nil for digital orders).
 	ShippingAddress *Address
 	TrackingNo      string

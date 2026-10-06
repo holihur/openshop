@@ -544,6 +544,67 @@ func (r *fakeAddressRepo) ClearDefault(_ context.Context, userID string) error {
 	return nil
 }
 
+type fakeShippingRepo struct {
+	mu   sync.Mutex
+	data map[string]*domain.ShippingMethod
+}
+
+func newFakeShippingRepo() *fakeShippingRepo {
+	return &fakeShippingRepo{data: map[string]*domain.ShippingMethod{}}
+}
+
+func (r *fakeShippingRepo) put(m *domain.ShippingMethod) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cp := *m
+	r.data[m.ID] = &cp
+}
+
+func (r *fakeShippingRepo) Create(_ context.Context, m *domain.ShippingMethod) error {
+	r.put(m)
+	return nil
+}
+
+func (r *fakeShippingRepo) Update(_ context.Context, m *domain.ShippingMethod) error {
+	r.put(m)
+	return nil
+}
+
+func (r *fakeShippingRepo) FindByID(_ context.Context, id string) (*domain.ShippingMethod, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if m, ok := r.data[id]; ok {
+		cp := *m
+		return &cp, nil
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (r *fakeShippingRepo) List(_ context.Context, activeOnly bool) ([]domain.ShippingMethod, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := []domain.ShippingMethod{}
+	for _, m := range r.data {
+		if activeOnly && !m.Active {
+			continue
+		}
+		out = append(out, *m)
+	}
+	return out, nil
+}
+
+func (r *fakeShippingRepo) Default(_ context.Context) (*domain.ShippingMethod, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, m := range r.data {
+		if m.Active {
+			cp := *m
+			return &cp, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
 type fakeCache struct {
 	mu   sync.Mutex
 	data map[string]string

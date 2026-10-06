@@ -80,7 +80,7 @@ func (d *DB) AutoMigrate() error {
 	if err := d.gorm.AutoMigrate(
 		&userModel{}, &categoryModel{}, &productModel{},
 		&orderModel{}, &orderItemModel{}, &paymentModel{}, &outboxModel{},
-		&couponModel{}, &couponRedemptionModel{}, &reviewModel{}, &variantModel{}, &addressModel{},
+		&couponModel{}, &couponRedemptionModel{}, &reviewModel{}, &variantModel{}, &addressModel{}, &shippingMethodModel{},
 	); err != nil {
 		return err
 	}

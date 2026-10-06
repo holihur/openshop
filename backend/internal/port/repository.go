@@ -119,3 +119,14 @@ type AddressRepository interface {
 type AnalyticsRepository interface {
 	Dashboard(ctx context.Context) (domain.Dashboard, error)
 }
+
+// ShippingMethodRepository persists selectable shipping options.
+type ShippingMethodRepository interface {
+	Create(ctx context.Context, m *domain.ShippingMethod) error
+	Update(ctx context.Context, m *domain.ShippingMethod) error
+	FindByID(ctx context.Context, id string) (*domain.ShippingMethod, error)
+	List(ctx context.Context, activeOnly bool) ([]domain.ShippingMethod, error)
+	// Default returns the cheapest active method by sort order, used when the
+	// customer does not choose one.
+	Default(ctx context.Context) (*domain.ShippingMethod, error)
+}

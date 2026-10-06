@@ -21,11 +21,16 @@ import { ProductForm } from "@/components/admin/product-form";
 import { VariantsEditor } from "@/components/admin/variants-editor";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { useAdminCoupons, useAdminOrders, useAdminProducts, useCreateCoupon, useDashboard } from "@/hooks/useAdmin";
+import {
+  useAdminShippingMethods,
+  useCreateShippingMethod,
+  useUpdateShippingMethod,
+} from "@/hooks/useShipping";
 import { api } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
-import type { Coupon, Order, Product } from "@/lib/types";
+import type { Coupon, Order, Product, ShippingMethod } from "@/lib/types";
 
-type Tab = "dashboard" | "products" | "orders" | "coupons";
+type Tab = "dashboard" | "products" | "orders" | "coupons" | "shipping";
 
 export function AdminPage() {
   const [tab, setTab] = useState<Tab>("dashboard");
@@ -38,7 +43,7 @@ export function AdminPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(["dashboard", "products", "orders", "coupons"] as Tab[]).map((t) => (
+        {(["dashboard", "products", "orders", "coupons", "shipping"] as Tab[]).map((t) => (
           <Button
             key={t}
             variant={tab === t ? "default" : "outline"}
@@ -55,6 +60,140 @@ export function AdminPage() {
       {tab === "products" && <AdminProducts />}
       {tab === "orders" && <AdminOrders />}
       {tab === "coupons" && <AdminCoupons />}
+      {tab === "shipping" && <AdminShipping />}
+    </div>
+  );
+}
+
+function AdminShipping() {
+  const { data, isLoading } = useAdminShippingMethods();
+  const create = useCreateShippingMethod();
+  const update = useUpdateShippingMethod();
+  const [name, setName] = useState("");
+  const [rate, setRate] = useState("0");
+  const [threshold, setThreshold] = useState("0");
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    create.mutate(
+      {
+        name,
+        flatRateCents: Math.round(Number.parseFloat(rate || "0") * 100),
+        freeThresholdCents: Math.round(Number.parseFloat(threshold || "0") * 100),
+        active: true,
+      },
+      {
+        onSuccess: () => {
+          setName("");
+          setRate("0");
+          setThreshold("0");
+        },
+      },
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>New shipping method</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-4">
+            <div className="space-y-1 sm:col-span-2">
+              <Label htmlFor="s-name">Name</Label>
+              <Input id="s-name" value={name} onChange={(e) => setName(e.target.value)} required />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="s-rate">Flat rate (CNY)</Label>
+              <Input
+                id="s-rate"
+                type="number"
+                step="0.01"
+                min="0"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="s-threshold">Free over (CNY)</Label>
+              <Input
+                id="s-threshold"
+                type="number"
+                step="0.01"
+                min="0"
+                value={threshold}
+                onChange={(e) => setThreshold(e.target.value)}
+              />
+            </div>
+            <div className="sm:col-span-4">
+              <Button type="submit" size="sm" disabled={create.isPending}>
+                <Plus className="size-4" />
+                Add method
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card className="py-0">
+        <CardContent className="px-0">
+          {isLoading ? (
+            <div className="p-4">
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Flat rate</TableHead>
+                  <TableHead>Free over</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data?.map((m: ShippingMethod) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="font-medium">{m.name}</TableCell>
+                    <TableCell>{formatMoney(m.flatRateCents)}</TableCell>
+                    <TableCell>
+                      {m.freeThresholdCents > 0 ? formatMoney(m.freeThresholdCents) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={m.active ? "success" : "secondary"}>
+                        {m.active ? "active" : "inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={update.isPending}
+                        onClick={() =>
+                          update.mutate({
+                            id: m.id,
+                            input: {
+                              name: m.name,
+                              flatRateCents: m.flatRateCents,
+                              freeThresholdCents: m.freeThresholdCents,
+                              active: !m.active,
+                              sort: m.sort,
+                            },
+                          })
+                        }
+                      >
+                        {m.active ? "Disable" : "Enable"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

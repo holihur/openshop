@@ -291,6 +291,7 @@ retries safe.
 | `PATCH` | `/reviews/:id` | ✔ | Update your review |
 | `DELETE` | `/reviews/:id` | ✔ | Delete a review (owner or admin) |
 | `POST` | `/coupons/preview` | ✔ | Validate a coupon and preview the discount |
+| `GET` | `/shipping-methods` | — | List active shipping methods |
 
 ### Orders & payments
 
@@ -323,6 +324,9 @@ retries safe.
 | `POST` | `/admin/orders/:id/refund` | Refund a paid order (restores stock) |
 | `POST` | `/admin/orders/:id/ship` | Mark a paid order shipped (tracking number) |
 | `POST` | `/admin/orders/:id/complete` | Mark a shipped order completed |
+| `GET` | `/admin/shipping-methods` | List shipping methods |
+| `POST` | `/admin/shipping-methods` | Create a shipping method |
+| `PATCH` | `/admin/shipping-methods/:id` | Update a shipping method |
 | `GET` | `/admin/coupons` | List coupons |
 | `POST` | `/admin/coupons` | Create a coupon |
 | `GET` | `/admin/products/:id/variants` | List a product's variants |
@@ -506,3 +510,6 @@ kubectl -n openshop scale deploy/openshop-backend --replicas=6
 - **Explicit fulfilment state machine.** `pending_payment → paid → shipped →
   completed`, with `cancelled`/`refunded` as terminal branches. Every transition
   is idempotent, lock-protected and emits an event.
+- **Money is computed server-side.** Shipping (flat rate with a free threshold)
+  and tax (configurable basis-point rate) are calculated at checkout on the
+  discounted subtotal; the client only previews them.

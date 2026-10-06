@@ -15,6 +15,7 @@ type orderFixture struct {
 	products  *fakeProductRepo
 	variants  *fakeVariantRepo
 	addresses *fakeAddressRepo
+	shipping  *fakeShippingRepo
 	carts     *fakeCartRepo
 	orders    *fakeOrderRepo
 	coupons   *fakeCouponRepo
@@ -22,23 +23,26 @@ type orderFixture struct {
 	locker    *fakeLocker
 }
 
-func newOrderFixture() *orderFixture {
+func newOrderFixture() *orderFixture { return newOrderFixtureTax(0) }
+
+func newOrderFixtureTax(taxBps int) *orderFixture {
 	products := newFakeProductRepo()
 	variants := newFakeVariantRepo()
 	addresses := newFakeAddressRepo()
+	shipping := newFakeShippingRepo()
 	carts := newFakeCartRepo()
 	orders := newFakeOrderRepo()
 	coupons := newFakeCouponRepo()
 	outbox := newFakeOutbox()
 	locker := newFakeLocker()
 	svc := NewOrderService(
-		orders, products, coupons, variants, addresses, carts, locker, fakeTx{}, outbox,
+		orders, products, coupons, variants, addresses, shipping, carts, locker, fakeTx{}, outbox,
 		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
-		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, 30*time.Minute, "CNY",
+		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, taxBps, 30*time.Minute, "CNY",
 	)
 	return &orderFixture{
-		svc: svc, products: products, variants: variants, addresses: addresses, carts: carts,
-		orders: orders, coupons: coupons, outbox: outbox, locker: locker,
+		svc: svc, products: products, variants: variants, addresses: addresses, shipping: shipping,
+		carts: carts, orders: orders, coupons: coupons, outbox: outbox, locker: locker,
 	}
 }
 
@@ -369,6 +373,48 @@ func TestFulfilmentLifecycle(t *testing.T) {
 
 	if subjects := f.outbox.subjects(); len(subjects) < 4 {
 		t.Fatalf("expected create/paid/shipped/completed events, got %v", subjects)
+	}
+}
+
+func TestCheckoutAppliesShippingAndTax(t *testing.T) {
+	f := newOrderFixtureTax(600) // 6% tax
+	seedProduct(f, "p1", 5, 10000)
+	f.shipping.put(&domain.ShippingMethod{ID: "s1", Name: "Standard", FlatRateCents: 500, Active: true})
+	cart := &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 1}}}
+	_ = f.carts.Save(context.Background(), cart)
+
+	order, err := f.svc.Checkout(context.Background(), CheckoutInput{UserID: "u1"})
+	if err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+	// subtotal 10000, shipping 500, taxable 10500, tax 630, total 11130.
+	if order.ShippingCents != 500 || order.TaxCents != 630 || order.TotalCents != 11130 {
+		t.Fatalf("shipping=%d tax=%d total=%d, want 500/630/11130",
+			order.ShippingCents, order.TaxCents, order.TotalCents)
+	}
+	if order.ShippingMethodName != "Standard" {
+		t.Fatalf("shipping method = %q", order.ShippingMethodName)
+	}
+}
+
+func TestFreeShippingThreshold(t *testing.T) {
+	f := newOrderFixtureTax(0)
+	seedProduct(f, "p1", 5, 10000)
+	f.shipping.put(&domain.ShippingMethod{
+		ID: "s1", Name: "Free over 50", FlatRateCents: 500, FreeThresholdCents: 5000, Active: true,
+	})
+	cart := &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 1}}}
+	_ = f.carts.Save(context.Background(), cart)
+
+	order, err := f.svc.Checkout(context.Background(), CheckoutInput{UserID: "u1"})
+	if err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+	if order.ShippingCents != 0 {
+		t.Fatalf("shipping = %d, want 0 (free over threshold)", order.ShippingCents)
+	}
+	if order.TotalCents != 10000 {
+		t.Fatalf("total = %d, want 10000", order.TotalCents)
 	}
 }
 

@@ -28,6 +28,7 @@ type OrderService struct {
 	coupons      port.CouponRepository
 	variants     port.VariantRepository
 	addresses    port.AddressRepository
+	shipping     port.ShippingMethodRepository
 	carts        port.CartRepository
 	locker       port.Locker
 	tx           port.TxManager
@@ -38,6 +39,7 @@ type OrderService struct {
 	productCache ProductCacheInvalidator
 	metrics      port.Metrics
 	tracer       port.Tracer
+	taxRateBps   int
 	ttl          time.Duration
 	currency     string
 }
@@ -48,6 +50,7 @@ func NewOrderService(
 	coupons port.CouponRepository,
 	variants port.VariantRepository,
 	addresses port.AddressRepository,
+	shipping port.ShippingMethodRepository,
 	carts port.CartRepository,
 	locker port.Locker,
 	tx port.TxManager,
@@ -58,6 +61,7 @@ func NewOrderService(
 	productCache ProductCacheInvalidator,
 	metrics port.Metrics,
 	tracer port.Tracer,
+	taxRateBps int,
 	ttl time.Duration,
 	currency string,
 ) *OrderService {
@@ -69,20 +73,22 @@ func NewOrderService(
 	}
 	return &OrderService{
 		orders: orders, products: products, coupons: coupons, variants: variants, addresses: addresses,
-		carts: carts, locker: locker, tx: tx,
+		shipping: shipping, carts: carts, locker: locker, tx: tx,
 		outbox: outbox, ids: ids, clock: clock, logger: logger, productCache: productCache,
-		metrics: metrics, tracer: tracer, ttl: ttl, currency: currency,
+		metrics: metrics, tracer: tracer, taxRateBps: taxRateBps, ttl: ttl, currency: currency,
 	}
 }
 
 // Checkout converts the user's cart into a pending order, reserving stock. The
 // per-user lock prevents duplicate submissions from retries or double clicks;
 // the transaction guarantees stock and order move together.
-// CheckoutInput describes a checkout request. Coupon and address are optional.
+// CheckoutInput describes a checkout request. Coupon, address and shipping are
+// optional.
 type CheckoutInput struct {
-	UserID     string
-	CouponCode string
-	AddressID  string
+	UserID           string
+	CouponCode       string
+	AddressID        string
+	ShippingMethodID string
 }
 
 func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *domain.Order, err error) {
@@ -193,10 +199,25 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 				return err
 			}
 		}
-		order.TotalCents = order.SubtotalCents - order.DiscountCents
-		if order.TotalCents < 0 {
-			order.TotalCents = 0
+
+		// Shipping: the chosen method, or the store default.
+		method, err := s.resolveShipping(txCtx, in.ShippingMethodID)
+		if err != nil {
+			return err
 		}
+		if method != nil {
+			order.ShippingMethodID = method.ID
+			order.ShippingMethodName = method.Name
+			order.ShippingCents = method.CostFor(order.SubtotalCents)
+		}
+
+		// Tax applies to the discounted subtotal plus shipping.
+		taxable := order.SubtotalCents - order.DiscountCents + order.ShippingCents
+		if taxable < 0 {
+			taxable = 0
+		}
+		order.TaxCents = taxable * int64(s.taxRateBps) / 10000
+		order.TotalCents = taxable + order.TaxCents
 
 		if err := s.orders.Create(txCtx, order); err != nil {
 			return err
@@ -444,6 +465,29 @@ func (s *OrderService) MarkCompleted(ctx context.Context, orderID string) (*doma
 		return nil, err
 	}
 	return out, nil
+}
+
+// resolveShipping returns the requested shipping method, or the store default
+// when none is requested. It returns (nil, nil) when no method is configured.
+func (s *OrderService) resolveShipping(ctx context.Context, id string) (*domain.ShippingMethod, error) {
+	if id != "" {
+		m, err := s.shipping.FindByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if !m.Active {
+			return nil, fmt.Errorf("%w: shipping method is not available", domain.ErrInvalidArgument)
+		}
+		return m, nil
+	}
+	m, err := s.shipping.Default(ctx)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return m, nil
 }
 
 // applyCoupon validates and consumes a coupon inside the checkout transaction.

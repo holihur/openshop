@@ -163,6 +163,20 @@ export function OrderDetailPage() {
                 <span>-{formatMoney(order.discountCents, order.currency)}</span>
               </div>
             )}
+            {order.shippingCents > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Shipping{order.shippingMethod ? ` (${order.shippingMethod})` : ""}
+                </span>
+                <span>{formatMoney(order.shippingCents, order.currency)}</span>
+              </div>
+            )}
+            {order.taxCents > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Tax</span>
+                <span>{formatMoney(order.taxCents, order.currency)}</span>
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between font-semibold">
               <span>Total</span>

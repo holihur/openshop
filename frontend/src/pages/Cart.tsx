@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { useCart, useClearCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/useCart";
 import { useAddresses } from "@/hooks/useAddresses";
+import { useShippingMethods } from "@/hooks/useShipping";
 import type { CouponPreview, Order, Payment } from "@/lib/types";
 
 export function CartPage() {
@@ -26,9 +27,18 @@ export function CartPage() {
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState<CouponPreview | null>(null);
   const [addressId, setAddressId] = useState("");
+  const [shippingMethodId, setShippingMethodId] = useState("");
   const { data: addresses } = useAddresses();
+  const { data: shippingMethods } = useShippingMethods();
   const chosenAddress =
     addressId || addresses?.find((a) => a.default)?.id || addresses?.[0]?.id || "";
+  const chosenMethod =
+    shippingMethods?.find((m) => m.id === shippingMethodId) ?? shippingMethods?.[0];
+  const shippingCents = chosenMethod
+    ? chosenMethod.freeThresholdCents > 0 && cart && cart.totalCents >= chosenMethod.freeThresholdCents
+      ? 0
+      : chosenMethod.flatRateCents
+    : 0;
 
   const previewCoupon = useMutation({
     mutationFn: (code: string) =>
@@ -47,11 +57,12 @@ export function CartPage() {
   });
 
   const checkout = useMutation({
-    mutationFn: async ({ couponCode, addressId }: { couponCode: string; addressId: string }) => {
+    mutationFn: async ({ couponCode, addressId, shippingMethodId }: { couponCode: string; addressId: string; shippingMethodId: string }) => {
       // Creating the order reserves stock atomically on the server.
       const order = await api.post<Order>("/orders", {
         ...(couponCode ? { couponCode } : {}),
         ...(addressId ? { addressId } : {}),
+        ...(shippingMethodId ? { shippingMethodId } : {}),
       });
       // Then open a payment session with the (sandbox) provider.
       const payment = await api.post<Payment>("/payments", {
@@ -220,6 +231,37 @@ export function CartPage() {
             </div>
 
             <div className="space-y-2">
+              <span className="text-sm font-medium">Shipping</span>
+              {shippingMethods && shippingMethods.length > 0 ? (
+                <div className="space-y-1">
+                  {shippingMethods.map((m) => (
+                    <label
+                      key={m.id}
+                      className="flex cursor-pointer items-center justify-between gap-2 rounded-md border p-2 text-sm"
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="shipping-method"
+                          checked={chosenMethod?.id === m.id}
+                          onChange={() => setShippingMethodId(m.id)}
+                        />
+                        {m.name}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {m.freeThresholdCents > 0 && cart.totalCents >= m.freeThresholdCents
+                          ? "Free"
+                          : formatMoney(m.flatRateCents)}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-xs">No shipping options.</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
               {applied ? (
                 <div className="bg-muted flex items-center justify-between rounded-md px-3 py-2 text-sm">
                   <span className="flex items-center gap-2">
@@ -265,15 +307,26 @@ export function CartPage() {
                 <span>-{formatMoney(applied.discountCents)}</span>
               </div>
             )}
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Shipping</span>
+              <span>{formatMoney(shippingCents)}</span>
+            </div>
+            <p className="text-muted-foreground text-xs">Taxes are calculated at checkout.</p>
             <div className="flex justify-between text-base font-semibold">
               <span>Total</span>
-              <span>{formatMoney(applied?.totalCents ?? cart.totalCents)}</span>
+              <span>{formatMoney((applied?.totalCents ?? cart.totalCents) + shippingCents)}</span>
             </div>
             <Button
               className="w-full"
               size="lg"
               disabled={checkout.isPending}
-              onClick={() => checkout.mutate({ couponCode: applied?.code ?? "", addressId: chosenAddress })}
+              onClick={() =>
+                checkout.mutate({
+                  couponCode: applied?.code ?? "",
+                  addressId: chosenAddress,
+                  shippingMethodId: chosenMethod?.id ?? "",
+                })
+              }
             >
               {checkout.isPending ? "Processing…" : "Checkout"}
             </Button>

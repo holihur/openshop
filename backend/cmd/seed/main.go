@@ -37,6 +37,7 @@ func main() {
 	users := postgres.NewUserRepository(db)
 	categories := postgres.NewCategoryRepository(db)
 	products := postgres.NewProductRepository(db)
+	shipping := postgres.NewShippingMethodRepository(db)
 	hasher := security.NewBcryptHasher()
 	ids := security.NewUUIDGenerator()
 	now := time.Now().UTC()
@@ -117,7 +118,28 @@ func main() {
 		fmt.Println("created product:", spec.title)
 	}
 
+	seedShipping(ctx, shipping, ids, now)
+
 	fmt.Println("seed complete")
+}
+
+func seedShipping(ctx context.Context, shipping *postgres.ShippingMethodRepository, ids *security.UUIDGenerator, now time.Time) {
+	existing, err := shipping.List(ctx, false)
+	if err != nil || len(existing) > 0 {
+		return
+	}
+	methods := []domain.ShippingMethod{
+		{Code: "standard", Name: "Standard (3-5 days)", FlatRateCents: 800, FreeThresholdCents: 9900, Active: true, Sort: 1},
+		{Code: "express", Name: "Express (1-2 days)", FlatRateCents: 2500, Active: true, Sort: 2},
+	}
+	for _, m := range methods {
+		m.ID = ids.NewID()
+		m.CreatedAt, m.UpdatedAt = now, now
+		if err := shipping.Create(ctx, &m); err != nil {
+			continue
+		}
+		fmt.Println("created shipping method:", m.Name)
+	}
 }
 
 func slugify(s string) string {

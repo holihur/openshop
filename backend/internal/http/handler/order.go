@@ -29,6 +29,9 @@ type orderView struct {
 	SubtotalCents   int64           `json:"subtotalCents"`
 	DiscountCents   int64           `json:"discountCents"`
 	CouponCode      string          `json:"couponCode,omitempty"`
+	ShippingCents   int64           `json:"shippingCents"`
+	TaxCents        int64           `json:"taxCents"`
+	ShippingMethod  string          `json:"shippingMethod,omitempty"`
 	TotalCents      int64           `json:"totalCents"`
 	Items           []orderItemView `json:"items"`
 	PaymentID       string          `json:"paymentId"`
@@ -53,10 +56,12 @@ type addressView struct {
 	Default    bool   `json:"default"`
 }
 
-// CheckoutRequest is optional: callers may include a coupon and an address.
+// CheckoutRequest is optional: callers may include a coupon, address and
+// shipping method.
 type CheckoutRequest struct {
-	CouponCode string `json:"couponCode"`
-	AddressID  string `json:"addressId"`
+	CouponCode       string `json:"couponCode"`
+	AddressID        string `json:"addressId"`
+	ShippingMethodID string `json:"shippingMethodId"`
 }
 
 func (h *Handler) Checkout(c *gin.Context) {
@@ -65,9 +70,10 @@ func (h *Handler) Checkout(c *gin.Context) {
 	_ = c.ShouldBindJSON(&req)
 
 	order, err := h.Orders.Checkout(c.Request.Context(), service.CheckoutInput{
-		UserID:     middleware.UserID(c),
-		CouponCode: req.CouponCode,
-		AddressID:  req.AddressID,
+		UserID:           middleware.UserID(c),
+		CouponCode:       req.CouponCode,
+		AddressID:        req.AddressID,
+		ShippingMethodID: req.ShippingMethodID,
 	})
 	if err != nil {
 		response.Fail(c, err)
@@ -187,6 +193,7 @@ func toOrderView(o domain.Order) orderView {
 	view := orderView{
 		ID: o.ID, OrderNo: o.OrderNo, Status: string(o.Status), Currency: o.Currency,
 		SubtotalCents: o.SubtotalCents, DiscountCents: o.DiscountCents, CouponCode: o.CouponCode,
+		ShippingCents: o.ShippingCents, TaxCents: o.TaxCents, ShippingMethod: o.ShippingMethodName,
 		TotalCents: o.TotalCents, Items: items, PaymentID: o.PaymentID,
 		TrackingNo: o.TrackingNo,
 		ExpiresAt:  o.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00"),

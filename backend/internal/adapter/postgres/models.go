@@ -153,26 +153,30 @@ type productModel struct {
 func (productModel) TableName() string { return "products" }
 
 type orderModel struct {
-	ID            string     `gorm:"type:uuid;primaryKey"`
-	OrderNo       string     `gorm:"size:64;uniqueIndex;not null"`
-	UserID        string     `gorm:"type:uuid;index;not null"`
-	Status        string     `gorm:"size:32;index;not null"`
-	Currency      string     `gorm:"size:8;not null"`
-	SubtotalCents int64      `gorm:"not null;default:0"`
-	DiscountCents int64      `gorm:"not null;default:0"`
-	CouponID      uuidString `gorm:"type:uuid;index"`
-	CouponCode    string     `gorm:"size:64;not null;default:''"`
-	TotalCents    int64      `gorm:"not null"`
-	PaymentID     uuidString `gorm:"type:uuid;index"`
-	ShippingJSON  []byte     `gorm:"column:shipping_address;type:jsonb"`
-	TrackingNo    string     `gorm:"size:128;not null;default:''"`
-	ShippedAt     *time.Time
-	CompletedAt   *time.Time
-	ExpiresAt     time.Time        `gorm:"index;not null"`
-	PaidAt        *time.Time       `gorm:"index"`
-	Items         []orderItemModel `gorm:"foreignKey:OrderID;constraint:OnDelete:CASCADE"`
-	CreatedAt     time.Time        `gorm:"not null"`
-	UpdatedAt     time.Time        `gorm:"not null"`
+	ID                 string     `gorm:"type:uuid;primaryKey"`
+	OrderNo            string     `gorm:"size:64;uniqueIndex;not null"`
+	UserID             string     `gorm:"type:uuid;index;not null"`
+	Status             string     `gorm:"size:32;index;not null"`
+	Currency           string     `gorm:"size:8;not null"`
+	SubtotalCents      int64      `gorm:"not null;default:0"`
+	DiscountCents      int64      `gorm:"not null;default:0"`
+	CouponID           uuidString `gorm:"type:uuid;index"`
+	CouponCode         string     `gorm:"size:64;not null;default:''"`
+	TotalCents         int64      `gorm:"not null"`
+	ShippingCents      int64      `gorm:"not null;default:0"`
+	TaxCents           int64      `gorm:"not null;default:0"`
+	ShippingMethodID   uuidString `gorm:"type:uuid;index"`
+	ShippingMethodName string     `gorm:"size:128;not null;default:''"`
+	PaymentID          uuidString `gorm:"type:uuid;index"`
+	ShippingJSON       []byte     `gorm:"column:shipping_address;type:jsonb"`
+	TrackingNo         string     `gorm:"size:128;not null;default:''"`
+	ShippedAt          *time.Time
+	CompletedAt        *time.Time
+	ExpiresAt          time.Time        `gorm:"index;not null"`
+	PaidAt             *time.Time       `gorm:"index"`
+	Items              []orderItemModel `gorm:"foreignKey:OrderID;constraint:OnDelete:CASCADE"`
+	CreatedAt          time.Time        `gorm:"not null"`
+	UpdatedAt          time.Time        `gorm:"not null"`
 }
 
 func (orderModel) TableName() string { return "orders" }
@@ -284,6 +288,20 @@ type addressModel struct {
 
 func (addressModel) TableName() string { return "addresses" }
 
+type shippingMethodModel struct {
+	ID                 string    `gorm:"type:uuid;primaryKey"`
+	Code               string    `gorm:"size:64;not null"`
+	Name               string    `gorm:"size:128;not null"`
+	FlatRateCents      int64     `gorm:"not null;default:0"`
+	FreeThresholdCents int64     `gorm:"not null;default:0"`
+	Active             bool      `gorm:"not null;default:true"`
+	Sort               int       `gorm:"not null;default:0"`
+	CreatedAt          time.Time `gorm:"not null"`
+	UpdatedAt          time.Time `gorm:"not null"`
+}
+
+func (shippingMethodModel) TableName() string { return "shipping_methods" }
+
 // ---- mappers: persistence <-> domain ----
 
 func toUser(m *userModel) *domain.User {
@@ -347,6 +365,8 @@ func toOrder(m *orderModel) *domain.Order {
 		ID: m.ID, OrderNo: m.OrderNo, UserID: m.UserID, Status: domain.OrderStatus(m.Status),
 		Currency: m.Currency, SubtotalCents: m.SubtotalCents, DiscountCents: m.DiscountCents,
 		CouponID: string(m.CouponID), CouponCode: m.CouponCode, TotalCents: m.TotalCents,
+		ShippingCents: m.ShippingCents, TaxCents: m.TaxCents,
+		ShippingMethodID: string(m.ShippingMethodID), ShippingMethodName: m.ShippingMethodName,
 		Items: items, PaymentID: string(m.PaymentID),
 		ShippingAddress: decodeAddress(m.ShippingJSON),
 		TrackingNo:      m.TrackingNo, ShippedAt: m.ShippedAt, CompletedAt: m.CompletedAt,
@@ -389,6 +409,8 @@ func fromOrder(o *domain.Order) *orderModel {
 		ID: o.ID, OrderNo: o.OrderNo, UserID: o.UserID, Status: string(o.Status),
 		Currency: o.Currency, SubtotalCents: o.SubtotalCents, DiscountCents: o.DiscountCents,
 		CouponID: uuidString(o.CouponID), CouponCode: o.CouponCode, TotalCents: o.TotalCents,
+		ShippingCents: o.ShippingCents, TaxCents: o.TaxCents,
+		ShippingMethodID: uuidString(o.ShippingMethodID), ShippingMethodName: o.ShippingMethodName,
 		PaymentID: uuidString(o.PaymentID), ShippingJSON: encodeAddress(o.ShippingAddress),
 		TrackingNo: o.TrackingNo, ShippedAt: o.ShippedAt, CompletedAt: o.CompletedAt,
 		ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Items: items,
@@ -479,5 +501,21 @@ func fromAddress(a *domain.Address) *addressModel {
 		ID: a.ID, UserID: a.UserID, Recipient: a.Recipient, Phone: a.Phone,
 		Province: a.Province, City: a.City, District: a.District, Line1: a.Line1,
 		PostalCode: a.PostalCode, Default: a.Default, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt,
+	}
+}
+
+func toShippingMethod(m *shippingMethodModel) *domain.ShippingMethod {
+	return &domain.ShippingMethod{
+		ID: m.ID, Code: m.Code, Name: m.Name, FlatRateCents: m.FlatRateCents,
+		FreeThresholdCents: m.FreeThresholdCents, Active: m.Active, Sort: m.Sort,
+		CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
+	}
+}
+
+func fromShippingMethod(m *domain.ShippingMethod) *shippingMethodModel {
+	return &shippingMethodModel{
+		ID: m.ID, Code: m.Code, Name: m.Name, FlatRateCents: m.FlatRateCents,
+		FreeThresholdCents: m.FreeThresholdCents, Active: m.Active, Sort: m.Sort,
+		CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
 }

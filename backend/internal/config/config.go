@@ -34,6 +34,8 @@ type AppConfig struct {
 	Currency         string
 	OrderTTL         time.Duration
 	PasswordResetURL string
+	// TaxRateBps is the tax rate in basis points (600 = 6%).
+	TaxRateBps int
 }
 
 type HTTPConfig struct {
@@ -133,6 +135,7 @@ func Load() (*Config, error) {
 			Currency:         env("APP_CURRENCY", "CNY"),
 			OrderTTL:         envDuration("ORDER_TTL", 30*time.Minute),
 			PasswordResetURL: env("PASSWORD_RESET_URL", "http://localhost:5173/reset-password"),
+			TaxRateBps:       envInt("TAX_RATE_BPS", 0),
 		},
 		HTTP: HTTPConfig{
 			Addr:            env("HTTP_ADDR", ":8080"),

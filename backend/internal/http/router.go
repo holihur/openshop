@@ -74,6 +74,7 @@ func NewRouter(
 		api.GET("/products", h.ListProducts)
 		api.GET("/products/:id", h.GetProduct)
 		api.GET("/products/:id/reviews", h.ListReviews)
+		api.GET("/shipping-methods", h.ListShippingMethods)
 
 		// Auth.
 		api.POST("/auth/register", h.Register)
@@ -133,6 +134,9 @@ func NewRouter(
 			admin.POST("/uploads", h.UploadImage)
 			admin.GET("/orders", h.ListOrders)
 			admin.GET("/stats", h.Dashboard)
+			admin.GET("/shipping-methods", h.AdminListShippingMethods)
+			admin.POST("/shipping-methods", h.CreateShippingMethod)
+			admin.PATCH("/shipping-methods/:id", h.UpdateShippingMethod)
 			admin.POST("/orders/:id/refund", h.RefundOrder)
 			admin.POST("/orders/:id/ship", h.ShipOrder)
 			admin.POST("/orders/:id/complete", h.CompleteOrder)
