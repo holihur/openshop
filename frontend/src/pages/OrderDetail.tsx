@@ -138,8 +138,14 @@ export function OrderDetailPage() {
           <CardContent className="space-y-4">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>{formatMoney(order.totalCents, order.currency)}</span>
+              <span>{formatMoney(order.subtotalCents, order.currency)}</span>
             </div>
+            {order.discountCents > 0 && (
+              <div className="flex justify-between text-sm text-emerald-600">
+                <span>Discount{order.couponCode ? ` (${order.couponCode})` : ""}</span>
+                <span>-{formatMoney(order.discountCents, order.currency)}</span>
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between font-semibold">
               <span>Total</span>

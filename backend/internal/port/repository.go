@@ -63,3 +63,29 @@ type PaymentRepository interface {
 	FindByID(ctx context.Context, id string) (*domain.Payment, error)
 	FindByProviderRef(ctx context.Context, provider, ref string) (*domain.Payment, error)
 }
+
+// CouponRepository persists coupons and their redemptions. IncrementUsage is
+// the distributed-safe guard that enforces global usage limits.
+type CouponRepository interface {
+	Create(ctx context.Context, c *domain.Coupon) error
+	FindByID(ctx context.Context, id string) (*domain.Coupon, error)
+	FindByCode(ctx context.Context, code string) (*domain.Coupon, error)
+	List(ctx context.Context) ([]domain.Coupon, error)
+	// IncrementUsage atomically consumes one redemption. It returns
+	// ErrCouponExhausted when the global limit has been reached, which makes it
+	// correct under concurrency across any number of replicas.
+	IncrementUsage(ctx context.Context, id string) error
+	CountRedemptions(ctx context.Context, couponID, userID string) (int64, error)
+	CreateRedemption(ctx context.Context, r *domain.CouponRedemption) error
+}
+
+// ReviewRepository persists product reviews and their aggregate.
+type ReviewRepository interface {
+	Create(ctx context.Context, r *domain.Review) error
+	Update(ctx context.Context, r *domain.Review) error
+	Delete(ctx context.Context, id string) error
+	FindByID(ctx context.Context, id string) (*domain.Review, error)
+	FindByUserAndProduct(ctx context.Context, userID, productID string) (*domain.Review, error)
+	ListByProduct(ctx context.Context, f domain.ReviewFilter) (domain.Page[domain.Review], error)
+	Summary(ctx context.Context, productID string) (domain.ReviewSummary, error)
+}

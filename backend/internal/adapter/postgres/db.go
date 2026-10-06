@@ -77,10 +77,20 @@ func (d *DB) WithinTx(ctx context.Context, fn func(ctx context.Context) error) e
 // AutoMigrate is a convenience for development. Production uses the versioned
 // SQL migrations under backend/migrations.
 func (d *DB) AutoMigrate() error {
-	return d.gorm.AutoMigrate(
+	if err := d.gorm.AutoMigrate(
 		&userModel{}, &categoryModel{}, &productModel{},
 		&orderModel{}, &orderItemModel{}, &paymentModel{}, &outboxModel{},
-	)
+		&couponModel{}, &couponRedemptionModel{}, &reviewModel{},
+	); err != nil {
+		return err
+	}
+	// GORM cannot express a stored generated tsvector column, so add it here to
+	// keep AutoMigrate (development) consistent with the SQL migrations.
+	return d.gorm.Exec(`
+		ALTER TABLE products ADD COLUMN IF NOT EXISTS search_vector tsvector
+		GENERATED ALWAYS AS (
+			to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(description, ''))
+		) STORED`).Error
 }
 
 func (d *DB) Close() error {

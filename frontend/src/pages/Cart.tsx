@@ -1,16 +1,18 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { Minus, Plus, ShoppingBag, Tag, Trash2, X } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { useCart, useClearCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/useCart";
-import type { Order, Payment } from "@/lib/types";
+import type { CouponPreview, Order, Payment } from "@/lib/types";
 
 export function CartPage() {
   const navigate = useNavigate();
@@ -20,10 +22,29 @@ export function CartPage() {
   const removeItem = useRemoveCartItem();
   const clearCart = useClearCart();
 
+  const [coupon, setCoupon] = useState("");
+  const [applied, setApplied] = useState<CouponPreview | null>(null);
+
+  const previewCoupon = useMutation({
+    mutationFn: (code: string) =>
+      api.post<CouponPreview>("/coupons/preview", {
+        code,
+        subtotalCents: cart?.totalCents ?? 0,
+      }),
+    onSuccess: (result) => {
+      setApplied(result);
+      toast.success(`Coupon ${result.code} applied`);
+    },
+    onError: (error: Error) => {
+      setApplied(null);
+      toast.error(error.message);
+    },
+  });
+
   const checkout = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (couponCode: string) => {
       // Creating the order reserves stock atomically on the server.
-      const order = await api.post<Order>("/orders");
+      const order = await api.post<Order>("/orders", couponCode ? { couponCode } : {});
       // Then open a payment session with the (sandbox) provider.
       const payment = await api.post<Payment>("/payments", {
         orderId: order.id,
@@ -145,16 +166,62 @@ export function CartPage() {
               <span className="text-muted-foreground">Items</span>
               <span>{cart.totalCount}</span>
             </div>
+
+            <div className="space-y-2">
+              {applied ? (
+                <div className="bg-muted flex items-center justify-between rounded-md px-3 py-2 text-sm">
+                  <span className="flex items-center gap-2">
+                    <Tag className="size-4" />
+                    {applied.code}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setApplied(null);
+                      setCoupon("");
+                    }}
+                    aria-label="Remove coupon"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    value={coupon}
+                    onChange={(e) => setCoupon(e.target.value)}
+                    placeholder="Coupon code"
+                  />
+                  <Button
+                    variant="outline"
+                    disabled={!coupon || previewCoupon.isPending}
+                    onClick={() => previewCoupon.mutate(coupon)}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <Separator />
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>{formatMoney(cart.totalCents)}</span>
+            </div>
+            {applied && (
+              <div className="flex justify-between text-sm text-emerald-600">
+                <span>Discount</span>
+                <span>-{formatMoney(applied.discountCents)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-base font-semibold">
               <span>Total</span>
-              <span>{formatMoney(cart.totalCents)}</span>
+              <span>{formatMoney(applied?.totalCents ?? cart.totalCents)}</span>
             </div>
             <Button
               className="w-full"
               size="lg"
               disabled={checkout.isPending}
-              onClick={() => checkout.mutate()}
+              onClick={() => checkout.mutate(applied?.code ?? "")}
             >
               {checkout.isPending ? "Processing…" : "Checkout"}
             </Button>

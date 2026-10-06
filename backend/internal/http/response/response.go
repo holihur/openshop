@@ -83,6 +83,10 @@ func classify(err error) (int, string, string) {
 		return http.StatusBadRequest, "cart_empty", "your cart is empty"
 	case errors.Is(err, domain.ErrOrderNotPayable):
 		return http.StatusConflict, "order_not_payable", "order is not payable"
+	case errors.Is(err, domain.ErrOrderNotRefundable):
+		return http.StatusConflict, "order_not_refundable", "order is not refundable"
+	case errors.Is(err, domain.ErrCouponExhausted):
+		return http.StatusConflict, "coupon_exhausted", "coupon usage limit reached"
 	case errors.Is(err, domain.ErrPaymentFailed):
 		return http.StatusBadGateway, "payment_failed", "payment failed"
 	default:
@@ -108,6 +112,12 @@ func statusFor(code string) int {
 		return http.StatusBadRequest
 	case "order_not_payable":
 		return http.StatusConflict
+	case "order_not_refundable":
+		return http.StatusConflict
+	case "coupon_exhausted":
+		return http.StatusConflict
+	case "coupon_invalid":
+		return http.StatusBadRequest
 	case "payment_failed":
 		return http.StatusBadGateway
 	default:

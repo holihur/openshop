@@ -71,6 +71,7 @@ func NewRouter(
 		api.GET("/categories", h.ListCategories)
 		api.GET("/products", h.ListProducts)
 		api.GET("/products/:id", h.GetProduct)
+		api.GET("/products/:id/reviews", h.ListReviews)
 
 		// Auth.
 		api.POST("/auth/register", h.Register)
@@ -100,6 +101,11 @@ func NewRouter(
 
 			authed.POST("/payments", middleware.Idempotency(cache, 24*time.Hour), h.CreatePayment)
 			authed.POST("/payments/simulate", h.SimulatePayment)
+
+			authed.POST("/coupons/preview", h.PreviewCoupon)
+			authed.POST("/products/:id/reviews", h.AddReview)
+			authed.PATCH("/reviews/:id", h.UpdateReview)
+			authed.DELETE("/reviews/:id", h.DeleteReview)
 		}
 
 		// Admin area.
@@ -112,6 +118,9 @@ func NewRouter(
 			admin.PATCH("/products/:id", h.UpdateProduct)
 			admin.POST("/uploads", h.UploadImage)
 			admin.GET("/orders", h.ListOrders)
+			admin.POST("/orders/:id/refund", h.RefundOrder)
+			admin.GET("/coupons", h.ListCoupons)
+			admin.POST("/coupons", h.CreateCoupon)
 		}
 	}
 

@@ -122,18 +122,22 @@ type productModel struct {
 func (productModel) TableName() string { return "products" }
 
 type orderModel struct {
-	ID         string           `gorm:"type:uuid;primaryKey"`
-	OrderNo    string           `gorm:"size:64;uniqueIndex;not null"`
-	UserID     string           `gorm:"type:uuid;index;not null"`
-	Status     string           `gorm:"size:32;index;not null"`
-	Currency   string           `gorm:"size:8;not null"`
-	TotalCents int64            `gorm:"not null"`
-	PaymentID  uuidString       `gorm:"type:uuid;index"`
-	ExpiresAt  time.Time        `gorm:"index;not null"`
-	PaidAt     *time.Time       `gorm:"index"`
-	Items      []orderItemModel `gorm:"foreignKey:OrderID;constraint:OnDelete:CASCADE"`
-	CreatedAt  time.Time        `gorm:"not null"`
-	UpdatedAt  time.Time        `gorm:"not null"`
+	ID            string           `gorm:"type:uuid;primaryKey"`
+	OrderNo       string           `gorm:"size:64;uniqueIndex;not null"`
+	UserID        string           `gorm:"type:uuid;index;not null"`
+	Status        string           `gorm:"size:32;index;not null"`
+	Currency      string           `gorm:"size:8;not null"`
+	SubtotalCents int64            `gorm:"not null;default:0"`
+	DiscountCents int64            `gorm:"not null;default:0"`
+	CouponID      uuidString       `gorm:"type:uuid;index"`
+	CouponCode    string           `gorm:"size:64;not null;default:''"`
+	TotalCents    int64            `gorm:"not null"`
+	PaymentID     uuidString       `gorm:"type:uuid;index"`
+	ExpiresAt     time.Time        `gorm:"index;not null"`
+	PaidAt        *time.Time       `gorm:"index"`
+	Items         []orderItemModel `gorm:"foreignKey:OrderID;constraint:OnDelete:CASCADE"`
+	CreatedAt     time.Time        `gorm:"not null"`
+	UpdatedAt     time.Time        `gorm:"not null"`
 }
 
 func (orderModel) TableName() string { return "orders" }
@@ -165,6 +169,49 @@ type paymentModel struct {
 }
 
 func (paymentModel) TableName() string { return "payments" }
+
+type couponModel struct {
+	ID               string `gorm:"type:uuid;primaryKey"`
+	Code             string `gorm:"size:64;not null"`
+	Description      string `gorm:"type:text;not null;default:''"`
+	DiscountType     string `gorm:"size:16;not null"`
+	DiscountValue    int64  `gorm:"not null;default:0"`
+	MinSubtotalCents int64  `gorm:"not null;default:0"`
+	MaxDiscountCents int64  `gorm:"not null;default:0"`
+	UsageLimit       int    `gorm:"not null;default:0"`
+	UsedCount        int    `gorm:"not null;default:0"`
+	PerUserLimit     int    `gorm:"not null;default:1"`
+	StartsAt         *time.Time
+	EndsAt           *time.Time
+	Active           bool      `gorm:"not null;default:true"`
+	CreatedAt        time.Time `gorm:"not null"`
+	UpdatedAt        time.Time `gorm:"not null"`
+}
+
+func (couponModel) TableName() string { return "coupons" }
+
+type couponRedemptionModel struct {
+	ID        string    `gorm:"type:uuid;primaryKey"`
+	CouponID  string    `gorm:"type:uuid;index;not null"`
+	UserID    string    `gorm:"type:uuid;index;not null"`
+	OrderID   string    `gorm:"type:uuid;not null"`
+	CreatedAt time.Time `gorm:"not null"`
+}
+
+func (couponRedemptionModel) TableName() string { return "coupon_redemptions" }
+
+type reviewModel struct {
+	ID        string    `gorm:"type:uuid;primaryKey"`
+	ProductID string    `gorm:"type:uuid;index;not null"`
+	UserID    string    `gorm:"type:uuid;index;not null"`
+	Rating    int16     `gorm:"not null"`
+	Title     string    `gorm:"size:160;not null;default:''"`
+	Body      string    `gorm:"type:text;not null;default:''"`
+	CreatedAt time.Time `gorm:"not null"`
+	UpdatedAt time.Time `gorm:"not null"`
+}
+
+func (reviewModel) TableName() string { return "reviews" }
 
 // ---- mappers: persistence <-> domain ----
 
@@ -226,7 +273,9 @@ func toOrder(m *orderModel) *domain.Order {
 	}
 	return &domain.Order{
 		ID: m.ID, OrderNo: m.OrderNo, UserID: m.UserID, Status: domain.OrderStatus(m.Status),
-		Currency: m.Currency, TotalCents: m.TotalCents, Items: items, PaymentID: string(m.PaymentID),
+		Currency: m.Currency, SubtotalCents: m.SubtotalCents, DiscountCents: m.DiscountCents,
+		CouponID: string(m.CouponID), CouponCode: m.CouponCode, TotalCents: m.TotalCents,
+		Items: items, PaymentID: string(m.PaymentID),
 		ExpiresAt: m.ExpiresAt, PaidAt: m.PaidAt, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
 }
@@ -241,8 +290,9 @@ func fromOrder(o *domain.Order) *orderModel {
 	}
 	return &orderModel{
 		ID: o.ID, OrderNo: o.OrderNo, UserID: o.UserID, Status: string(o.Status),
-		Currency: o.Currency, TotalCents: o.TotalCents, PaymentID: uuidString(o.PaymentID),
-		ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Items: items,
+		Currency: o.Currency, SubtotalCents: o.SubtotalCents, DiscountCents: o.DiscountCents,
+		CouponID: uuidString(o.CouponID), CouponCode: o.CouponCode, TotalCents: o.TotalCents,
+		PaymentID: uuidString(o.PaymentID), ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Items: items,
 		CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt,
 	}
 }
@@ -262,5 +312,41 @@ func fromPayment(p *domain.Payment) *paymentModel {
 		ProviderRef: p.ProviderRef, AmountCents: p.AmountCents, Currency: p.Currency,
 		Status: string(p.Status), FailureReason: p.FailureReason,
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+	}
+}
+
+func toCoupon(m *couponModel) *domain.Coupon {
+	return &domain.Coupon{
+		ID: m.ID, Code: m.Code, Description: m.Description,
+		DiscountType: domain.DiscountType(m.DiscountType), DiscountValue: m.DiscountValue,
+		MinSubtotalCents: m.MinSubtotalCents, MaxDiscountCents: m.MaxDiscountCents,
+		UsageLimit: m.UsageLimit, UsedCount: m.UsedCount, PerUserLimit: m.PerUserLimit,
+		StartsAt: m.StartsAt, EndsAt: m.EndsAt, Active: m.Active,
+		CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
+	}
+}
+
+func fromCoupon(c *domain.Coupon) *couponModel {
+	return &couponModel{
+		ID: c.ID, Code: c.Code, Description: c.Description,
+		DiscountType: string(c.DiscountType), DiscountValue: c.DiscountValue,
+		MinSubtotalCents: c.MinSubtotalCents, MaxDiscountCents: c.MaxDiscountCents,
+		UsageLimit: c.UsageLimit, UsedCount: c.UsedCount, PerUserLimit: c.PerUserLimit,
+		StartsAt: c.StartsAt, EndsAt: c.EndsAt, Active: c.Active,
+		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
+	}
+}
+
+func toReview(m *reviewModel) *domain.Review {
+	return &domain.Review{
+		ID: m.ID, ProductID: m.ProductID, UserID: m.UserID, Rating: int(m.Rating),
+		Title: m.Title, Body: m.Body, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
+	}
+}
+
+func fromReview(r *domain.Review) *reviewModel {
+	return &reviewModel{
+		ID: r.ID, ProductID: r.ProductID, UserID: r.UserID, Rating: int16(r.Rating),
+		Title: r.Title, Body: r.Body, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}
 }

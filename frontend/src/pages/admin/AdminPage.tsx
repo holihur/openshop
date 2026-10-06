@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, RotateCcw } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,8 +18,9 @@ import {
 import { ProductForm } from "@/components/admin/product-form";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { useAdminOrders, useAdminProducts } from "@/hooks/useAdmin";
+import { api } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
-import type { Product } from "@/lib/types";
+import type { Order, Product } from "@/lib/types";
 
 type Tab = "products" | "orders";
 
@@ -147,6 +150,17 @@ function AdminProducts() {
 
 function AdminOrders() {
   const { data, isLoading } = useAdminOrders(1, 50);
+  const queryClient = useQueryClient();
+
+  const refund = useMutation({
+    mutationFn: (orderId: string) =>
+      api.post<Order>(`/admin/orders/${orderId}/refund`, { reason: "admin refund" }),
+    onSuccess: () => {
+      toast.success("Order refunded");
+      void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   if (isLoading) {
     return (
@@ -168,6 +182,7 @@ function AdminOrders() {
               <TableHead>Items</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Placed</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -181,6 +196,19 @@ function AdminOrders() {
                 <TableCell>{formatMoney(order.totalCents, order.currency)}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {formatDate(order.createdAt)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {["paid", "shipped", "completed"].includes(order.status) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={refund.isPending}
+                      onClick={() => refund.mutate(order.id)}
+                    >
+                      <RotateCcw className="size-4" />
+                      Refund
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

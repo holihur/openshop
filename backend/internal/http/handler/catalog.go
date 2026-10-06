@@ -29,6 +29,8 @@ type productView struct {
 	Images      []string `json:"images"`
 	Status      string   `json:"status"`
 	Stock       int      `json:"stock"`
+	Rating      float64  `json:"rating,omitempty"`
+	ReviewCount int64    `json:"reviewCount,omitempty"`
 }
 
 type createCategoryRequest struct {
@@ -125,7 +127,14 @@ func (h *Handler) GetProduct(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.OK(c, toProductView(*p))
+	view := toProductView(*p)
+	if h.Reviews != nil {
+		if summary, err := h.Reviews.Summary(c.Request.Context(), p.ID); err == nil {
+			view.Rating = summary.Average
+			view.ReviewCount = summary.Count
+		}
+	}
+	response.OK(c, view)
 }
 
 func (h *Handler) CreateProduct(c *gin.Context) {

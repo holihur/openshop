@@ -41,6 +41,7 @@ behind a load balancer and they will behave as one system.
 | **Events** | NATS JetStream with **durable queue groups** — adding replicas adds throughput, and each event is handled once per group. |
 | **Reliable events** | A **transactional outbox**: events are committed in the same DB transaction as the state change, then a relay publishes them (SKIP LOCKED, at-least-once). A crash can never lose an event. |
 | **Safe retries** | `Idempotency-Key` on checkout/payment: the first response is cached and replayed, so network retries never create duplicate orders. |
+| **Coupon limits** | Global usage caps enforced by an atomic conditional `UPDATE … WHERE used_count < usage_limit`, so the cap holds across replicas. |
 | **Scheduled jobs** | The order-expiry sweeper takes a Redis **leader lock**, so only one replica sweeps per tick. If it dies, the lock expires and another takes over. |
 | **Readiness** | `/readyz` probes PostgreSQL, Redis and NATS so the load balancer can drain unhealthy replicas. |
 | **Graceful shutdown** | In-flight requests drain, workers stop, and connections close cleanly on `SIGTERM`. |
@@ -109,6 +110,7 @@ running (see [Testing](#testing)).
 | --- | --- | --- |
 | `UserRepository`, `ProductRepository`, `OrderRepository`, `PaymentRepository`, `CategoryRepository` | GORM + PostgreSQL | in-memory fakes (tests) |
 | `CartRepository` | Redis | in-memory fake (tests) |
+| `CouponRepository`, `ReviewRepository` | GORM + PostgreSQL | in-memory fakes (tests) |
 | `Cache` | Redis | in-memory fake (tests) |
 | `Locker` | Redis (`SET NX` + Lua release) | in-memory fake (tests) |
 | `EventBus` | NATS JetStream | in-memory fake (tests) |
@@ -146,7 +148,7 @@ openshop/
 │   │   ├── worker/         # event consumers, order sweeper, outbox relay
 │   │   ├── config/         # 12-factor env configuration
 │   │   └── bootstrap/      # composition root
-│   └── migrations/         # *.sql (0001 core, 0002 outbox)
+│   └── migrations/         # *.sql (0001 core, 0002 outbox, 0003 coupons, 0004 reviews, 0005 search)
 ├── frontend/
 │   └── src/
 │       ├── components/ui/  # shadcn/ui primitives
@@ -276,6 +278,16 @@ retries safe.
 | `DELETE` | `/cart/items/:productId` | ✔ | Remove an item |
 | `DELETE` | `/cart` | ✔ | Clear the cart |
 
+### Reviews & coupons
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/products/:id/reviews` | — | List a product's reviews |
+| `POST` | `/products/:id/reviews` | ✔ | Create a review (one per user) |
+| `PATCH` | `/reviews/:id` | ✔ | Update your review |
+| `DELETE` | `/reviews/:id` | ✔ | Delete a review (owner or admin) |
+| `POST` | `/coupons/preview` | ✔ | Validate a coupon and preview the discount |
+
 ### Orders & payments
 
 | Method | Path | Auth | Description |
@@ -297,6 +309,9 @@ retries safe.
 | `PATCH` | `/admin/products/:id` | Update a product |
 | `POST` | `/admin/uploads` | Upload an image (multipart) |
 | `GET` | `/admin/orders` | List all orders |
+| `POST` | `/admin/orders/:id/refund` | Refund a paid order (restores stock) |
+| `GET` | `/admin/coupons` | List coupons |
+| `POST` | `/admin/coupons` | Create a coupon |
 
 ### Ops
 
@@ -380,6 +395,8 @@ Every process exposes Prometheus metrics at `GET /metrics`:
 | `openshop_orders_created_total` | counter | orders created by currency |
 | `openshop_orders_paid_total` | counter | orders paid |
 | `openshop_payments_succeeded_total` | counter | successful payments by provider |
+| `openshop_payments_refunded_total` | counter | refunded payments by provider |
+| `openshop_orders_refunded_total` | counter | refunded orders |
 | `openshop_outbox_published_total` | counter | events relayed by subject |
 | `openshop_outbox_publish_failures_total` | counter | relay failures (retried) |
 
@@ -439,3 +456,9 @@ kubectl -n openshop scale deploy/openshop-backend --replicas=6
   catalog reflects reservations immediately.
 - **Least privilege in the catalog.** Public product listings are forced to
   `published`; only admins can list drafts via `/admin/products`.
+- **Discounts are integers too.** Percent coupons use integer math and caps so
+  rounding never produces fractional money; the discount can never exceed the
+  subtotal.
+- **Indexed search with a fallback.** Products carry a generated `tsvector`
+  column with a GIN index; queries also fall back to a substring match so CJK
+  and partial words still work.

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReviewsSection } from "@/components/reviews-section";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { useAddToCart } from "@/hooks/useCart";
@@ -103,6 +104,12 @@ export function ProductDetailPage() {
                 <Badge variant="success">{product.stock} in stock</Badge>
               )}
             </div>
+            {product.reviewCount ? (
+              <p className="text-muted-foreground mt-2 text-sm">
+                ★ {product.rating?.toFixed(1)} · {product.reviewCount} review
+                {product.reviewCount === 1 ? "" : "s"}
+              </p>
+            ) : null}
           </div>
 
           <Separator />
@@ -148,6 +155,8 @@ export function ProductDetailPage() {
           </div>
         </div>
       </div>
+
+      <ReviewsSection productId={product.id} />
     </div>
   );
 }

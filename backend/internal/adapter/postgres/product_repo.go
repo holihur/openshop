@@ -61,8 +61,13 @@ func (r *ProductRepository) List(ctx context.Context, f domain.ProductFilter) (d
 		q = q.Where("category_id = ?", f.CategoryID)
 	}
 	if f.Keyword != "" {
+		// Indexed full-text search plus a substring fallback for partial words
+		// and CJK text, which the 'simple' configuration does not tokenise.
 		like := "%" + f.Keyword + "%"
-		q = q.Where("title ILIKE ? OR description ILIKE ?", like, like)
+		q = q.Where(
+			"search_vector @@ plainto_tsquery('simple', ?) OR title ILIKE ? OR description ILIKE ?",
+			f.Keyword, like, like,
+		)
 	}
 	if f.Status != nil {
 		q = q.Where("status = ?", string(*f.Status))

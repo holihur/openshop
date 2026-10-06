@@ -26,6 +26,8 @@ export interface Product {
   images: string[];
   status: "draft" | "published" | "archived";
   stock: number;
+  rating?: number;
+  reviewCount?: number;
 }
 
 export interface CartItem {
@@ -65,12 +67,45 @@ export interface Order {
   orderNo: string;
   status: OrderStatus;
   currency: string;
+  subtotalCents: number;
+  discountCents: number;
+  couponCode?: string;
   totalCents: number;
   items: OrderItem[];
   paymentId: string;
   expiresAt: string;
   paidAt?: string;
   createdAt: string;
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  userId: string;
+  rating: number;
+  title: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface CouponPreview {
+  code: string;
+  discountCents: number;
+  totalCents: number;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  description: string;
+  discountType: "percent" | "fixed";
+  discountValue: number;
+  minSubtotalCents: number;
+  maxDiscountCents: number;
+  usageLimit: number;
+  usedCount: number;
+  perUserLimit: number;
+  active: boolean;
 }
 
 export interface Payment {

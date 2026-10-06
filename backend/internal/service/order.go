@@ -25,6 +25,7 @@ type ProductCacheInvalidator interface {
 type OrderService struct {
 	orders       port.OrderRepository
 	products     port.ProductRepository
+	coupons      port.CouponRepository
 	carts        port.CartRepository
 	locker       port.Locker
 	tx           port.TxManager
@@ -41,6 +42,7 @@ type OrderService struct {
 func NewOrderService(
 	orders port.OrderRepository,
 	products port.ProductRepository,
+	coupons port.CouponRepository,
 	carts port.CartRepository,
 	locker port.Locker,
 	tx port.TxManager,
@@ -57,16 +59,16 @@ func NewOrderService(
 		metrics = port.NopMetrics{}
 	}
 	return &OrderService{
-		orders: orders, products: products, carts: carts, locker: locker, tx: tx, outbox: outbox,
-		ids: ids, clock: clock, logger: logger, productCache: productCache, metrics: metrics,
-		ttl: ttl, currency: currency,
+		orders: orders, products: products, coupons: coupons, carts: carts, locker: locker, tx: tx,
+		outbox: outbox, ids: ids, clock: clock, logger: logger, productCache: productCache,
+		metrics: metrics, ttl: ttl, currency: currency,
 	}
 }
 
 // Checkout converts the user's cart into a pending order, reserving stock. The
 // per-user lock prevents duplicate submissions from retries or double clicks;
 // the transaction guarantees stock and order move together.
-func (s *OrderService) Checkout(ctx context.Context, userID string) (*domain.Order, error) {
+func (s *OrderService) Checkout(ctx context.Context, userID, couponCode string) (*domain.Order, error) {
 	lock, err := s.locker.Acquire(ctx, "lock:checkout:"+userID, 15*time.Second, 3*time.Second)
 	if err != nil {
 		return nil, err
@@ -119,10 +121,29 @@ func (s *OrderService) Checkout(ctx context.Context, userID string) (*domain.Ord
 		if total <= 0 {
 			return fmt.Errorf("%w: order total must be positive", domain.ErrInvalidArgument)
 		}
-		order.TotalCents = total
+		order.SubtotalCents = total
 		order.Items = items
+
+		if couponCode != "" {
+			if err := s.applyCoupon(txCtx, order, userID, couponCode, now); err != nil {
+				return err
+			}
+		}
+		order.TotalCents = order.SubtotalCents - order.DiscountCents
+		if order.TotalCents < 0 {
+			order.TotalCents = 0
+		}
+
 		if err := s.orders.Create(txCtx, order); err != nil {
 			return err
+		}
+		if order.CouponID != "" {
+			if err := s.coupons.CreateRedemption(txCtx, &domain.CouponRedemption{
+				ID: s.ids.NewID(), CouponID: order.CouponID, UserID: userID,
+				OrderID: order.ID, CreatedAt: now,
+			}); err != nil {
+				return err
+			}
 		}
 		// The event is enqueued in the same transaction as the order, so a crash
 		// between commit and publish can never lose it.
@@ -239,6 +260,77 @@ func (s *OrderService) MarkPaid(ctx context.Context, orderID, paymentID string) 
 	}
 	s.invalidateProducts(ctx, out)
 	return out, nil
+}
+
+// MarkRefunded transitions a paid order to refunded and returns its stock. Like
+// MarkPaid it is idempotent and serialised by a distributed lock.
+func (s *OrderService) MarkRefunded(ctx context.Context, orderID, paymentID string) (*domain.Order, error) {
+	lock, err := s.locker.Acquire(ctx, "lock:order:"+orderID, 10*time.Second, 3*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = lock.Release(ctx) }()
+
+	var out *domain.Order
+	err = s.tx.WithinTx(ctx, func(txCtx context.Context) error {
+		o, err := s.orders.FindByID(txCtx, orderID)
+		if err != nil {
+			return err
+		}
+		if o.Status == domain.OrderRefunded {
+			out = o
+			return nil
+		}
+		if !o.Refundable() {
+			return domain.ErrOrderNotRefundable
+		}
+		if err := s.releaseStock(txCtx, o); err != nil {
+			return err
+		}
+		o.Status = domain.OrderRefunded
+		o.PaymentID = paymentID
+		o.UpdatedAt = s.clock.Now()
+		if err := s.orders.Update(txCtx, o); err != nil {
+			return err
+		}
+		out = o
+		s.metrics.Counter("openshop_orders_refunded_total", 1, map[string]string{"currency": o.Currency})
+		return s.enqueue(txCtx, SubjectOrderRefunded, o)
+	})
+	if err != nil {
+		return nil, err
+	}
+	s.invalidateProducts(ctx, out)
+	return out, nil
+}
+
+// applyCoupon validates and consumes a coupon inside the checkout transaction.
+func (s *OrderService) applyCoupon(ctx context.Context, order *domain.Order, userID, code string, now time.Time) error {
+	coupon, err := s.coupons.FindByCode(ctx, code)
+	if err != nil {
+		return err
+	}
+	if err := coupon.Validate(order.SubtotalCents, now); err != nil {
+		return err
+	}
+	if coupon.PerUserLimit > 0 {
+		used, err := s.coupons.CountRedemptions(ctx, coupon.ID, userID)
+		if err != nil {
+			return err
+		}
+		if used >= int64(coupon.PerUserLimit) {
+			return domain.ErrCouponExhausted
+		}
+	}
+	// Atomic compare-and-set on used_count enforces the global limit across all
+	// replicas; it participates in this transaction and rolls back on failure.
+	if err := s.coupons.IncrementUsage(ctx, coupon.ID); err != nil {
+		return err
+	}
+	order.CouponID = coupon.ID
+	order.CouponCode = coupon.Code
+	order.DiscountCents = coupon.DiscountFor(order.SubtotalCents)
+	return nil
 }
 
 // CancelExpired is called by the background sweeper. It releases stock for

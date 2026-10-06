@@ -23,6 +23,8 @@ type Handler struct {
 	Cart     *service.CartService
 	Orders   *service.OrderService
 	Payments *service.PaymentService
+	Coupons  *service.CouponService
+	Reviews  *service.ReviewService
 	Storage  port.ObjectStorage
 	IDs      port.IDGenerator
 	Logger   port.Logger

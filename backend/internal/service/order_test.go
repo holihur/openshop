@@ -15,6 +15,7 @@ type orderFixture struct {
 	products *fakeProductRepo
 	carts    *fakeCartRepo
 	orders   *fakeOrderRepo
+	coupons  *fakeCouponRepo
 	outbox   *fakeOutbox
 	locker   *fakeLocker
 }
@@ -23,14 +24,18 @@ func newOrderFixture() *orderFixture {
 	products := newFakeProductRepo()
 	carts := newFakeCartRepo()
 	orders := newFakeOrderRepo()
+	coupons := newFakeCouponRepo()
 	outbox := newFakeOutbox()
 	locker := newFakeLocker()
 	svc := NewOrderService(
-		orders, products, carts, locker, fakeTx{}, outbox,
+		orders, products, coupons, carts, locker, fakeTx{}, outbox,
 		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
 		nopLogger{}, nil, port.NopMetrics{}, 30*time.Minute, "CNY",
 	)
-	return &orderFixture{svc: svc, products: products, carts: carts, orders: orders, outbox: outbox, locker: locker}
+	return &orderFixture{
+		svc: svc, products: products, carts: carts, orders: orders,
+		coupons: coupons, outbox: outbox, locker: locker,
+	}
 }
 
 func seedProduct(f *orderFixture, id string, stock int, price int64) {
@@ -53,7 +58,7 @@ func TestCheckoutReservesStockAndClearsCart(t *testing.T) {
 		t.Fatalf("save cart: %v", err)
 	}
 
-	order, err := f.svc.Checkout(context.Background(), "u1")
+	order, err := f.svc.Checkout(context.Background(), "u1", "")
 	if err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
@@ -93,7 +98,7 @@ func TestCheckoutRejectsInsufficientStock(t *testing.T) {
 	cart := &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 2}}}
 	_ = f.carts.Save(context.Background(), cart)
 
-	_, err := f.svc.Checkout(context.Background(), "u1")
+	_, err := f.svc.Checkout(context.Background(), "u1", "")
 	if !errors.Is(err, domain.ErrInsufficientStock) {
 		t.Fatalf("err = %v, want ErrInsufficientStock", err)
 	}
@@ -109,8 +114,54 @@ func TestCheckoutRejectsInsufficientStock(t *testing.T) {
 
 func TestCheckoutRejectsEmptyCart(t *testing.T) {
 	f := newOrderFixture()
-	if _, err := f.svc.Checkout(context.Background(), "u1"); !errors.Is(err, domain.ErrCartEmpty) {
+	if _, err := f.svc.Checkout(context.Background(), "u1", ""); !errors.Is(err, domain.ErrCartEmpty) {
 		t.Fatalf("err = %v, want ErrCartEmpty", err)
+	}
+}
+
+func TestCheckoutAppliesCoupon(t *testing.T) {
+	f := newOrderFixture()
+	seedProduct(f, "p1", 5, 1000)
+	f.coupons.put(&domain.Coupon{
+		ID: "c1", Code: "SAVE10", DiscountType: domain.DiscountPercent,
+		DiscountValue: 10, PerUserLimit: 1, Active: true,
+	})
+
+	cart := &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 2}}}
+	_ = f.carts.Save(context.Background(), cart)
+
+	order, err := f.svc.Checkout(context.Background(), "u1", "SAVE10")
+	if err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+	if order.SubtotalCents != 2000 || order.DiscountCents != 200 || order.TotalCents != 1800 {
+		t.Fatalf("totals wrong: subtotal=%d discount=%d total=%d",
+			order.SubtotalCents, order.DiscountCents, order.TotalCents)
+	}
+	if order.CouponCode != "SAVE10" {
+		t.Fatalf("coupon code = %q", order.CouponCode)
+	}
+	if len(f.coupons.redemptions) != 1 {
+		t.Fatalf("redemptions = %d, want 1", len(f.coupons.redemptions))
+	}
+}
+
+func TestCheckoutRejectsExhaustedCoupon(t *testing.T) {
+	f := newOrderFixture()
+	seedProduct(f, "p1", 10, 500)
+	f.coupons.put(&domain.Coupon{
+		ID: "c1", Code: "ONCE", DiscountType: domain.DiscountFixed,
+		DiscountValue: 100, UsageLimit: 1, UsedCount: 1, Active: true,
+	})
+	cart := &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 1}}}
+	_ = f.carts.Save(context.Background(), cart)
+
+	_, err := f.svc.Checkout(context.Background(), "u1", "ONCE")
+	if !errors.Is(err, domain.ErrCouponExhausted) {
+		t.Fatalf("err = %v, want ErrCouponExhausted", err)
+	}
+	if len(f.orders.data) != 0 {
+		t.Fatal("order created despite exhausted coupon")
 	}
 }
 
@@ -120,7 +171,7 @@ func TestCancelRestoresStock(t *testing.T) {
 	cart := &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 3}}}
 	_ = f.carts.Save(context.Background(), cart)
 
-	order, err := f.svc.Checkout(context.Background(), "u1")
+	order, err := f.svc.Checkout(context.Background(), "u1", "")
 	if err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
@@ -148,7 +199,7 @@ func TestMarkPaidIsIdempotent(t *testing.T) {
 	cart := &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 1}}}
 	_ = f.carts.Save(context.Background(), cart)
 
-	order, _ := f.svc.Checkout(context.Background(), "u1")
+	order, _ := f.svc.Checkout(context.Background(), "u1", "")
 	if _, err := f.svc.MarkPaid(context.Background(), order.ID, "pay-1"); err != nil {
 		t.Fatalf("mark paid: %v", err)
 	}
@@ -162,12 +213,38 @@ func TestMarkPaidIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestMarkRefundedRestoresStockAndIsIdempotent(t *testing.T) {
+	f := newOrderFixture()
+	seedProduct(f, "p1", 5, 100)
+	cart := &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 2}}}
+	_ = f.carts.Save(context.Background(), cart)
+
+	order, _ := f.svc.Checkout(context.Background(), "u1", "")
+	_, _ = f.svc.MarkPaid(context.Background(), order.ID, "pay-1")
+
+	if _, err := f.svc.MarkRefunded(context.Background(), order.ID, "pay-1"); err != nil {
+		t.Fatalf("refund: %v", err)
+	}
+	p1, _ := f.products.FindByID(context.Background(), "p1")
+	if p1.Stock != 5 {
+		t.Fatalf("stock after refund = %d, want 5", p1.Stock)
+	}
+	// Refunding again is a no-op and must not restore stock twice.
+	if _, err := f.svc.MarkRefunded(context.Background(), order.ID, "pay-1"); err != nil {
+		t.Fatalf("second refund: %v", err)
+	}
+	p1, _ = f.products.FindByID(context.Background(), "p1")
+	if p1.Stock != 5 {
+		t.Fatalf("stock after double refund = %d, want 5", p1.Stock)
+	}
+}
+
 func TestExpiredOrdersAreListed(t *testing.T) {
 	f := newOrderFixture()
 	seedProduct(f, "p1", 5, 100)
 	cart := &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 1}}}
 	_ = f.carts.Save(context.Background(), cart)
-	order, _ := f.svc.Checkout(context.Background(), "u1")
+	order, _ := f.svc.Checkout(context.Background(), "u1", "")
 
 	future := order.ExpiresAt.Add(time.Minute)
 	expired, err := f.svc.ListExpired(context.Background(), future, 10)

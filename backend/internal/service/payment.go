@@ -145,6 +145,49 @@ func (s *PaymentService) HandleWebhook(ctx context.Context, providerName string,
 	return nil
 }
 
+// Refund reverses a paid order through its provider and returns the stock. It
+// is idempotent: refunding an already-refunded order is a no-op.
+func (s *PaymentService) Refund(ctx context.Context, orderID, reason string) (*domain.Order, error) {
+	order, err := s.orders.FindByID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if !order.Refundable() {
+		return nil, domain.ErrOrderNotRefundable
+	}
+	if order.PaymentID == "" {
+		return nil, domain.ErrOrderNotRefundable
+	}
+
+	payment, err := s.payments.FindByID(ctx, order.PaymentID)
+	if err != nil {
+		return nil, err
+	}
+	if payment.Status == domain.PaymentRefunded {
+		return s.orderSvc.MarkRefunded(ctx, orderID, payment.ID)
+	}
+
+	provider, err := s.provider(payment.Provider)
+	if err != nil {
+		return nil, err
+	}
+	if err := provider.Refund(ctx, port.RefundRequest{
+		ProviderRef: payment.ProviderRef,
+		AmountCents: payment.AmountCents,
+		Reason:      reason,
+	}); err != nil {
+		return nil, fmt.Errorf("refund: %w", err)
+	}
+
+	payment.Status = domain.PaymentRefunded
+	payment.UpdatedAt = s.clock.Now()
+	if err := s.payments.Update(ctx, payment); err != nil {
+		return nil, err
+	}
+	s.metrics.Counter("openshop_payments_refunded_total", 1, map[string]string{"provider": provider.Name()})
+	return s.orderSvc.MarkRefunded(ctx, orderID, payment.ID)
+}
+
 func (s *PaymentService) provider(name string) (port.PaymentProvider, error) {
 	if name == "" {
 		if p := s.registry.Default(); p != nil {

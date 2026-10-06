@@ -311,6 +311,94 @@ func (r *fakePaymentRepo) FindByProviderRef(_ context.Context, provider, ref str
 	return nil, domain.ErrNotFound
 }
 
+type fakeCouponRepo struct {
+	mu          sync.Mutex
+	byCode      map[string]*domain.Coupon
+	redemptions []domain.CouponRedemption
+}
+
+func newFakeCouponRepo() *fakeCouponRepo {
+	return &fakeCouponRepo{byCode: map[string]*domain.Coupon{}}
+}
+
+func (r *fakeCouponRepo) put(c *domain.Coupon) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cp := *c
+	r.byCode[cp.Code] = &cp
+}
+
+func (r *fakeCouponRepo) Create(_ context.Context, c *domain.Coupon) error {
+	r.put(c)
+	return nil
+}
+
+func (r *fakeCouponRepo) FindByID(_ context.Context, id string) (*domain.Coupon, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, c := range r.byCode {
+		if c.ID == id {
+			cp := *c
+			return &cp, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (r *fakeCouponRepo) FindByCode(_ context.Context, code string) (*domain.Coupon, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if c, ok := r.byCode[code]; ok {
+		cp := *c
+		return &cp, nil
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (r *fakeCouponRepo) List(_ context.Context) ([]domain.Coupon, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]domain.Coupon, 0, len(r.byCode))
+	for _, c := range r.byCode {
+		out = append(out, *c)
+	}
+	return out, nil
+}
+
+func (r *fakeCouponRepo) IncrementUsage(_ context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, c := range r.byCode {
+		if c.ID == id {
+			if c.UsageLimit > 0 && c.UsedCount >= c.UsageLimit {
+				return domain.ErrCouponExhausted
+			}
+			c.UsedCount++
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
+func (r *fakeCouponRepo) CountRedemptions(_ context.Context, couponID, userID string) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var count int64
+	for _, red := range r.redemptions {
+		if red.CouponID == couponID && red.UserID == userID {
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (r *fakeCouponRepo) CreateRedemption(_ context.Context, red *domain.CouponRedemption) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.redemptions = append(r.redemptions, *red)
+	return nil
+}
+
 type fakeCache struct {
 	mu   sync.Mutex
 	data map[string]string

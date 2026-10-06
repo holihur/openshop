@@ -35,6 +35,7 @@ func (c *Consumers) Start() error {
 		{service.SubjectOrderCreated, "order-created", "order-created", c.onOrderCreated},
 		{service.SubjectOrderPaid, "order-paid", "order-paid", c.onOrderPaid},
 		{service.SubjectOrderCancelled, "order-cancelled", "order-cancelled", c.onOrderCancelled},
+		{service.SubjectOrderRefunded, "order-refunded", "order-refunded", c.onOrderRefunded},
 	}
 	for _, h := range handlers {
 		if err := c.bus.Subscribe(h.subject, h.queue, h.durable, h.fn); err != nil {
@@ -101,5 +102,15 @@ func (c *Consumers) onOrderCancelled(ctx context.Context, evt port.Event) error 
 	}
 	c.invalidate(ctx, payload)
 	c.logger.Info("order cancelled", "orderNo", payload.OrderNo)
+	return nil
+}
+
+func (c *Consumers) onOrderRefunded(ctx context.Context, evt port.Event) error {
+	payload, err := c.decode(evt)
+	if err != nil {
+		return err
+	}
+	c.invalidate(ctx, payload)
+	c.logger.Info("order refunded", "orderNo", payload.OrderNo)
 	return nil
 }

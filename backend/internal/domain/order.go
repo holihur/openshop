@@ -24,14 +24,20 @@ type OrderItem struct {
 }
 
 type Order struct {
-	ID         string
-	OrderNo    string
-	UserID     string
-	Status     OrderStatus
-	Currency   string
-	TotalCents int64
-	Items      []OrderItem
-	PaymentID  string
+	ID       string
+	OrderNo  string
+	UserID   string
+	Status   OrderStatus
+	Currency string
+	// SubtotalCents is the pre-discount total; TotalCents is what the customer
+	// pays after DiscountCents is applied.
+	SubtotalCents int64
+	DiscountCents int64
+	CouponID      string
+	CouponCode    string
+	TotalCents    int64
+	Items         []OrderItem
+	PaymentID     string
 	// ExpiresAt drives the "auto cancel unpaid order" worker. It is persisted so
 	// any instance can reclaim the released inventory after a restart.
 	ExpiresAt time.Time
@@ -46,6 +52,15 @@ func (o *Order) Payable() bool {
 
 func (o *Order) Cancelable() bool {
 	return o.Status == OrderPendingPayment
+}
+
+func (o *Order) Refundable() bool {
+	switch o.Status {
+	case OrderPaid, OrderShipped, OrderCompleted:
+		return true
+	default:
+		return false
+	}
 }
 
 func (o *Order) Expired(now time.Time) bool {

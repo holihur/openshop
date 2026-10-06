@@ -9,6 +9,7 @@ const (
 	SubjectOrderCreated   = "order.created"
 	SubjectOrderPaid      = "order.paid"
 	SubjectOrderCancelled = "order.cancelled"
+	SubjectOrderRefunded  = "order.refunded"
 )
 
 // OrderEvent is the payload for order lifecycle events. Consumers (email,
