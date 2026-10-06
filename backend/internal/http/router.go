@@ -56,6 +56,8 @@ func NewRouter(
 
 	r.GET("/healthz", h.Healthz)
 	r.GET("/readyz", h.Readyz)
+	r.GET("/robots.txt", h.RobotsTxt)
+	r.GET("/sitemap.xml", h.Sitemap)
 
 	// API documentation: interactive UI and the raw OpenAPI document.
 	r.GET("/docs", func(c *gin.Context) {

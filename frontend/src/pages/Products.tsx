@@ -9,6 +9,7 @@ import { ProductGrid } from "@/components/product-grid";
 import { Pagination } from "@/components/pagination";
 import { api } from "@/lib/api";
 import type { Category, Product } from "@/lib/types";
+import { useSeo } from "@/hooks/useSeo";
 
 const SORTS = [
   { value: "newest", label: "Newest" },
@@ -17,6 +18,7 @@ const SORTS = [
 ];
 
 export function ProductsPage() {
+  useSeo({ title: "Products", description: "Browse the full OpenShop catalog." });
   const [params, setParams] = useSearchParams();
   const categoryId = params.get("categoryId") ?? "";
   const keyword = params.get("keyword") ?? "";

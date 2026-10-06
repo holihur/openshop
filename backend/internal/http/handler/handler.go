@@ -31,6 +31,7 @@ type Handler struct {
 	Audit     *service.AuditService
 	Wishlist  *service.WishlistService
 	Storage   port.ObjectStorage
+	SiteURL   string
 	IDs       port.IDGenerator
 	Logger    port.Logger
 	Metrics   http.Handler

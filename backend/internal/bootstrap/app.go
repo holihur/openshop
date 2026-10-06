@@ -141,6 +141,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 		Auth: authSvc, Catalog: catalogSvc, Cart: cartSvc, Orders: orderSvc,
 		Payments: paymentSvc, Coupons: couponSvc, Reviews: reviewSvc, Addresses: addressSvc, Analytics: analyticsSvc, Shipping: shippingSvc, Audit: auditSvc, Wishlist: wishlistSvc,
 		Storage: objectStore, IDs: ids, Logger: log,
+		SiteURL: cfg.App.PublicSiteURL,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
 			{Name: "postgres", Check: db.Ping},

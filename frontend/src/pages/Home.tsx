@@ -7,8 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { ProductGrid } from "@/components/product-grid";
 import { api } from "@/lib/api";
 import type { Category, Product } from "@/lib/types";
+import { useSeo } from "@/hooks/useSeo";
 
 export function HomePage() {
+  useSeo({
+    description:
+      "OpenShop — a horizontally scalable storefront for electronics, home and books.",
+  });
   const { data: categories } = useQuery({
     queryKey: ["categories"],
     queryFn: () => api.get<Category[]>("/categories"),

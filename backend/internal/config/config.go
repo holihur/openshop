@@ -35,6 +35,7 @@ type AppConfig struct {
 	OrderTTL                 time.Duration
 	PasswordResetURL         string
 	VerifyEmailURL           string
+	PublicSiteURL            string
 	RequireEmailVerification bool
 	// TaxRateBps is the tax rate in basis points (600 = 6%).
 	TaxRateBps int
@@ -139,6 +140,7 @@ func Load() (*Config, error) {
 			OrderTTL:                 envDuration("ORDER_TTL", 30*time.Minute),
 			PasswordResetURL:         env("PASSWORD_RESET_URL", "http://localhost:5173/reset-password"),
 			VerifyEmailURL:           env("EMAIL_VERIFY_URL", "http://localhost:5173/verify-email"),
+			PublicSiteURL:            env("PUBLIC_SITE_URL", "http://localhost:5173"),
 			RequireEmailVerification: envBool("REQUIRE_EMAIL_VERIFICATION", false),
 			TaxRateBps:               envInt("TAX_RATE_BPS", 0),
 		},

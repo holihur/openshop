@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { useAddToCart } from "@/hooks/useCart";
 import { useAuth } from "@/lib/auth";
+import { useSeo } from "@/hooks/useSeo";
 import { cn } from "@/lib/utils";
 import type { Product, Variant } from "@/lib/types";
 
@@ -30,6 +31,33 @@ export function ProductDetailPage() {
     queryFn: () => api.get<Product>(`/products/${id}`),
     enabled: Boolean(id),
   });
+
+  useSeo(
+    product
+      ? {
+          title: product.title,
+          description: product.description,
+          image: product.coverImage,
+          type: "product",
+          jsonLd: {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            name: product.title,
+            description: product.description,
+            image: product.coverImage ? [product.coverImage] : undefined,
+            offers: {
+              "@type": "Offer",
+              priceCurrency: product.currency,
+              price: (product.priceCents / 100).toFixed(2),
+              availability:
+                product.stock > 0
+                  ? "https://schema.org/InStock"
+                  : "https://schema.org/OutOfStock",
+            },
+          },
+        }
+      : { title: "Product" },
+  );
 
   if (isLoading) {
     return (
