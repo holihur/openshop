@@ -132,6 +132,7 @@ func NewRouter(
 			admin.PATCH("/variants/:id", h.UpdateVariant)
 			admin.POST("/uploads", h.UploadImage)
 			admin.GET("/orders", h.ListOrders)
+			admin.GET("/stats", h.Dashboard)
 			admin.POST("/orders/:id/refund", h.RefundOrder)
 			admin.POST("/orders/:id/ship", h.ShipOrder)
 			admin.POST("/orders/:id/complete", h.CompleteOrder)

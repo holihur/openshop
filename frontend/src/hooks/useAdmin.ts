@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
-import type { Category, Order, Product, Variant } from "@/lib/types";
+import type { Category, Coupon, Dashboard, Order, Product, Variant } from "@/lib/types";
 
 export interface ProductInput {
   categoryId?: string;
@@ -36,6 +36,44 @@ export function useAdminOrders(page = 1, pageSize = 50) {
   return useQuery({
     queryKey: ["admin", "orders", page, pageSize],
     queryFn: () => api.getPage<Order[]>(`/admin/orders?page=${page}&pageSize=${pageSize}`),
+  });
+}
+
+export function useDashboard() {
+  return useQuery({
+    queryKey: ["admin", "dashboard"],
+    queryFn: () => api.get<Dashboard>("/admin/stats"),
+  });
+}
+
+export function useAdminCoupons() {
+  return useQuery({
+    queryKey: ["admin", "coupons"],
+    queryFn: () => api.get<Coupon[]>("/admin/coupons"),
+  });
+}
+
+export interface CouponInput {
+  code: string;
+  description?: string;
+  discountType: "percent" | "fixed";
+  discountValue: number;
+  minSubtotalCents?: number;
+  maxDiscountCents?: number;
+  usageLimit?: number;
+  perUserLimit?: number;
+  active?: boolean;
+}
+
+export function useCreateCoupon() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CouponInput) => api.post<Coupon>("/admin/coupons", input),
+    onSuccess: () => {
+      toast.success("Coupon created");
+      void queryClient.invalidateQueries({ queryKey: ["admin", "coupons"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 }
 

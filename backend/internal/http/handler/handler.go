@@ -26,6 +26,7 @@ type Handler struct {
 	Coupons   *service.CouponService
 	Reviews   *service.ReviewService
 	Addresses *service.AddressService
+	Analytics *service.AnalyticsService
 	Storage   port.ObjectStorage
 	IDs       port.IDGenerator
 	Logger    port.Logger

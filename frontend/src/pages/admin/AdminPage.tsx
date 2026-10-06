@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Pencil, Plus, RotateCcw, Truck } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -18,25 +20,25 @@ import {
 import { ProductForm } from "@/components/admin/product-form";
 import { VariantsEditor } from "@/components/admin/variants-editor";
 import { OrderStatusBadge } from "@/components/order-status-badge";
-import { useAdminOrders, useAdminProducts } from "@/hooks/useAdmin";
+import { useAdminCoupons, useAdminOrders, useAdminProducts, useCreateCoupon, useDashboard } from "@/hooks/useAdmin";
 import { api } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
-import type { Order, Product } from "@/lib/types";
+import type { Coupon, Order, Product } from "@/lib/types";
 
-type Tab = "products" | "orders";
+type Tab = "dashboard" | "products" | "orders" | "coupons";
 
 export function AdminPage() {
-  const [tab, setTab] = useState<Tab>("products");
+  const [tab, setTab] = useState<Tab>("dashboard");
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Admin</h1>
-        <p className="text-muted-foreground">Manage the catalog and review orders.</p>
+        <p className="text-muted-foreground">Overview, catalog, orders and promotions.</p>
       </div>
 
-      <div className="flex gap-2">
-        {(["products", "orders"] as Tab[]).map((t) => (
+      <div className="flex flex-wrap gap-2">
+        {(["dashboard", "products", "orders", "coupons"] as Tab[]).map((t) => (
           <Button
             key={t}
             variant={tab === t ? "default" : "outline"}
@@ -49,7 +51,212 @@ export function AdminPage() {
         ))}
       </div>
 
-      {tab === "products" ? <AdminProducts /> : <AdminOrders />}
+      {tab === "dashboard" && <AdminDashboard />}
+      {tab === "products" && <AdminProducts />}
+      {tab === "orders" && <AdminOrders />}
+      {tab === "coupons" && <AdminCoupons />}
+    </div>
+  );
+}
+
+function AdminDashboard() {
+  const { data, isLoading } = useDashboard();
+
+  if (isLoading || !data) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  const cards = [
+    { label: "Revenue", value: formatMoney(data.revenueCents) },
+    { label: "Paid orders", value: data.paidOrders },
+    { label: "Pending orders", value: data.pendingOrders },
+    { label: "Total orders", value: data.totalOrders },
+    { label: "Products", value: data.totalProducts },
+    { label: "Customers", value: data.totalUsers },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-3">
+        {cards.map((c) => (
+          <Card key={c.label}>
+            <CardContent>
+              <p className="text-muted-foreground text-sm">{c.label}</p>
+              <p className="mt-1 text-2xl font-semibold">{c.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="py-0">
+        <CardHeader>
+          <CardTitle className="py-4">Recent orders</CardTitle>
+        </CardHeader>
+        <CardContent className="px-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Placed</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.recentOrders.map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell className="font-mono text-xs">{order.orderNo}</TableCell>
+                  <TableCell>
+                    <OrderStatusBadge status={order.status} />
+                  </TableCell>
+                  <TableCell>{formatMoney(order.totalCents, order.currency)}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {formatDate(order.createdAt)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function AdminCoupons() {
+  const { data, isLoading } = useAdminCoupons();
+  const create = useCreateCoupon();
+  const [code, setCode] = useState("");
+  const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent");
+  const [value, setValue] = useState("10");
+  const [usageLimit, setUsageLimit] = useState("0");
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    create.mutate(
+      {
+        code,
+        discountType,
+        discountValue:
+          discountType === "percent"
+            ? Number.parseInt(value || "0", 10)
+            : Math.round(Number.parseFloat(value || "0") * 100),
+        usageLimit: Number.parseInt(usageLimit || "0", 10),
+        perUserLimit: 1,
+        active: true,
+      },
+      {
+        onSuccess: () => {
+          setCode("");
+          setValue("10");
+          setUsageLimit("0");
+        },
+      },
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>New coupon</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-5">
+            <div className="space-y-1 sm:col-span-2">
+              <Label htmlFor="c-code">Code</Label>
+              <Input id="c-code" value={code} onChange={(e) => setCode(e.target.value)} required />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="c-type">Type</Label>
+              <select
+                id="c-type"
+                value={discountType}
+                onChange={(e) => setDiscountType(e.target.value as "percent" | "fixed")}
+                className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+              >
+                <option value="percent">Percent (%)</option>
+                <option value="fixed">Fixed (CNY)</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="c-value">Value</Label>
+              <Input
+                id="c-value"
+                type="number"
+                min="0"
+                step={discountType === "fixed" ? "0.01" : "1"}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="c-limit">Usage limit</Label>
+              <Input
+                id="c-limit"
+                type="number"
+                min="0"
+                value={usageLimit}
+                onChange={(e) => setUsageLimit(e.target.value)}
+              />
+            </div>
+            <div className="sm:col-span-5">
+              <Button type="submit" size="sm" disabled={create.isPending}>
+                <Plus className="size-4" />
+                Create coupon
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card className="py-0">
+        <CardContent className="px-0">
+          {isLoading ? (
+            <div className="p-4">
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Discount</TableHead>
+                  <TableHead>Used / limit</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data?.map((c: Coupon) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-mono text-xs">{c.code}</TableCell>
+                    <TableCell>
+                      {c.discountType === "percent"
+                        ? `${c.discountValue}%`
+                        : formatMoney(c.discountValue)}
+                    </TableCell>
+                    <TableCell>
+                      {c.usedCount} / {c.usageLimit === 0 ? "∞" : c.usageLimit}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={c.active ? "success" : "secondary"}>
+                        {c.active ? "active" : "inactive"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

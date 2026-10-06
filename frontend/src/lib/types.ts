@@ -141,6 +141,17 @@ export interface Coupon {
   active: boolean;
 }
 
+export interface Dashboard {
+  revenueCents: number;
+  paidOrders: number;
+  pendingOrders: number;
+  cancelledOrders: number;
+  totalOrders: number;
+  totalProducts: number;
+  totalUsers: number;
+  recentOrders: Order[];
+}
+
 export interface Payment {
   id: string;
   orderId: string;

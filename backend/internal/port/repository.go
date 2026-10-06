@@ -114,3 +114,8 @@ type AddressRepository interface {
 	// default can be set atomically by the caller.
 	ClearDefault(ctx context.Context, userID string) error
 }
+
+// AnalyticsRepository provides aggregate reads for the merchant dashboard.
+type AnalyticsRepository interface {
+	Dashboard(ctx context.Context) (domain.Dashboard, error)
+}

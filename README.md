@@ -319,6 +319,7 @@ retries safe.
 | `PATCH` | `/admin/products/:id` | Update a product |
 | `POST` | `/admin/uploads` | Upload an image (multipart) |
 | `GET` | `/admin/orders` | List all orders |
+| `GET` | `/admin/stats` | Dashboard: revenue, order counts, recent orders |
 | `POST` | `/admin/orders/:id/refund` | Refund a paid order (restores stock) |
 | `POST` | `/admin/orders/:id/ship` | Mark a paid order shipped (tracking number) |
 | `POST` | `/admin/orders/:id/complete` | Mark a shipped order completed |
