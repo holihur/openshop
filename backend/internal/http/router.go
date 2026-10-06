@@ -4,10 +4,12 @@ package http
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/holihur/openshop/internal/config"
+	"github.com/holihur/openshop/internal/http/docs"
 	"github.com/holihur/openshop/internal/http/handler"
 	"github.com/holihur/openshop/internal/http/middleware"
 	"github.com/holihur/openshop/internal/port"
@@ -21,6 +23,7 @@ func NewRouter(
 	tokens port.TokenIssuer,
 	auth *service.AuthService,
 	cache port.Cache,
+	metrics port.Metrics,
 	h *handler.Handler,
 ) *gin.Engine {
 	if cfg.App.IsProduction() {
@@ -33,9 +36,15 @@ func NewRouter(
 		middleware.RequestID(),
 		middleware.Recovery(h.Logger),
 		middleware.Logger(h.Logger),
+		middleware.Metrics(metrics),
 		middleware.CORS(cfg.HTTP.CORSOrigins),
 		middleware.RateLimit(cache, cfg.HTTP.RateLimitRPS),
 	)
+
+	// Prometheus exposition endpoint.
+	if h.Metrics != nil {
+		r.GET("/metrics", gin.WrapH(h.Metrics))
+	}
 
 	// Serve locally stored uploads in development. With the S3 driver the
 	// public URL points at the bucket instead.
@@ -46,9 +55,17 @@ func NewRouter(
 	r.GET("/healthz", h.Healthz)
 	r.GET("/readyz", h.Readyz)
 
+	// API documentation: interactive UI and the raw OpenAPI document.
+	r.GET("/docs", func(c *gin.Context) {
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(docs.SwaggerHTML))
+	})
+
 	api := r.Group("/api/v1")
 	{
 		api.GET("/version", h.Version)
+		api.GET("/openapi.yaml", func(c *gin.Context) {
+			c.Data(http.StatusOK, "application/yaml", docs.OpenAPISpec)
+		})
 
 		// Public catalog.
 		api.GET("/categories", h.ListCategories)
@@ -76,12 +93,12 @@ func NewRouter(
 			authed.DELETE("/cart/items/:productId", h.RemoveCartItem)
 			authed.DELETE("/cart", h.ClearCart)
 
-			authed.POST("/orders", h.Checkout)
+			authed.POST("/orders", middleware.Idempotency(cache, 24*time.Hour), h.Checkout)
 			authed.GET("/orders", h.ListOrders)
 			authed.GET("/orders/:id", h.GetOrder)
 			authed.POST("/orders/:id/cancel", h.CancelOrder)
 
-			authed.POST("/payments", h.CreatePayment)
+			authed.POST("/payments", middleware.Idempotency(cache, 24*time.Hour), h.CreatePayment)
 			authed.POST("/payments/simulate", h.SimulatePayment)
 		}
 
@@ -90,6 +107,7 @@ func NewRouter(
 		admin.Use(middleware.Auth(tokens, auth, false), middleware.RequireAdmin())
 		{
 			admin.POST("/categories", h.CreateCategory)
+			admin.GET("/products", h.ListProducts)
 			admin.POST("/products", h.CreateProduct)
 			admin.PATCH("/products/:id", h.UpdateProduct)
 			admin.POST("/uploads", h.UploadImage)

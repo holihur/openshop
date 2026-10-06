@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/holihur/openshop/internal/domain"
+	"github.com/holihur/openshop/internal/http/middleware"
 	"github.com/holihur/openshop/internal/http/response"
 	"github.com/holihur/openshop/internal/service"
 )
@@ -97,10 +98,19 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		Sort:       c.Query("sort"),
 	}
 	filter.Page, filter.PageSize = parsePage(c, 20)
-	if s := c.Query("status"); s != "" {
-		st := domain.ProductStatus(s)
-		filter.Status = &st
+
+	if middleware.IsAdmin(c) {
+		// Admins may filter by any status (including drafts and archives).
+		if s := c.Query("status"); s != "" {
+			st := domain.ProductStatus(s)
+			filter.Status = &st
+		}
+	} else {
+		// The public catalog only ever exposes published products.
+		published := domain.ProductPublished
+		filter.Status = &published
 	}
+
 	page, err := h.Catalog.ListProducts(c.Request.Context(), filter)
 	if err != nil {
 		response.Fail(c, err)

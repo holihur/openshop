@@ -1,0 +1,595 @@
+openapi: 3.1.0
+info:
+  title: OpenShop API
+  version: 1.0.0
+  description: |
+    Horizontally scalable e-commerce API. All responses use an envelope:
+    successful responses carry `data` (and `meta` for lists), errors carry
+    `error: { code, message }`.
+
+    Authentication is bearer JWT. Send `Idempotency-Key` on POST /orders and
+    POST /payments to make retries safe.
+servers:
+  - url: http://localhost:8080/api/v1
+tags:
+  - name: Auth
+  - name: Catalog
+  - name: Cart
+  - name: Orders
+  - name: Payments
+  - name: Admin
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Create an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                email: { type: string, format: email }
+                phone: { type: string }
+                password: { type: string, minLength: 8 }
+                name: { type: string }
+      responses:
+        "201": { $ref: "#/components/responses/AuthResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in with email or phone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier, password]
+              properties:
+                identifier: { type: string }
+                password: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/AuthResult" }
+        "401": { $ref: "#/components/responses/Error" }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate a refresh token
+      description: |
+        Refresh tokens are single-use and belong to a family. Reusing a rotated
+        token is treated as theft and revokes the whole family.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/AuthResult" }
+        "401": { $ref: "#/components/responses/Error" }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current tokens
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "204": { description: Revoked }
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: The user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/User" }
+  /categories:
+    get:
+      tags: [Catalog]
+      summary: List categories
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Category" }
+  /products:
+    get:
+      tags: [Catalog]
+      summary: List or search products
+      parameters:
+        - { in: query, name: categoryId, schema: { type: string, format: uuid } }
+        - { in: query, name: keyword, schema: { type: string } }
+        - { in: query, name: sort, schema: { type: string, enum: [newest, price_asc, price_desc] } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: A page of products
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: "#/components/schemas/Product" }
+                      meta: { $ref: "#/components/schemas/Meta" }
+  /products/{id}:
+    get:
+      tags: [Catalog]
+      summary: Get a product
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The product
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Product" }
+        "404": { $ref: "#/components/responses/Error" }
+  /cart:
+    get:
+      tags: [Cart]
+      summary: Get the current cart
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: The cart
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Cart" }
+    delete:
+      tags: [Cart]
+      summary: Clear the cart
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: Cleared }
+  /cart/items:
+    post:
+      tags: [Cart]
+      summary: Add an item
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId]
+              properties:
+                productId: { type: string, format: uuid }
+                quantity: { type: integer, minimum: 1, default: 1 }
+      responses:
+        "200": { $ref: "#/components/responses/Cart" }
+        "409": { $ref: "#/components/responses/Error" }
+  /cart/items/{productId}:
+    patch:
+      tags: [Cart]
+      summary: Set item quantity
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: productId, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity: { type: integer, minimum: 0 }
+      responses:
+        "200": { $ref: "#/components/responses/Cart" }
+    delete:
+      tags: [Cart]
+      summary: Remove an item
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: productId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { $ref: "#/components/responses/Cart" }
+  /orders:
+    post:
+      tags: [Orders]
+      summary: Checkout the cart
+      description: Reserves stock atomically and creates a pending order.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: header, name: Idempotency-Key, schema: { type: string } }
+      responses:
+        "201":
+          description: The order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Order" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    get:
+      tags: [Orders]
+      summary: List orders (admins see all)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: status, schema: { $ref: "#/components/schemas/OrderStatus" } }
+        - { in: query, name: page, schema: { type: integer, default: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, default: 10 } }
+      responses:
+        "200":
+          description: A page of orders
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: "#/components/schemas/Order" }
+                      meta: { $ref: "#/components/schemas/Meta" }
+  /orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Get an order
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Order" }
+        "404": { $ref: "#/components/responses/Error" }
+  /orders/{id}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancel an order and release stock
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The cancelled order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Order" }
+        "409": { $ref: "#/components/responses/Error" }
+  /payments:
+    post:
+      tags: [Payments]
+      summary: Create a payment session
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: header, name: Idempotency-Key, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderId]
+              properties:
+                orderId: { type: string, format: uuid }
+                provider: { type: string, default: mock }
+                returnUrl: { type: string, format: uri }
+      responses:
+        "201":
+          description: The payment and redirect URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Payment" }
+        "409": { $ref: "#/components/responses/Error" }
+  /payments/simulate:
+    post:
+      tags: [Payments]
+      summary: Sandbox — confirm a mock payment
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [providerRef]
+              properties:
+                providerRef: { type: string }
+                provider: { type: string, default: mock }
+      responses:
+        "200": { description: Confirmed }
+        "400": { $ref: "#/components/responses/Error" }
+  /webhooks/payments/{provider}:
+    post:
+      tags: [Payments]
+      summary: Provider callback (signature verified)
+      parameters:
+        - { in: path, name: provider, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Accepted }
+        "400": { $ref: "#/components/responses/Error" }
+  /admin/categories:
+    post:
+      tags: [Admin]
+      summary: Create a category
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                slug: { type: string }
+                parentId: { type: string, format: uuid }
+                sort: { type: integer }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Category" }
+  /admin/products:
+    post:
+      tags: [Admin]
+      summary: Create a product
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Product" }
+  /admin/products/{id}:
+    patch:
+      tags: [Admin]
+      summary: Update a product
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductInput" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Product" }
+  /admin/uploads:
+    post:
+      tags: [Admin]
+      summary: Upload an image
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      key: { type: string }
+                      url: { type: string, format: uri }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Error:
+      description: Error envelope
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: object
+                properties:
+                  code: { type: string }
+                  message: { type: string }
+    AuthResult:
+      description: Authenticated session
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+                  accessToken: { type: string }
+                  refreshToken: { type: string }
+                  expiresIn: { type: integer }
+    Cart:
+      description: The cart
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { $ref: "#/components/schemas/Cart" }
+  schemas:
+    Envelope:
+      type: object
+      properties:
+        data: {}
+        meta: { $ref: "#/components/schemas/Meta" }
+    Meta:
+      type: object
+      properties:
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        phone: { type: string }
+        name: { type: string }
+        role: { type: string, enum: [customer, admin] }
+    Category:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        parentId: { type: string }
+        sort: { type: integer }
+    Product:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        categoryId: { type: string }
+        title: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        priceCents: { type: integer, format: int64 }
+        currency: { type: string }
+        coverImage: { type: string }
+        images: { type: array, items: { type: string } }
+        status: { type: string, enum: [draft, published, archived] }
+        stock: { type: integer }
+    ProductInput:
+      type: object
+      required: [title]
+      properties:
+        categoryId: { type: string, format: uuid }
+        title: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        priceCents: { type: integer, format: int64, minimum: 0 }
+        currency: { type: string }
+        coverImage: { type: string }
+        images: { type: array, items: { type: string } }
+        status: { type: string, enum: [draft, published, archived] }
+        stock: { type: integer, minimum: 0 }
+    Cart:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productId: { type: string, format: uuid }
+              title: { type: string }
+              coverImage: { type: string }
+              priceCents: { type: integer, format: int64 }
+              currency: { type: string }
+              quantity: { type: integer }
+        totalCents: { type: integer, format: int64 }
+        totalCount: { type: integer }
+    OrderStatus:
+      type: string
+      enum: [pending_payment, paid, cancelled, shipped, completed, refunded]
+    Order:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        orderNo: { type: string }
+        status: { $ref: "#/components/schemas/OrderStatus" }
+        currency: { type: string }
+        totalCents: { type: integer, format: int64 }
+        paymentId: { type: string }
+        expiresAt: { type: string, format: date-time }
+        paidAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              productId: { type: string, format: uuid }
+              title: { type: string }
+              priceCents: { type: integer, format: int64 }
+              quantity: { type: integer }
+              subtotal: { type: integer, format: int64 }
+    Payment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        orderId: { type: string, format: uuid }
+        provider: { type: string }
+        status: { type: string, enum: [pending, succeeded, failed, refunded] }
+        amountCents: { type: integer, format: int64 }
+        currency: { type: string }
+        redirectUrl: { type: string, format: uri }

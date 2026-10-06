@@ -71,3 +71,29 @@ func TestRefreshRotatesToken(t *testing.T) {
 	}
 	_ = cache
 }
+
+func TestRefreshReuseRevokesWholeFamily(t *testing.T) {
+	svc, _, _ := newAuthFixture()
+	ctx := context.Background()
+
+	res, err := svc.Register(ctx, RegisterInput{Email: "c@d.com", Password: "supersecret"})
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	// Legitimate rotation produces a new token in the same family.
+	rotated, err := svc.Refresh(ctx, res.RefreshToken)
+	if err != nil {
+		t.Fatalf("first refresh: %v", err)
+	}
+
+	// An attacker replays the original (already used) token.
+	if _, err := svc.Refresh(ctx, res.RefreshToken); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("replay err = %v, want ErrUnauthorized", err)
+	}
+
+	// Reuse detection must revoke the whole family, including the rotated token.
+	if _, err := svc.Refresh(ctx, rotated.RefreshToken); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("family not revoked: err = %v, want ErrUnauthorized", err)
+	}
+}

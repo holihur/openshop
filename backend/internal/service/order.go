@@ -10,22 +10,32 @@ import (
 	"github.com/holihur/openshop/internal/port"
 )
 
+// ProductCacheInvalidator evicts cached product views. It is implemented by
+// CatalogService and injected so that checkout can reflect stock changes
+// immediately, rather than waiting for the asynchronous event consumer.
+type ProductCacheInvalidator interface {
+	InvalidateProductCache(ctx context.Context, ids ...string)
+}
+
 // OrderService owns checkout and the order lifecycle. It demonstrates the two
 // primitives required for horizontal scaling: a distributed lock for
 // user-level mutual exclusion and a database transaction for atomic stock
-// decrement plus order insert.
+// decrement plus order insert. Lifecycle events are written to the
+// transactional outbox in the same transaction, so they are never lost.
 type OrderService struct {
-	orders   port.OrderRepository
-	products port.ProductRepository
-	carts    port.CartRepository
-	locker   port.Locker
-	tx       port.TxManager
-	bus      port.EventBus
-	ids      port.IDGenerator
-	clock    port.Clock
-	logger   port.Logger
-	ttl      time.Duration
-	currency string
+	orders       port.OrderRepository
+	products     port.ProductRepository
+	carts        port.CartRepository
+	locker       port.Locker
+	tx           port.TxManager
+	outbox       port.Outbox
+	ids          port.IDGenerator
+	clock        port.Clock
+	logger       port.Logger
+	productCache ProductCacheInvalidator
+	metrics      port.Metrics
+	ttl          time.Duration
+	currency     string
 }
 
 func NewOrderService(
@@ -34,16 +44,22 @@ func NewOrderService(
 	carts port.CartRepository,
 	locker port.Locker,
 	tx port.TxManager,
-	bus port.EventBus,
+	outbox port.Outbox,
 	ids port.IDGenerator,
 	clock port.Clock,
 	logger port.Logger,
+	productCache ProductCacheInvalidator,
+	metrics port.Metrics,
 	ttl time.Duration,
 	currency string,
 ) *OrderService {
+	if metrics == nil {
+		metrics = port.NopMetrics{}
+	}
 	return &OrderService{
-		orders: orders, products: products, carts: carts, locker: locker, tx: tx, bus: bus,
-		ids: ids, clock: clock, logger: logger, ttl: ttl, currency: currency,
+		orders: orders, products: products, carts: carts, locker: locker, tx: tx, outbox: outbox,
+		ids: ids, clock: clock, logger: logger, productCache: productCache, metrics: metrics,
+		ttl: ttl, currency: currency,
 	}
 }
 
@@ -105,7 +121,12 @@ func (s *OrderService) Checkout(ctx context.Context, userID string) (*domain.Ord
 		}
 		order.TotalCents = total
 		order.Items = items
-		return s.orders.Create(txCtx, order)
+		if err := s.orders.Create(txCtx, order); err != nil {
+			return err
+		}
+		// The event is enqueued in the same transaction as the order, so a crash
+		// between commit and publish can never lose it.
+		return s.enqueue(txCtx, SubjectOrderCreated, order)
 	})
 	if err != nil {
 		return nil, err
@@ -117,7 +138,9 @@ func (s *OrderService) Checkout(ctx context.Context, userID string) (*domain.Ord
 		s.logger.Warn("failed to clear cart after checkout", "userId", userID, "error", err)
 	}
 
-	s.publish(ctx, SubjectOrderCreated, order)
+	s.invalidateProducts(ctx, order)
+	s.metrics.Counter("openshop_orders_created_total", 1, map[string]string{"currency": order.Currency})
+	s.metrics.Gauge("openshop_orders_pending_total", 1, nil)
 	return order, nil
 }
 
@@ -169,12 +192,11 @@ func (s *OrderService) Cancel(ctx context.Context, userID, orderID string, isAdm
 			return err
 		}
 		out = o
-		return nil
+		return s.enqueue(txCtx, SubjectOrderCancelled, o)
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.publish(ctx, SubjectOrderCancelled, out)
 	return out, nil
 }
 
@@ -187,26 +209,36 @@ func (s *OrderService) MarkPaid(ctx context.Context, orderID, paymentID string) 
 	}
 	defer func() { _ = lock.Release(ctx) }()
 
-	o, err := s.orders.FindByID(ctx, orderID)
+	var out *domain.Order
+	err = s.tx.WithinTx(ctx, func(txCtx context.Context) error {
+		o, err := s.orders.FindByID(txCtx, orderID)
+		if err != nil {
+			return err
+		}
+		if o.Status == domain.OrderPaid {
+			out = o // already processed
+			return nil
+		}
+		if !o.Payable() {
+			return domain.ErrOrderNotPayable
+		}
+		now := s.clock.Now()
+		o.Status = domain.OrderPaid
+		o.PaymentID = paymentID
+		o.PaidAt = &now
+		o.UpdatedAt = now
+		if err := s.orders.Update(txCtx, o); err != nil {
+			return err
+		}
+		out = o
+		s.metrics.Counter("openshop_orders_paid_total", 1, map[string]string{"currency": o.Currency})
+		return s.enqueue(txCtx, SubjectOrderPaid, o)
+	})
 	if err != nil {
 		return nil, err
 	}
-	if o.Status == domain.OrderPaid {
-		return o, nil // already processed
-	}
-	if !o.Payable() {
-		return nil, domain.ErrOrderNotPayable
-	}
-	now := s.clock.Now()
-	o.Status = domain.OrderPaid
-	o.PaymentID = paymentID
-	o.PaidAt = &now
-	o.UpdatedAt = now
-	if err := s.orders.Update(ctx, o); err != nil {
-		return nil, err
-	}
-	s.publish(ctx, SubjectOrderPaid, o)
-	return o, nil
+	s.invalidateProducts(ctx, out)
+	return out, nil
 }
 
 // CancelExpired is called by the background sweeper. It releases stock for
@@ -233,7 +265,23 @@ func (s *OrderService) releaseStock(ctx context.Context, o *domain.Order) error 
 	return nil
 }
 
-func (s *OrderService) publish(ctx context.Context, subject string, o *domain.Order) {
+// invalidateProducts evicts cached product views so stock changes are visible
+// immediately. The event consumer also invalidates, which covers any replicas
+// that missed this call.
+func (s *OrderService) invalidateProducts(ctx context.Context, o *domain.Order) {
+	if s.productCache == nil || o == nil {
+		return
+	}
+	ids := make([]string, 0, len(o.Items))
+	for _, item := range o.Items {
+		ids = append(ids, item.ProductID)
+	}
+	if len(ids) > 0 {
+		s.productCache.InvalidateProductCache(ctx, ids...)
+	}
+}
+
+func (s *OrderService) enqueue(ctx context.Context, subject string, o *domain.Order) error {
 	items := make([]OrderEventItem, 0, len(o.Items))
 	for _, it := range o.Items {
 		items = append(items, OrderEventItem{
@@ -245,11 +293,9 @@ func (s *OrderService) publish(ctx context.Context, subject string, o *domain.Or
 		TotalCents: o.TotalCents, Currency: o.Currency, PaymentID: o.PaymentID,
 		OccurredAt: s.clock.Now().Format(time.RFC3339), Items: items,
 	}
-	// Publishing must never fail checkout; the event bus retries and consumers
-	// are idempotent. We log and move on.
-	if err := s.bus.Publish(ctx, port.Event{ID: s.ids.NewID(), Subject: subject, Payload: encodeEvent(evt)}); err != nil {
-		s.logger.Error("failed to publish order event", "subject", subject, "orderId", o.ID, "error", err)
-	}
+	return s.outbox.Enqueue(ctx, port.Event{
+		ID: s.ids.NewID(), Subject: subject, Payload: encodeEvent(evt),
+	})
 }
 
 // orderNo builds a human-sortable, collision-resistant order number.

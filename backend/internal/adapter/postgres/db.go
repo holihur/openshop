@@ -79,7 +79,7 @@ func (d *DB) WithinTx(ctx context.Context, fn func(ctx context.Context) error) e
 func (d *DB) AutoMigrate() error {
 	return d.gorm.AutoMigrate(
 		&userModel{}, &categoryModel{}, &productModel{},
-		&orderModel{}, &orderItemModel{}, &paymentModel{},
+		&orderModel{}, &orderItemModel{}, &paymentModel{}, &outboxModel{},
 	)
 }
 

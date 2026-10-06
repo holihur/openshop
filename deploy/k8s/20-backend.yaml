@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshop-backend
+  namespace: openshop
+  labels: { app: openshop-backend }
+spec:
+  # Stateless: scale freely. All shared state lives in PostgreSQL, Redis and NATS.
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: openshop-backend }
+  template:
+    metadata:
+      labels: { app: openshop-backend }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      # The migration runner takes a PostgreSQL advisory lock, so it is safe for
+      # every pod to run it; only one proceeds while the others wait.
+      initContainers:
+        - name: migrate
+          image: ghcr.io/holihur/openshop-backend:latest
+          command: ["/app/migrate", "-dir", "/app/migrations"]
+          envFrom:
+            - configMapRef: { name: openshop-config }
+            - secretRef: { name: openshop-secrets }
+      containers:
+        - name: backend
+          image: ghcr.io/holihur/openshop-backend:latest
+          ports:
+            - { name: http, containerPort: 8080 }
+          envFrom:
+            - configMapRef: { name: openshop-config }
+            - secretRef: { name: openshop-secrets }
+          # Liveness only checks the process; readiness checks every dependency.
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "1", memory: "512Mi" }
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      # Spread replicas across nodes so a node failure cannot take them all down.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: openshop-backend }
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels: { app: openshop-backend }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshop-backend
+  namespace: openshop
+spec:
+  selector: { app: openshop-backend }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: openshop-backend
+  namespace: openshop
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: openshop-backend
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+    - type: Resource
+      resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: openshop-backend
+  namespace: openshop
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels: { app: openshop-backend }

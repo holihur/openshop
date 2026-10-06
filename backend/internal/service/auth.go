@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,9 +14,20 @@ import (
 
 const (
 	refreshKeyPrefix  = "auth:refresh:"
+	usedKeyPrefix     = "auth:used:"
+	familyKeyPrefix   = "auth:family:"
 	denyListKeyPrefix = "auth:denylist:"
 	refreshTokenBytes = 32
 )
+
+// refreshRecord is the server-side state for an issued refresh token. The
+// family ties every rotation of a login session together, which is what enables
+// theft detection: if a token that was already rotated is presented again, the
+// whole family is revoked.
+type refreshRecord struct {
+	UserID string `json:"userId"`
+	Family string `json:"family"`
+}
 
 // AuthService implements registration, login, token refresh and logout.
 type AuthService struct {
@@ -112,7 +124,7 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*AuthResu
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, err
 	}
-	return s.issue(ctx, user)
+	return s.issue(ctx, user, "")
 }
 
 func (s *AuthService) Login(ctx context.Context, in LoginInput) (*AuthResult, error) {
@@ -136,34 +148,47 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (*AuthResult, er
 	if !s.hasher.Compare(user.PasswordHash, in.Password) {
 		return nil, domain.ErrUnauthorized
 	}
-	return s.issue(ctx, user)
+	return s.issue(ctx, user, "")
 }
 
-// Refresh rotates a refresh token: the presented token is invalidated and a
-// fresh pair is issued. Because state lives in Redis, any instance can serve
-// the call.
+// Refresh rotates a refresh token within its family. If an already-rotated
+// token is presented again (a strong signal of theft), the entire family is
+// revoked and the caller must sign in again.
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthResult, error) {
 	if refreshToken == "" {
 		return nil, domain.ErrUnauthorized
 	}
 	key := refreshKeyPrefix + refreshToken
-	userID, err := s.cache.Get(ctx, key)
+	raw, err := s.cache.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, port.ErrCacheMiss) {
+			// Was this token already used? If so, assume theft and revoke family.
+			if family, used := s.wasUsed(ctx, refreshToken); used {
+				s.revokeFamily(ctx, family)
+			}
 			return nil, domain.ErrUnauthorized
 		}
 		return nil, err
 	}
-	_ = s.cache.Delete(ctx, key)
 
-	user, err := s.users.FindByID(ctx, userID)
+	var rec refreshRecord
+	if err := json.Unmarshal([]byte(raw), &rec); err != nil {
+		return nil, domain.ErrUnauthorized
+	}
+
+	// Rotate: invalidate the presented token, remember it as used.
+	_ = s.cache.Delete(ctx, key)
+	_ = s.cache.Set(ctx, usedKeyPrefix+refreshToken, rec.Family, s.refreshTTL)
+	s.removeFromFamily(ctx, rec.Family, refreshToken)
+
+	user, err := s.users.FindByID(ctx, rec.UserID)
 	if err != nil {
 		return nil, err
 	}
 	if !user.CanLogin() {
 		return nil, domain.ErrForbidden
 	}
-	return s.issue(ctx, user)
+	return s.issue(ctx, user, rec.Family)
 }
 
 // Logout revokes the current access token (deny-list) and its refresh token.
@@ -177,6 +202,12 @@ func (s *AuthService) Logout(ctx context.Context, claims *port.TokenClaims, refr
 		}
 	}
 	if refreshToken != "" {
+		if raw, err := s.cache.Get(ctx, refreshKeyPrefix+refreshToken); err == nil {
+			var rec refreshRecord
+			if json.Unmarshal([]byte(raw), &rec) == nil {
+				s.removeFromFamily(ctx, rec.Family, refreshToken)
+			}
+		}
 		if err := s.cache.Delete(ctx, refreshKeyPrefix+refreshToken); err != nil {
 			return err
 		}
@@ -203,7 +234,8 @@ func (s *AuthService) Me(ctx context.Context, userID string) (*domain.User, erro
 	return s.users.FindByID(ctx, userID)
 }
 
-func (s *AuthService) issue(ctx context.Context, user *domain.User) (*AuthResult, error) {
+// issue mints an access/refresh pair. An empty family starts a new session.
+func (s *AuthService) issue(ctx context.Context, user *domain.User, family string) (*AuthResult, error) {
 	now := s.clock.Now()
 	access, err := s.tokens.Issue(port.TokenClaims{
 		Subject:  user.ID,
@@ -215,17 +247,77 @@ func (s *AuthService) issue(ctx context.Context, user *domain.User) (*AuthResult
 	if err != nil {
 		return nil, err
 	}
+	if family == "" {
+		family, err = randomToken(16)
+		if err != nil {
+			return nil, err
+		}
+	}
 	refresh, err := randomToken(refreshTokenBytes)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.cache.Set(ctx, refreshKeyPrefix+refresh, user.ID, s.refreshTTL); err != nil {
+	rec, err := json.Marshal(refreshRecord{UserID: user.ID, Family: family})
+	if err != nil {
 		return nil, err
 	}
+	if err := s.cache.Set(ctx, refreshKeyPrefix+refresh, string(rec), s.refreshTTL); err != nil {
+		return nil, err
+	}
+	s.addToFamily(ctx, family, refresh)
+
 	return &AuthResult{
 		User:         user,
 		AccessToken:  access,
 		RefreshToken: refresh,
 		ExpiresIn:    int64(s.accessTTL.Seconds()),
 	}, nil
+}
+
+func (s *AuthService) wasUsed(ctx context.Context, token string) (string, bool) {
+	family, err := s.cache.Get(ctx, usedKeyPrefix+token)
+	if err != nil || family == "" {
+		return "", false
+	}
+	return family, true
+}
+
+func (s *AuthService) familyTokens(ctx context.Context, family string) []string {
+	var tokens []string
+	if err := s.cache.GetJSON(ctx, familyKeyPrefix+family, &tokens); err != nil {
+		return nil
+	}
+	return tokens
+}
+
+func (s *AuthService) saveFamily(ctx context.Context, family string, tokens []string) {
+	if len(tokens) == 0 {
+		_ = s.cache.Delete(ctx, familyKeyPrefix+family)
+		return
+	}
+	_ = s.cache.SetJSON(ctx, familyKeyPrefix+family, tokens, s.refreshTTL)
+}
+
+func (s *AuthService) addToFamily(ctx context.Context, family, token string) {
+	tokens := append(s.familyTokens(ctx, family), token)
+	s.saveFamily(ctx, family, tokens)
+}
+
+func (s *AuthService) removeFromFamily(ctx context.Context, family, token string) {
+	tokens := s.familyTokens(ctx, family)
+	out := tokens[:0]
+	for _, t := range tokens {
+		if t != token {
+			out = append(out, t)
+		}
+	}
+	s.saveFamily(ctx, family, out)
+}
+
+// revokeFamily deletes every refresh token belonging to a compromised session.
+func (s *AuthService) revokeFamily(ctx context.Context, family string) {
+	for _, token := range s.familyTokens(ctx, family) {
+		_ = s.cache.Delete(ctx, refreshKeyPrefix+token)
+	}
+	_ = s.cache.Delete(ctx, familyKeyPrefix+family)
 }

@@ -105,6 +105,8 @@ type WorkerConfig struct {
 	Enabled            bool
 	OrderSweepInterval time.Duration
 	OrderSweepBatch    int
+	OutboxInterval     time.Duration
+	OutboxBatch        int
 	// LeaderLock ensures only one instance runs a given scheduled job at a time.
 	LeaderLockTTL time.Duration
 }
@@ -184,6 +186,8 @@ func Load() (*Config, error) {
 			Enabled:            envBool("WORKER_ENABLED", true),
 			OrderSweepInterval: envDuration("ORDER_SWEEP_INTERVAL", time.Minute),
 			OrderSweepBatch:    envInt("ORDER_SWEEP_BATCH", 100),
+			OutboxInterval:     envDuration("OUTBOX_INTERVAL", time.Second),
+			OutboxBatch:        envInt("OUTBOX_BATCH", 100),
 			LeaderLockTTL:      envDuration("LEADER_LOCK_TTL", 30*time.Second),
 		},
 	}

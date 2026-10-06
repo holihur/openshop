@@ -39,6 +39,8 @@ behind a load balancer and they will behave as one system.
 | **Checkout** | A per-user **distributed lock** (`Redis SET NX` with owner token) prevents duplicate submissions across replicas. |
 | **Inventory** | Atomic compare-and-set (`UPDATE ... WHERE stock >= ?`) inside a DB transaction; overselling is impossible under concurrency. |
 | **Events** | NATS JetStream with **durable queue groups** — adding replicas adds throughput, and each event is handled once per group. |
+| **Reliable events** | A **transactional outbox**: events are committed in the same DB transaction as the state change, then a relay publishes them (SKIP LOCKED, at-least-once). A crash can never lose an event. |
+| **Safe retries** | `Idempotency-Key` on checkout/payment: the first response is cached and replayed, so network retries never create duplicate orders. |
 | **Scheduled jobs** | The order-expiry sweeper takes a Redis **leader lock**, so only one replica sweeps per tick. If it dies, the lock expires and another takes over. |
 | **Readiness** | `/readyz` probes PostgreSQL, Redis and NATS so the load balancer can drain unhealthy replicas. |
 | **Graceful shutdown** | In-flight requests drain, workers stop, and connections close cleanly on `SIGTERM`. |
@@ -51,8 +53,24 @@ flowchart LR
     A1 & A2 & A3 --> PG[(PostgreSQL)]
     A1 & A2 & A3 --> R[(Redis\ncache · locks · carts)]
     A1 & A2 & A3 --> N[(NATS JetStream)]
+    PG -. outbox relay .-> N
     N --> W1[Consumers / workers]
 ```
+
+### Reliability: the transactional outbox
+
+Publishing to a broker *after* committing a database write has a classic failure
+window: the process can crash in between, silently losing the event. OpenShop
+avoids this with the **transactional outbox**:
+
+1. Checkout writes the order **and** an `outbox_events` row in one transaction.
+2. A relay worker leases pending rows with `SELECT … FOR UPDATE SKIP LOCKED`,
+   publishes them to NATS, then marks them published.
+3. Failed publishes are retried with exponential backoff; a lease that expires
+   (crashed relay) is reclaimed automatically.
+
+Any number of relays can run concurrently — `SKIP LOCKED` guarantees each
+message is leased by exactly one — so event delivery scales with the fleet.
 
 ---
 
@@ -94,6 +112,7 @@ running (see [Testing](#testing)).
 | `Cache` | Redis | in-memory fake (tests) |
 | `Locker` | Redis (`SET NX` + Lua release) | in-memory fake (tests) |
 | `EventBus` | NATS JetStream | in-memory fake (tests) |
+| `Outbox` | PostgreSQL (`SKIP LOCKED` relay) | in-memory fake (tests) |
 | `PaymentProvider` / `PaymentRegistry` | `mock` (sandbox) | plug in Stripe/Alipay/WeChat |
 | `ObjectStorage` | S3 / MinIO (`s3`) | local disk (`local`) |
 | `Mailer` | SMTP | log |
@@ -103,7 +122,7 @@ running (see [Testing](#testing)).
 | `IDGenerator` | UUID v4 | sequential (tests) |
 | `Clock` | system clock | fixed (tests) |
 | `TxManager` | GORM transaction | pass-through (tests) |
-| `Logger`, `Metrics` | `log/slog`, no-op | — |
+| `Logger`, `Metrics` | `log/slog`, Prometheus (`/metrics`) | no-op |
 
 Swap an adapter by changing one line in `internal/bootstrap/app.go`.
 
@@ -122,20 +141,22 @@ openshop/
 │   │   ├── domain/         # entities, business rules, errors
 │   │   ├── port/           # interfaces (the dependency boundary)
 │   │   ├── service/        # use cases + tests with fakes
-│   │   ├── adapter/        # postgres, redis, nats, payment, storage, mail, sms, security, logger
-│   │   ├── http/           # router, middleware, handlers, response
-│   │   ├── worker/         # event consumers + order sweeper
+│   │   ├── adapter/        # postgres, redis, nats, payment, storage, mail, sms, security, logger, metrics
+│   │   ├── http/           # router, middleware, handlers, response, docs (OpenAPI)
+│   │   ├── worker/         # event consumers, order sweeper, outbox relay
 │   │   ├── config/         # 12-factor env configuration
 │   │   └── bootstrap/      # composition root
-│   └── migrations/         # *.sql
+│   └── migrations/         # *.sql (0001 core, 0002 outbox)
 ├── frontend/
 │   └── src/
 │       ├── components/ui/  # shadcn/ui primitives
-│       ├── components/     # app components (header, product card, …)
-│       ├── pages/          # routes
+│       ├── components/     # app components (header, product card, admin form, …)
+│       ├── pages/          # routes (incl. pages/admin)
 │       ├── hooks/          # react-query data hooks
 │       └── lib/            # api client, auth context, types, formatting
-├── scripts/dev-setup.sh    # local Postgres/Redis/NATS bootstrap
+├── deploy/k8s/             # namespace/config, infra, backend (HPA+PDB), frontend+ingress
+├── scripts/                # dev-setup.sh, smoke.sh, loadtest.js (k6)
+├── .github/workflows/      # CI (backend, frontend, docker)
 ├── docker-compose.yml
 └── Makefile
 ```
@@ -220,6 +241,13 @@ All configuration is environment-based (see `backend/.env.example`). Highlights:
 Base path: `/api/v1`. Responses are enveloped as `{ "data": … }` or
 `{ "error": { "code", "message" } }`; list endpoints also return `meta`.
 
+- Interactive docs: `GET /docs`
+- OpenAPI document: `GET /api/v1/openapi.yaml`
+- Prometheus metrics: `GET /metrics`
+
+Send `Idempotency-Key: <uuid>` on `POST /orders` and `POST /payments` to make
+retries safe.
+
 ### Auth
 
 | Method | Path | Auth | Description |
@@ -294,22 +322,98 @@ curl -s -X POST localhost:8080/api/v1/orders -H "Authorization: Bearer $TOKEN"
 
 ## Testing
 
+The service layer depends only on ports, so it is tested with **in-memory fakes
+and no infrastructure**:
+
 ```bash
 cd backend && go test ./... -race
 ```
 
-The service tests use in-memory fakes for every port
-(`internal/service/fakes_test.go`), so they run in milliseconds with **no
-Postgres, Redis or NATS**. Covered scenarios include:
+Covered scenarios include:
 
-- checkout reserves stock, clears the cart and emits `order.created`
+- checkout reserves stock, clears the cart and enqueues `order.created`
 - insufficient stock is rejected without side effects
-- cancellation restores stock and is not idempotent twice
+- cancellation restores stock and cannot double-refund it
 - `MarkPaid` is idempotent (duplicate webhooks are no-ops)
 - expired orders are listed for the sweeper
-- registration/login/refresh and refresh-token rotation
+- registration/login/refresh and **refresh-token theft detection**
+- the outbox relay publishes, retries and caps backoff
+
+### Integration tests (real PostgreSQL)
+
+Adapter behaviour that depends on the database (e.g. `SKIP LOCKED` leasing) is
+covered by integration tests that run when a DSN is provided:
+
+```bash
+cd backend
+TEST_DATABASE_URL='host=localhost user=openshop password=openshop dbname=openshop sslmode=disable' \
+  go test ./internal/adapter/postgres/ -run TestOutboxClaimSemantics
+```
+
+### End-to-end smoke test
+
+Against a running API:
+
+```bash
+API_BASE=http://localhost:8080/api/v1 ./scripts/smoke.sh
+```
+
+It verifies login, catalog, stock reservation, **idempotent replay**, payment
+and the resulting paid order.
+
+### Load test
+
+```bash
+k6 run scripts/loadtest.js            # browse + shop scenarios, thresholds enforced
+```
 
 ---
+
+## Observability
+
+Every process exposes Prometheus metrics at `GET /metrics`:
+
+| Metric | Type | Meaning |
+| --- | --- | --- |
+| `openshop_http_requests_total` | counter | requests by method, route, status |
+| `openshop_http_request_duration_seconds` | histogram | request latency |
+| `openshop_orders_created_total` | counter | orders created by currency |
+| `openshop_orders_paid_total` | counter | orders paid |
+| `openshop_payments_succeeded_total` | counter | successful payments by provider |
+| `openshop_outbox_published_total` | counter | events relayed by subject |
+| `openshop_outbox_publish_failures_total` | counter | relay failures (retried) |
+
+Logging is structured (`log/slog`, JSON in production) with a per-request
+correlation id propagated from `X-Request-Id`. The `Metrics` and `Logger` ports
+keep both swappable and no-op in tests.
+
+## Deployment
+
+### Kubernetes
+
+`deploy/k8s/` contains a runnable manifest set:
+
+- `00-namespace-config.yaml` — namespace, ConfigMap, Secret
+- `10-infra.yaml` — PostgreSQL / Redis / NATS StatefulSets (swap for managed services in production)
+- `20-backend.yaml` — Deployment (3 replicas, rolling update, anti-affinity,
+  topology spread), readiness/liveness probes, **HPA** (3→20 on CPU/memory), **PDB**,
+  and an **init container** that runs migrations (safe on every pod via the advisory lock)
+- `30-frontend.yaml` — Deployment, Service and Ingress
+
+```bash
+kubectl apply -f deploy/k8s/
+kubectl -n openshop rollout status deploy/openshop-backend
+kubectl -n openshop scale deploy/openshop-backend --replicas=6
+```
+
+### CI
+
+`.github/workflows/ci.yml` runs on every push/PR:
+
+- **backend**: `gofmt` check, `go vet`, `go build`, `go test -race` with real
+  PostgreSQL + Redis services (integration tests included), coverage summary
+- **frontend**: `npm ci`, type-check, production build
+- **docker**: builds both images
 
 ## Design decisions
 
@@ -325,5 +429,13 @@ Postgres, Redis or NATS**. Covered scenarios include:
   them.
 - **Error envelopes.** Domain sentinel errors are mapped to HTTP status codes in
   one place (`internal/http/response`), keeping handlers thin.
-- **At-least-once events.** Consumers are idempotent and publishing never fails
-  a request; a failed publish is logged and retried by the broker.
+- **At-least-once, never lost.** Events go through the transactional outbox, so
+  they are committed with the business write and relayed with retries; consumers
+  are idempotent.
+- **Idempotent writes.** Checkout and payment accept an `Idempotency-Key`; the
+  first outcome is cached and replayed, and concurrent duplicates get `409`.
+- **Read-your-writes for stock.** Checkout evicts the product cache
+  synchronously (and the event consumer does so again as a safety net), so the
+  catalog reflects reservations immediately.
+- **Least privilege in the catalog.** Public product listings are forced to
+  `published`; only admins can list drafts via `/admin/products`.

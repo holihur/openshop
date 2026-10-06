@@ -18,6 +18,7 @@ type PaymentService struct {
 	ids      port.IDGenerator
 	clock    port.Clock
 	logger   port.Logger
+	metrics  port.Metrics
 }
 
 func NewPaymentService(
@@ -28,10 +29,14 @@ func NewPaymentService(
 	ids port.IDGenerator,
 	clock port.Clock,
 	logger port.Logger,
+	metrics port.Metrics,
 ) *PaymentService {
+	if metrics == nil {
+		metrics = port.NopMetrics{}
+	}
 	return &PaymentService{
 		payments: payments, orders: orders, registry: registry, orderSvc: orderSvc,
-		ids: ids, clock: clock, logger: logger,
+		ids: ids, clock: clock, logger: logger, metrics: metrics,
 	}
 }
 
@@ -123,6 +128,13 @@ func (s *PaymentService) HandleWebhook(ctx context.Context, providerName string,
 	}
 	if err := s.payments.Update(ctx, payment); err != nil {
 		return err
+	}
+
+	switch evt.Status {
+	case domain.PaymentSucceeded:
+		s.metrics.Counter("openshop_payments_succeeded_total", 1, map[string]string{"provider": provider.Name()})
+	case domain.PaymentFailed:
+		s.metrics.Counter("openshop_payments_failed_total", 1, map[string]string{"provider": provider.Name()})
 	}
 
 	if evt.Status == domain.PaymentSucceeded {

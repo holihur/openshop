@@ -18,6 +18,19 @@ build: ## Build the backend binaries
 test: ## Run backend tests
 	cd $(BACKEND) && go test ./... -race -count=1
 
+.PHONY: test-integration
+test-integration: ## Run PostgreSQL integration tests
+	cd $(BACKEND) && TEST_DATABASE_URL="$${TEST_DATABASE_URL:-host=localhost port=5432 user=openshop password=openshop dbname=openshop sslmode=disable TimeZone=UTC}" \
+		go test ./internal/adapter/postgres/ -run TestOutboxClaimSemantics -v
+
+.PHONY: smoke
+smoke: ## Run the end-to-end smoke test against a running API
+	API_BASE="$${API_BASE:-http://localhost:8080/api/v1}" ./scripts/smoke.sh
+
+.PHONY: lint
+lint: ## Run gofmt check and go vet
+	cd $(BACKEND) && test -z "$$(gofmt -l .)" && go vet ./...
+
 .PHONY: vet
 vet: ## Run go vet
 	cd $(BACKEND) && go vet ./...

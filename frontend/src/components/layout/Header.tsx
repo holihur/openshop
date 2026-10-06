@@ -56,6 +56,21 @@ export function Header() {
               {item.label}
             </NavLink>
           ))}
+          {user?.role === "admin" && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                cn(
+                  "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )
+              }
+            >
+              Admin
+            </NavLink>
+          )}
         </nav>
 
         <div className="ml-auto flex items-center gap-2">

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/holihur/openshop/internal/domain"
+	"github.com/holihur/openshop/internal/port"
 )
 
 type orderFixture struct {
@@ -14,7 +15,7 @@ type orderFixture struct {
 	products *fakeProductRepo
 	carts    *fakeCartRepo
 	orders   *fakeOrderRepo
-	bus      *fakeBus
+	outbox   *fakeOutbox
 	locker   *fakeLocker
 }
 
@@ -22,14 +23,14 @@ func newOrderFixture() *orderFixture {
 	products := newFakeProductRepo()
 	carts := newFakeCartRepo()
 	orders := newFakeOrderRepo()
-	bus := newFakeBus()
+	outbox := newFakeOutbox()
 	locker := newFakeLocker()
 	svc := NewOrderService(
-		orders, products, carts, locker, fakeTx{}, bus,
+		orders, products, carts, locker, fakeTx{}, outbox,
 		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
-		nopLogger{}, 30*time.Minute, "CNY",
+		nopLogger{}, nil, port.NopMetrics{}, 30*time.Minute, "CNY",
 	)
-	return &orderFixture{svc: svc, products: products, carts: carts, orders: orders, bus: bus, locker: locker}
+	return &orderFixture{svc: svc, products: products, carts: carts, orders: orders, outbox: outbox, locker: locker}
 }
 
 func seedProduct(f *orderFixture, id string, stock int, price int64) {
@@ -80,7 +81,7 @@ func TestCheckoutReservesStockAndClearsCart(t *testing.T) {
 		t.Fatalf("cart not cleared: %d items", len(remaining.Items))
 	}
 
-	if subjects := f.bus.subjects(); len(subjects) != 1 || subjects[0] != SubjectOrderCreated {
+	if subjects := f.outbox.subjects(); len(subjects) != 1 || subjects[0] != SubjectOrderCreated {
 		t.Fatalf("events = %v, want [order.created]", subjects)
 	}
 }

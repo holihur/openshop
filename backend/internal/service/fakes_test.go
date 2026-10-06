@@ -429,6 +429,41 @@ func (b *fakeBus) subjects() []string {
 	return out
 }
 
+// fakeOutbox records events enqueued inside a transaction. In tests the
+// transaction is a pass-through, so this doubles as the published-event log.
+type fakeOutbox struct {
+	mu     sync.Mutex
+	events []port.Event
+}
+
+func newFakeOutbox() *fakeOutbox { return &fakeOutbox{} }
+
+func (o *fakeOutbox) Enqueue(_ context.Context, evt port.Event) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.events = append(o.events, evt)
+	return nil
+}
+
+func (o *fakeOutbox) Claim(context.Context, int, time.Duration) ([]port.OutboxMessage, error) {
+	return nil, nil
+}
+func (o *fakeOutbox) MarkPublished(context.Context, string) error { return nil }
+func (o *fakeOutbox) MarkFailed(context.Context, port.OutboxMessage, string, time.Time) error {
+	return nil
+}
+func (o *fakeOutbox) Reclaim(context.Context, time.Time) (int64, error) { return 0, nil }
+
+func (o *fakeOutbox) subjects() []string {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	out := make([]string, 0, len(o.events))
+	for _, e := range o.events {
+		out = append(out, e.Subject)
+	}
+	return out
+}
+
 type seqIDs struct {
 	mu sync.Mutex
 	n  int

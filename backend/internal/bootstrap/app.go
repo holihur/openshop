@@ -13,6 +13,7 @@ import (
 
 	"github.com/holihur/openshop/internal/adapter/logger"
 	"github.com/holihur/openshop/internal/adapter/mail"
+	"github.com/holihur/openshop/internal/adapter/metrics"
 	natsadapter "github.com/holihur/openshop/internal/adapter/nats"
 	"github.com/holihur/openshop/internal/adapter/payment"
 	"github.com/holihur/openshop/internal/adapter/postgres"
@@ -91,6 +92,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	mailer := mail.New(cfg.Mail, log)
 	smsSender := sms.New(cfg.SMS, log)
 	_ = smsSender // reserved for OTP / notification flows
+	promMetrics := metrics.New()
 
 	// --- repositories ---
 	users := postgres.NewUserRepository(db)
@@ -98,6 +100,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	products := postgres.NewProductRepository(db)
 	orders := postgres.NewOrderRepository(db)
 	paymentRepo := postgres.NewPaymentRepository(db)
+	outbox := postgres.NewOutboxRepository(db)
 
 	// --- services ---
 	authSvc := service.NewAuthService(users, hasher, tokens, cache, ids, clock, service.AuthConfig{
@@ -105,20 +108,21 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	})
 	catalogSvc := service.NewCatalogService(categories, products, cache, ids, clock, cfg.App.Currency)
 	cartSvc := service.NewCartService(cartRepo, products)
-	orderSvc := service.NewOrderService(orders, products, cartRepo, locker, db, bus, ids, clock, log, cfg.App.OrderTTL, cfg.App.Currency)
-	paymentSvc := service.NewPaymentService(paymentRepo, orders, payments, orderSvc, ids, clock, log)
+	orderSvc := service.NewOrderService(orders, products, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, cfg.App.OrderTTL, cfg.App.Currency)
+	paymentSvc := service.NewPaymentService(paymentRepo, orders, payments, orderSvc, ids, clock, log, promMetrics)
 
 	// --- HTTP surface ---
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Cart: cartSvc, Orders: orderSvc,
 		Payments: paymentSvc, Storage: objectStore, IDs: ids, Logger: log,
+		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
 			{Name: "postgres", Check: db.Ping},
 			{Name: "redis", Check: rdb.Ping},
 			{Name: "nats", Check: func(context.Context) error { return bus.Ready() }},
 		},
 	}
-	router := apphttp.NewRouter(cfg, tokens, authSvc, cache, h)
+	router := apphttp.NewRouter(cfg, tokens, authSvc, cache, promMetrics, h)
 
 	app := &App{
 		cfg: cfg, log: log, db: db, redis: rdb, bus: bus, handlers: h,
@@ -148,6 +152,15 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 		go func() {
 			defer app.wg.Done()
 			app.runWorker(workerCtx, "order-sweeper", sweeper.Run)
+		}()
+
+		// The outbox relay is safe to run on every replica; Claim uses SKIP LOCKED.
+		relay := worker.NewOutboxRelay(outbox, bus, clock, log, promMetrics,
+			cfg.Worker.OutboxInterval, cfg.Worker.OutboxBatch)
+		app.wg.Add(1)
+		go func() {
+			defer app.wg.Done()
+			app.runWorker(workerCtx, "outbox-relay", relay.Run)
 		}()
 	}
 

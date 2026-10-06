@@ -175,4 +175,33 @@ export const api = {
     const { data } = await request<T>(path, { auth: false, signal });
     return data as T;
   },
+  /** Multipart upload (e.g. product images). */
+  async upload<T>(path: string, file: File): Promise<T> {
+    const form = new FormData();
+    form.append("file", file);
+
+    const send = () =>
+      fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: tokenStore.access()
+          ? { Authorization: `Bearer ${tokenStore.access()}` }
+          : {},
+        body: form,
+      });
+
+    let res = await send();
+    if (res.status === 401 && tokenStore.refresh()) {
+      const ok = await refreshAccessToken();
+      if (ok) res = await send();
+    }
+    const envelope = await parse<T>(res);
+    if (!res.ok) {
+      throw new ApiError({
+        code: envelope.error?.code ?? "error",
+        message: envelope.error?.message ?? `Upload failed with status ${res.status}`,
+        status: res.status,
+      });
+    }
+    return envelope.data as T;
+  },
 };

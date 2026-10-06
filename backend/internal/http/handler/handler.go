@@ -4,6 +4,7 @@ package handler
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/holihur/openshop/internal/port"
 	"github.com/holihur/openshop/internal/service"
@@ -25,5 +26,6 @@ type Handler struct {
 	Storage  port.ObjectStorage
 	IDs      port.IDGenerator
 	Logger   port.Logger
+	Metrics  http.Handler
 	Checks   []ReadinessCheck
 }
