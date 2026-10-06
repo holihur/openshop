@@ -168,6 +168,17 @@ export interface AuditLog {
   createdAt: string;
 }
 
+export interface ExchangeRate {
+  currency: string;
+  rateMicro: number;
+  updatedAt: string;
+}
+
+export interface CurrenciesResponse {
+  base: string;
+  rates: ExchangeRate[];
+}
+
 export interface Dashboard {
   revenueCents: number;
   paidOrders: number;

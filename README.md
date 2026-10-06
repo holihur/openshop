@@ -18,14 +18,17 @@ saved addresses, checkout, order tracking and self-service cancellation.
 
 **Operations** — merchant dashboard (revenue, order counts), product/variant
 management with image upload, order fulfilment (ship with tracking, complete,
-refund), coupon and shipping-method management, review moderation.
+refund), coupon and shipping-method management, exchange rates, an audit trail,
+and review moderation.
 
-**Platform** — JWT auth with refresh rotation, theft detection and password
-reset; payments behind a provider port (sandbox included); transactional outbox
-for reliable events; idempotent checkout; distributed locks; NATS queue-group
-consumers; Redis cache/locks/carts; Prometheus metrics; OpenTelemetry tracing
-across the async boundary; versioned migrations; Docker Compose, Kubernetes
-manifests, CI, a smoke test and a k6 load test.
+**Platform** — JWT auth with refresh rotation, theft detection, email
+verification and password reset; per-IP and per-user rate limiting; payments
+behind a provider port (sandbox included); guest checkout via an access token;
+multi-currency settlement; transactional outbox for reliable events; idempotent
+checkout; distributed locks; NATS queue-group consumers; Redis cache/locks/carts;
+Prometheus metrics; OpenTelemetry tracing across the async boundary; versioned
+migrations; SEO (robots/sitemap/JSON-LD); Docker Compose, Kubernetes manifests,
+CI, a smoke test and a k6 load test.
 
 ---
 
@@ -275,6 +278,8 @@ retries safe.
 | `POST` | `/auth/register` | — | Create an account |
 | `POST` | `/auth/login` | — | Sign in (email or phone) |
 | `POST` | `/auth/refresh` | — | Rotate the refresh token |
+| `POST` | `/auth/email/verify` | — | Verify an email with a single-use token |
+| `POST` | `/auth/email/resend` | ✔ | Re-send the verification email |
 | `POST` | `/auth/password/forgot` | — | Email a reset link (no enumeration) |
 | `POST` | `/auth/password/reset` | — | Reset with a single-use token (revokes sessions) |
 | `POST` | `/auth/password/change` | ✔ | Change password (revokes sessions) |
@@ -309,6 +314,10 @@ retries safe.
 | `DELETE` | `/reviews/:id` | ✔ | Delete a review (owner or admin) |
 | `POST` | `/coupons/preview` | ✔ | Validate a coupon and preview the discount |
 | `GET` | `/shipping-methods` | — | List active shipping methods |
+| `GET` | `/currencies` | — | Base currency and exchange rates |
+| `GET` | `/wishlist` | ✔ | List saved products |
+| `POST` | `/wishlist` | ✔ | Save a product |
+| `DELETE` | `/wishlist/:productId` | ✔ | Remove a saved product |
 
 ### Orders & payments
 
@@ -327,6 +336,10 @@ retries safe.
 | `POST` | `/payments` | ✔ | Create a payment session |
 | `POST` | `/payments/simulate` | ✔ | Sandbox: confirm a mock payment |
 | `POST` | `/webhooks/payments/:provider` | — | Provider callback (signature-verified) |
+| `GET` | `/guest/orders/:token` | — | View a guest order by access token |
+| `POST` | `/guest/orders/:token/pay` | — | Pay a guest order |
+| `POST` | `/guest/orders/:token/cancel` | — | Cancel a guest order |
+| `POST` | `/guest/orders/:token/complete` | — | Confirm receipt of a guest order |
 
 ### Admin
 
@@ -338,6 +351,8 @@ retries safe.
 | `POST` | `/admin/uploads` | Upload an image (multipart) |
 | `GET` | `/admin/orders` | List all orders |
 | `GET` | `/admin/stats` | Dashboard: revenue, order counts, recent orders |
+| `GET` | `/admin/audit-logs` | Audit trail (security and admin actions) |
+| `PUT` | `/admin/currencies/:code` | Set an exchange rate |
 | `POST` | `/admin/orders/:id/refund` | Refund a paid order (restores stock) |
 | `POST` | `/admin/orders/:id/ship` | Mark a paid order shipped (tracking number) |
 | `POST` | `/admin/orders/:id/complete` | Mark a shipped order completed |
@@ -530,3 +545,11 @@ kubectl -n openshop scale deploy/openshop-backend --replicas=6
 - **Money is computed server-side.** Shipping (flat rate with a free threshold)
   and tax (configurable basis-point rate) are calculated at checkout on the
   discounted subtotal; the client only previews them.
+- **Guest checkout shares one cart path.** The cart owner is a *subject* — a
+  user id or an `X-Guest-Id` — and guest orders are authorised by an unguessable
+  access token, so guests reuse the same inventory, coupon and payment logic.
+- **Multi-currency settles server-side.** Catalog prices are previewed in the
+  chosen currency from exchange rates; checkout converts unit prices, fixed
+  coupons and shipping, then stores the order in that currency.
+- **Everything auditable.** Security and admin actions are appended to an audit
+  trail with actor, resource, metadata and IP.

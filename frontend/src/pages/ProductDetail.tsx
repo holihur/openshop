@@ -10,10 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ReviewsSection } from "@/components/reviews-section";
 import { WishlistButton } from "@/components/wishlist-button";
 import { api } from "@/lib/api";
-import { formatMoney } from "@/lib/format";
 import { useAddToCart } from "@/hooks/useCart";
 import { useAuth } from "@/lib/auth";
 import { useSeo } from "@/hooks/useSeo";
+import { usePrice } from "@/hooks/usePrice";
 import { cn } from "@/lib/utils";
 import type { Product, Variant } from "@/lib/types";
 
@@ -25,6 +25,7 @@ export function ProductDetailPage() {
   const [variantId, setVariantId] = useState<string>("");
   const { user } = useAuth();
   const addToCart = useAddToCart();
+  const price = usePrice();
 
   const { data: product, isLoading, isError } = useQuery({
     queryKey: ["product", id],
@@ -143,7 +144,7 @@ export function ProductDetailPage() {
             </div>
             <div className="mt-2 flex items-center gap-3">
               <span className="text-2xl font-semibold">
-                {formatMoney(effectivePrice, product.currency)}
+                {price(effectivePrice)}
               </span>
               {outOfStock ? (
                 <Badge variant="secondary">Out of stock</Badge>
@@ -188,9 +189,7 @@ export function ProductDetailPage() {
                     >
                       {v.name}
                       {v.priceCents > 0 && v.priceCents !== product.priceCents && (
-                        <span className="ml-2 text-xs opacity-80">
-                          {formatMoney(v.priceCents, product.currency)}
-                        </span>
+                        <span className="ml-2 text-xs opacity-80">{price(v.priceCents)}</span>
                       )}
                     </button>
                   );

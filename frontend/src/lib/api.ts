@@ -181,6 +181,10 @@ export const api = {
     const { data } = await request<T>(path, { method: "PATCH", body });
     return data as T;
   },
+  async put<T>(path: string, body?: unknown): Promise<T> {
+    const { data } = await request<T>(path, { method: "PUT", body });
+    return data as T;
+  },
   async del<T>(path: string, body?: unknown): Promise<T> {
     const { data } = await request<T>(path, { method: "DELETE", body });
     return data as T;

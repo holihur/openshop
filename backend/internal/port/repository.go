@@ -144,3 +144,16 @@ type WishlistRepository interface {
 	Remove(ctx context.Context, userID, productID string) error
 	ListByUser(ctx context.Context, userID string) ([]domain.Product, error)
 }
+
+// CurrencyRepository persists exchange rates from the base currency.
+type CurrencyRepository interface {
+	Upsert(ctx context.Context, currency string, rateMicro int64) error
+	List(ctx context.Context) ([]domain.ExchangeRate, error)
+	Find(ctx context.Context, currency string) (*domain.ExchangeRate, error)
+}
+
+// ExchangeRates resolves a micro rate between two currencies. It is used by
+// checkout to settle orders in the customer's chosen currency.
+type ExchangeRates interface {
+	Rate(ctx context.Context, from, to string) (int64, error)
+}

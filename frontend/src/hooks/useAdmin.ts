@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
-import type { AuditLog, Category, Coupon, Dashboard, Order, Product, Variant } from "@/lib/types";
+import type { AuditLog, Category, Coupon, CurrenciesResponse, Dashboard, ExchangeRate, Order, Product, Variant } from "@/lib/types";
 
 export interface ProductInput {
   categoryId?: string;
@@ -50,6 +50,26 @@ export function useAuditLogs() {
   return useQuery({
     queryKey: ["admin", "audit"],
     queryFn: () => api.getPage<AuditLog[]>("/admin/audit-logs?pageSize=100"),
+  });
+}
+
+export function useCurrencies() {
+  return useQuery({
+    queryKey: ["currencies"],
+    queryFn: () => api.get<CurrenciesResponse>("/currencies"),
+  });
+}
+
+export function useSetCurrencyRate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, rateMicro }: { code: string; rateMicro: number }) =>
+      api.put<ExchangeRate>(`/admin/currencies/${code}`, { rateMicro }),
+    onSuccess: () => {
+      toast.success("Exchange rate saved");
+      void queryClient.invalidateQueries({ queryKey: ["currencies"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 }
 

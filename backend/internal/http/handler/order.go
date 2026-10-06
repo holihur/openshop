@@ -67,6 +67,7 @@ type CheckoutRequest struct {
 	ShippingMethodID string `json:"shippingMethodId"`
 	Email            string `json:"email"`
 	Phone            string `json:"phone"`
+	Currency         string `json:"currency"`
 }
 
 func (h *Handler) Checkout(c *gin.Context) {
@@ -82,6 +83,7 @@ func (h *Handler) Checkout(c *gin.Context) {
 		ShippingMethodID: req.ShippingMethodID,
 		GuestEmail:       req.Email,
 		GuestPhone:       req.Phone,
+		Currency:         req.Currency,
 	})
 	if err != nil {
 		response.Fail(c, err)

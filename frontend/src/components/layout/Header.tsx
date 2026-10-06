@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
+import { useCurrency } from "@/lib/currency";
 import { useCart } from "@/hooks/useCart";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ export function Header() {
   const { user, logout } = useAuth();
   const { data: cart } = useCart();
   const { dark, toggle } = useTheme();
+  const { currency, available, setCurrency } = useCurrency();
 
   return (
     <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 border-b backdrop-blur">
@@ -104,6 +106,20 @@ export function Header() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          {available.length > 1 && (
+            <select
+              aria-label="Currency"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              className="border-input bg-background h-8 rounded-md border px-2 text-sm"
+            >
+              {available.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          )}
           <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
             {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </Button>

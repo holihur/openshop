@@ -5,14 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WishlistButton } from "@/components/wishlist-button";
-import { formatMoney } from "@/lib/format";
 import { useAddToCart } from "@/hooks/useCart";
+import { usePrice } from "@/hooks/usePrice";
 import { useAuth } from "@/lib/auth";
 import type { Product } from "@/lib/types";
 
 export function ProductCard({ product }: { product: Product }) {
   const addToCart = useAddToCart();
   const { user } = useAuth();
+  const price = usePrice();
   const outOfStock = product.stock <= 0;
 
   return (
@@ -48,9 +49,7 @@ export function ProductCard({ product }: { product: Product }) {
         </p>
       </CardContent>
       <CardFooter className="justify-between gap-2">
-        <span className="text-lg font-semibold">
-          {formatMoney(product.priceCents, product.currency)}
-        </span>
+        <span className="text-lg font-semibold">{price(product.priceCents)}</span>
         <Button
           size="sm"
           disabled={outOfStock || !user || addToCart.isPending}

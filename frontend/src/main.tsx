@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 
 import App from "@/App";
 import { AuthProvider } from "@/lib/auth";
+import { CurrencyProvider } from "@/lib/currency";
 import "@/index.css";
 
 const queryClient = new QueryClient({
@@ -23,8 +24,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <App />
-          <Toaster richColors position="top-center" />
+          <CurrencyProvider>
+            <App />
+            <Toaster richColors position="top-center" />
+          </CurrencyProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

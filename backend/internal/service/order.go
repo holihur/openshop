@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/holihur/openshop/internal/domain"
@@ -29,6 +30,7 @@ type OrderService struct {
 	variants     port.VariantRepository
 	addresses    port.AddressRepository
 	shipping     port.ShippingMethodRepository
+	rates        port.ExchangeRates
 	carts        port.CartRepository
 	locker       port.Locker
 	tx           port.TxManager
@@ -51,6 +53,7 @@ func NewOrderService(
 	variants port.VariantRepository,
 	addresses port.AddressRepository,
 	shipping port.ShippingMethodRepository,
+	rates port.ExchangeRates,
 	carts port.CartRepository,
 	locker port.Locker,
 	tx port.TxManager,
@@ -73,7 +76,7 @@ func NewOrderService(
 	}
 	return &OrderService{
 		orders: orders, products: products, coupons: coupons, variants: variants, addresses: addresses,
-		shipping: shipping, carts: carts, locker: locker, tx: tx,
+		shipping: shipping, rates: rates, carts: carts, locker: locker, tx: tx,
 		outbox: outbox, ids: ids, clock: clock, logger: logger, productCache: productCache,
 		metrics: metrics, tracer: tracer, taxRateBps: taxRateBps, ttl: ttl, currency: currency,
 	}
@@ -93,6 +96,8 @@ type CheckoutInput struct {
 	// GuestEmail is required when there is no authenticated UserID.
 	GuestEmail string
 	GuestPhone string
+	// Currency is the settlement currency; empty means the store base currency.
+	Currency string
 }
 
 func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *domain.Order, err error) {
@@ -117,6 +122,20 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 	}
 	if in.UserID == "" && in.GuestEmail == "" {
 		return nil, fmt.Errorf("%w: email is required for guest checkout", domain.ErrInvalidArgument)
+	}
+
+	// Resolve the settlement currency and its conversion rate up front.
+	target := strings.ToUpper(strings.TrimSpace(in.Currency))
+	if target == "" {
+		target = s.currency
+	}
+	rate := int64(1_000_000)
+	if target != s.currency {
+		r, err := s.rates.Rate(ctx, s.currency, target)
+		if err != nil {
+			return nil, err
+		}
+		rate = r
 	}
 
 	lock, err := s.locker.Acquire(ctx, "lock:checkout:"+subject, 15*time.Second, 3*time.Second)
@@ -154,7 +173,7 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 		GuestEmail:      in.GuestEmail,
 		GuestPhone:      in.GuestPhone,
 		Status:          domain.OrderPendingPayment,
-		Currency:        s.currency,
+		Currency:        target,
 		ShippingAddress: shipping,
 		ExpiresAt:       now.Add(s.ttl),
 		CreatedAt:       now,
@@ -207,8 +226,8 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 					return err
 				}
 			}
-			item.PriceCents = price
-			item.Subtotal = price * int64(ci.Quantity)
+			item.PriceCents = domain.Convert(price, rate)
+			item.Subtotal = item.PriceCents * int64(ci.Quantity)
 			total += item.Subtotal
 			items = append(items, item)
 		}
@@ -219,7 +238,7 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 		order.Items = items
 
 		if in.CouponCode != "" {
-			if err := s.applyCoupon(txCtx, order, subject, in.CouponCode, now); err != nil {
+			if err := s.applyCoupon(txCtx, order, subject, in.CouponCode, now, rate); err != nil {
 				return err
 			}
 		}
@@ -232,7 +251,12 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 		if method != nil {
 			order.ShippingMethodID = method.ID
 			order.ShippingMethodName = method.Name
-			order.ShippingCents = method.CostFor(order.SubtotalCents)
+			threshold := domain.Convert(method.FreeThresholdCents, rate)
+			if method.FreeThresholdCents > 0 && order.SubtotalCents >= threshold {
+				order.ShippingCents = 0
+			} else {
+				order.ShippingCents = domain.Convert(method.FlatRateCents, rate)
+			}
 		}
 
 		// Tax applies to the discounted subtotal plus shipping.
@@ -523,7 +547,7 @@ func (s *OrderService) resolveShipping(ctx context.Context, id string) (*domain.
 }
 
 // applyCoupon validates and consumes a coupon inside the checkout transaction.
-func (s *OrderService) applyCoupon(ctx context.Context, order *domain.Order, userID, code string, now time.Time) error {
+func (s *OrderService) applyCoupon(ctx context.Context, order *domain.Order, subject, code string, now time.Time, rate int64) error {
 	coupon, err := s.coupons.FindByCode(ctx, code)
 	if err != nil {
 		return err
@@ -532,7 +556,7 @@ func (s *OrderService) applyCoupon(ctx context.Context, order *domain.Order, use
 		return err
 	}
 	if coupon.PerUserLimit > 0 {
-		used, err := s.coupons.CountRedemptions(ctx, coupon.ID, userID)
+		used, err := s.coupons.CountRedemptions(ctx, coupon.ID, subject)
 		if err != nil {
 			return err
 		}
@@ -548,6 +572,13 @@ func (s *OrderService) applyCoupon(ctx context.Context, order *domain.Order, use
 	order.CouponID = coupon.ID
 	order.CouponCode = coupon.Code
 	order.DiscountCents = coupon.DiscountFor(order.SubtotalCents)
+	// Fixed coupon amounts are defined in the base currency; convert them.
+	if coupon.DiscountType == domain.DiscountFixed && rate != 1_000_000 {
+		order.DiscountCents = domain.Convert(coupon.DiscountValue, rate)
+		if order.DiscountCents > order.SubtotalCents {
+			order.DiscountCents = order.SubtotalCents
+		}
+	}
 	return nil
 }
 

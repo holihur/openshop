@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
-import { formatMoney } from "@/lib/format";
+import { usePrice } from "@/hooks/usePrice";
+import { useCurrency } from "@/lib/currency";
 import { useCart, useClearCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/useCart";
 import { useAddresses } from "@/hooks/useAddresses";
 import { useShippingMethods } from "@/hooks/useShipping";
@@ -21,6 +22,8 @@ export function CartPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const price = usePrice();
+  const { currency } = useCurrency();
   const { data: cart, isLoading } = useCart();
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveCartItem();
@@ -67,6 +70,7 @@ export function CartPage() {
           ...(couponCode ? { couponCode } : {}),
           ...(shippingMethodId ? { shippingMethodId } : {}),
           email,
+          currency,
         });
         if (order.accessToken) localStorage.setItem("openshop.guestOrderToken", order.accessToken);
         const payment = await api.post<Payment>(`/guest/orders/${order.accessToken}/pay`, {
@@ -80,6 +84,7 @@ export function CartPage() {
         ...(couponCode ? { couponCode } : {}),
         ...(addressId ? { addressId } : {}),
         ...(shippingMethodId ? { shippingMethodId } : {}),
+        currency,
       });
       // Then open a payment session with the (sandbox) provider.
       const payment = await api.post<Payment>("/payments", {
@@ -158,7 +163,7 @@ export function CartPage() {
                   <p className="text-muted-foreground text-xs">{item.variantName}</p>
                 )}
                 <p className="text-muted-foreground text-sm">
-                  {formatMoney(item.priceCents, item.currency)}
+                  {price(item.priceCents)}
                 </p>
               </div>
               <div className="flex items-center rounded-md border">
@@ -285,7 +290,7 @@ export function CartPage() {
                       <span className="text-muted-foreground">
                         {m.freeThresholdCents > 0 && cart.totalCents >= m.freeThresholdCents
                           ? "Free"
-                          : formatMoney(m.flatRateCents)}
+                          : price(m.flatRateCents)}
                       </span>
                     </label>
                   ))}
@@ -333,22 +338,22 @@ export function CartPage() {
             <Separator />
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>{formatMoney(cart.totalCents)}</span>
+              <span>{price(cart.totalCents)}</span>
             </div>
             {applied && (
               <div className="flex justify-between text-sm text-emerald-600">
                 <span>Discount</span>
-                <span>-{formatMoney(applied.discountCents)}</span>
+                <span>-{price(applied.discountCents)}</span>
               </div>
             )}
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Shipping</span>
-              <span>{formatMoney(shippingCents)}</span>
+              <span>{price(shippingCents)}</span>
             </div>
             <p className="text-muted-foreground text-xs">Taxes are calculated at checkout.</p>
             <div className="flex justify-between text-base font-semibold">
               <span>Total</span>
-              <span>{formatMoney((applied?.totalCents ?? cart.totalCents) + shippingCents)}</span>
+              <span>{price((applied?.totalCents ?? cart.totalCents) + shippingCents)}</span>
             </div>
             <Button
               className="w-full"

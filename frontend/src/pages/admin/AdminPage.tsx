@@ -20,7 +20,7 @@ import {
 import { ProductForm } from "@/components/admin/product-form";
 import { VariantsEditor } from "@/components/admin/variants-editor";
 import { OrderStatusBadge } from "@/components/order-status-badge";
-import { useAdminCoupons, useAdminOrders, useAdminProducts, useAuditLogs, useCreateCoupon, useDashboard } from "@/hooks/useAdmin";
+import { useAdminCoupons, useAdminOrders, useAdminProducts, useAuditLogs, useCreateCoupon, useCurrencies, useDashboard, useSetCurrencyRate } from "@/hooks/useAdmin";
 import {
   useAdminShippingMethods,
   useCreateShippingMethod,
@@ -28,9 +28,9 @@ import {
 } from "@/hooks/useShipping";
 import { api } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
-import type { AuditLog, Coupon, Order, Product, ShippingMethod } from "@/lib/types";
+import type { AuditLog, Coupon, ExchangeRate, Order, Product, ShippingMethod } from "@/lib/types";
 
-type Tab = "dashboard" | "products" | "orders" | "coupons" | "shipping" | "audit";
+type Tab = "dashboard" | "products" | "orders" | "coupons" | "shipping" | "audit" | "currency";
 
 export function AdminPage() {
   const [tab, setTab] = useState<Tab>("dashboard");
@@ -43,7 +43,7 @@ export function AdminPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(["dashboard", "products", "orders", "coupons", "shipping", "audit"] as Tab[]).map((t) => (
+        {(["dashboard", "products", "orders", "coupons", "shipping", "audit", "currency"] as Tab[]).map((t) => (
           <Button
             key={t}
             variant={tab === t ? "default" : "outline"}
@@ -62,6 +62,106 @@ export function AdminPage() {
       {tab === "coupons" && <AdminCoupons />}
       {tab === "shipping" && <AdminShipping />}
       {tab === "audit" && <AdminAudit />}
+      {tab === "currency" && <AdminCurrency />}
+    </div>
+  );
+}
+
+function AdminCurrency() {
+  const { data, isLoading } = useCurrencies();
+  const saveRate = useSetCurrencyRate();
+  const [code, setCode] = useState("");
+  const [rate, setRate] = useState("1");
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    saveRate.mutate(
+      {
+        code: code.trim().toUpperCase(),
+        rateMicro: Math.round(Number.parseFloat(rate || "1") * 1_000_000),
+      },
+      { onSuccess: () => setCode("") },
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Set exchange rate</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-4">
+            <div className="space-y-1">
+              <Label htmlFor="c-code">Currency</Label>
+              <Input
+                id="c-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="USD"
+                maxLength={8}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="c-rate">Units of {data?.base ?? "base"} per 1</Label>
+              <Input
+                id="c-rate"
+                type="number"
+                step="0.000001"
+                min="0"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex items-end">
+              <Button type="submit" size="sm" disabled={saveRate.isPending}>
+                Save rate
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card className="py-0">
+        <CardContent className="px-0">
+          {isLoading ? (
+            <div className="p-4">
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Currency</TableHead>
+                  <TableHead>Rate (micro)</TableHead>
+                  <TableHead>Rate</TableHead>
+                  <TableHead>Updated</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">{data?.base} (base)</TableCell>
+                  <TableCell>1,000,000</TableCell>
+                  <TableCell>1</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">—</TableCell>
+                </TableRow>
+                {data?.rates.map((r: ExchangeRate) => (
+                  <TableRow key={r.currency}>
+                    <TableCell className="font-medium">{r.currency}</TableCell>
+                    <TableCell>{r.rateMicro.toLocaleString()}</TableCell>
+                    <TableCell>{(r.rateMicro / 1_000_000).toFixed(4)}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {formatDate(r.updatedAt)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

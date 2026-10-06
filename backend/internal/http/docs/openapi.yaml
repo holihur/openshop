@@ -852,6 +852,143 @@ paths:
             schema: { $ref: "#/components/schemas/ShippingMethodInput" }
       responses:
         "200": { description: Updated }
+  /auth/email/verify:
+    post:
+      tags: [Auth]
+      summary: Verify an email with a single-use token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        "200": { description: Verified }
+        "401": { $ref: "#/components/responses/Error" }
+  /auth/email/resend:
+    post:
+      tags: [Auth]
+      summary: Re-send the verification email
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Sent }
+  /wishlist:
+    get:
+      tags: [Orders]
+      summary: List saved products
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Products }
+    post:
+      tags: [Orders]
+      summary: Save a product
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId]
+              properties:
+                productId: { type: string, format: uuid }
+      responses:
+        "201": { description: Saved }
+  /wishlist/{productId}:
+    delete:
+      tags: [Orders]
+      summary: Remove a saved product
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: productId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Removed }
+  /currencies:
+    get:
+      tags: [Catalog]
+      summary: List the base currency and exchange rates
+      responses:
+        "200": { description: Currencies }
+  /admin/currencies/{code}:
+    put:
+      tags: [Admin]
+      summary: Set an exchange rate (micro units, base -> code)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: code, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rateMicro]
+              properties:
+                rateMicro: { type: integer, format: int64 }
+      responses:
+        "200": { description: Saved }
+  /admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: Read the audit trail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: action, schema: { type: string } }
+        - { in: query, name: actorId, schema: { type: string, format: uuid } }
+        - { in: query, name: page, schema: { type: integer, default: 1 } }
+      responses:
+        "200": { description: A page of audit entries }
+  /guest/orders/{token}:
+    get:
+      tags: [Orders]
+      summary: View a guest order by access token
+      parameters:
+        - { in: path, name: token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: The order }
+  /guest/orders/{token}/pay:
+    post:
+      tags: [Payments]
+      summary: Create a payment for a guest order
+      parameters:
+        - { in: path, name: token, required: true, schema: { type: string } }
+      responses:
+        "201": { description: Payment session }
+  /guest/orders/{token}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancel a guest order
+      parameters:
+        - { in: path, name: token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Cancelled }
+  /guest/orders/{token}/complete:
+    post:
+      tags: [Orders]
+      summary: Confirm receipt of a guest order
+      parameters:
+        - { in: path, name: token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Completed }
+  /guest/payments/simulate:
+    post:
+      tags: [Payments]
+      summary: Sandbox confirm a guest payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [providerRef]
+              properties:
+                providerRef: { type: string }
+                provider: { type: string }
+      responses:
+        "200": { description: Confirmed }
 components:
   securitySchemes:
     bearerAuth:

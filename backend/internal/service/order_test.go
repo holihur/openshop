@@ -36,7 +36,7 @@ func newOrderFixtureTax(taxBps int) *orderFixture {
 	outbox := newFakeOutbox()
 	locker := newFakeLocker()
 	svc := NewOrderService(
-		orders, products, coupons, variants, addresses, shipping, carts, locker, fakeTx{}, outbox,
+		orders, products, coupons, variants, addresses, shipping, nil, carts, locker, fakeTx{}, outbox,
 		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
 		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, taxBps, 30*time.Minute, "CNY",
 	)
@@ -440,6 +440,39 @@ func TestGuestCheckoutRequiresEmailAndIssuesToken(t *testing.T) {
 	got, err := f.svc.FindByAccessToken(context.Background(), order.AccessToken)
 	if err != nil || got.ID != order.ID {
 		t.Fatalf("token lookup: %v", err)
+	}
+}
+
+type fakeRates struct{ rate int64 }
+
+func (f fakeRates) Rate(context.Context, string, string) (int64, error) { return f.rate, nil }
+
+func TestCheckoutConvertsCurrency(t *testing.T) {
+	products := newFakeProductRepo()
+	variants := newFakeVariantRepo()
+	addresses := newFakeAddressRepo()
+	shipping := newFakeShippingRepo()
+	carts := newFakeCartRepo()
+	orders := newFakeOrderRepo()
+	coupons := newFakeCouponRepo()
+	outbox := newFakeOutbox()
+	locker := newFakeLocker()
+	svc := NewOrderService(
+		orders, products, coupons, variants, addresses, shipping, fakeRates{rate: 7_000_000},
+		carts, locker, fakeTx{}, outbox,
+		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
+		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, 0, 30*time.Minute, "CNY",
+	)
+	products.put(&domain.Product{ID: "p1", Title: "Tee", PriceCents: 1000, Currency: "CNY", Status: domain.ProductPublished, Stock: 5})
+	_ = carts.Save(context.Background(), &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 2}}})
+
+	order, err := svc.Checkout(context.Background(), CheckoutInput{UserID: "u1", Currency: "USD"})
+	if err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+	// 1000 CNY * 7.0 = 7000 USD-cents per unit, x2 = 14000.
+	if order.Currency != "USD" || order.SubtotalCents != 14000 || order.TotalCents != 14000 {
+		t.Fatalf("conversion wrong: currency=%s subtotal=%d total=%d", order.Currency, order.SubtotalCents, order.TotalCents)
 	}
 }
 
