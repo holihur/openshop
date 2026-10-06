@@ -89,36 +89,27 @@ func CORS(origins []string) gin.HandlerFunc {
 	}
 }
 
-// RateLimit implements a fixed-window limiter backed by the shared cache, so
-// limits are enforced across all replicas rather than per instance.
-func RateLimit(cache port.Cache, rps int) gin.HandlerFunc {
+// RateLimit implements a sliding-window limiter backed by the shared rate
+// limiter, so limits are enforced across all replicas rather than per instance.
+// At most rps requests are allowed in any trailing one-second window.
+func RateLimit(limiter port.RateLimiter, rps int) gin.HandlerFunc {
 	if rps <= 0 {
 		rps = 50
 	}
 	return func(c *gin.Context) {
-		window := time.Now().Unix()
-		key := "ratelimit:" + c.ClientIP() + ":" + strconv.FormatInt(window, 10)
-		count, err := cache.Incr(c.Request.Context(), key, 1)
-		if err == nil {
-			if count == 1 {
-				_ = cache.Expire(c.Request.Context(), key, 2*time.Second)
-			}
-			if count > int64(rps) {
-				c.Header("Retry-After", "1")
-				c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
-					"error": gin.H{"code": "rate_limited", "message": "too many requests"},
-				})
-				return
-			}
+		allowed, retryAfter, err := limiter.Allow(c.Request.Context(), "ratelimit:ip:"+c.ClientIP(), rps, time.Second)
+		if err == nil && !allowed {
+			rejectRateLimited(c, retryAfter)
+			return
 		}
 		c.Next()
 	}
 }
 
-// RateLimitUser enforces a per-authenticated-user fixed window using the shared
-// cache. It runs after Auth so it can key on the user id, complementing the
-// per-IP limiter that protects unauthenticated traffic.
-func RateLimitUser(cache port.Cache, rps int) gin.HandlerFunc {
+// RateLimitUser enforces a per-authenticated-user sliding window using the
+// shared rate limiter. It runs after Auth so it can key on the user id,
+// complementing the per-IP limiter that protects unauthenticated traffic.
+func RateLimitUser(limiter port.RateLimiter, rps int) gin.HandlerFunc {
 	if rps <= 0 {
 		rps = 100
 	}
@@ -128,23 +119,26 @@ func RateLimitUser(cache port.Cache, rps int) gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		window := time.Now().Unix()
-		key := "ratelimit:user:" + userID + ":" + strconv.FormatInt(window, 10)
-		count, err := cache.Incr(c.Request.Context(), key, 1)
-		if err == nil {
-			if count == 1 {
-				_ = cache.Expire(c.Request.Context(), key, 2*time.Second)
-			}
-			if count > int64(rps) {
-				c.Header("Retry-After", "1")
-				c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
-					"error": gin.H{"code": "rate_limited", "message": "too many requests"},
-				})
-				return
-			}
+		allowed, retryAfter, err := limiter.Allow(c.Request.Context(), "ratelimit:user:"+userID, rps, time.Second)
+		if err == nil && !allowed {
+			rejectRateLimited(c, retryAfter)
+			return
 		}
 		c.Next()
 	}
+}
+
+// rejectRateLimited aborts with 429 and a Retry-After hint (at least one
+// second, since the header has one-second resolution).
+func rejectRateLimited(c *gin.Context, retryAfter time.Duration) {
+	secs := int(retryAfter.Seconds())
+	if secs < 1 {
+		secs = 1
+	}
+	c.Header("Retry-After", strconv.Itoa(secs))
+	c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+		"error": gin.H{"code": "rate_limited", "message": "too many requests"},
+	})
 }
 
 // generateID is a tiny helper kept local to avoid an extra import cycle.

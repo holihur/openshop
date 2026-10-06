@@ -21,6 +21,16 @@ type Cache interface {
 	Expire(ctx context.Context, key string, ttl time.Duration) error
 }
 
+// RateLimiter enforces a request budget over a trailing (sliding) window. A
+// correct implementation must be shared across replicas, so it is Redis-backed
+// rather than a process-local counter.
+type RateLimiter interface {
+	// Allow records one event for key and reports whether the number of events
+	// in the trailing window is within limit. When rejected, retryAfter is the
+	// time until the oldest event leaves the window.
+	Allow(ctx context.Context, key string, limit int, window time.Duration) (allowed bool, retryAfter time.Duration, err error)
+}
+
 // Locker provides distributed mutual exclusion. Because checkout runs on many
 // instances, correctness cannot rely on a process-local mutex.
 type Locker interface {

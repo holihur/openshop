@@ -22,7 +22,8 @@ tracking, complete, refund), coupon and shipping-method management, exchange
 rates, an audit trail (including failed logins), and review moderation.
 
 **Platform** — JWT auth with refresh rotation, theft detection, email
-verification and password reset; per-IP and per-user rate limiting; payments
+verification and password reset; per-IP and per-user sliding-window rate
+limiting; payments
 behind a provider port (sandbox included); guest checkout via an access token;
 multi-currency settlement; transactional outbox for reliable events; idempotent
 checkout; distributed locks; NATS queue-group consumers; Redis cache/locks/carts;

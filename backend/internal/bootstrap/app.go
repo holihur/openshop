@@ -77,6 +77,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	// --- secondary adapters ---
 	cache := redisadapter.NewCache(rdb)
 	locker := redisadapter.NewLocker(rdb)
+	limiter := redisadapter.NewRateLimiter(rdb)
 	cartRepo := redisadapter.NewCartRepository(rdb, 30*24*time.Hour)
 
 	hasher := security.NewBcryptHasher()
@@ -154,7 +155,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 			{Name: "nats", Check: func(context.Context) error { return bus.Ready() }},
 		},
 	}
-	router := apphttp.NewRouter(cfg, tokens, authSvc, cache, promMetrics, tracer, h)
+	router := apphttp.NewRouter(cfg, tokens, authSvc, cache, limiter, promMetrics, tracer, h)
 
 	app := &App{
 		cfg: cfg, log: log, db: db, redis: rdb, bus: bus, handlers: h,

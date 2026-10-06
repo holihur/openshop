@@ -23,6 +23,7 @@ func NewRouter(
 	tokens port.TokenIssuer,
 	auth *service.AuthService,
 	cache port.Cache,
+	limiter port.RateLimiter,
 	metrics port.Metrics,
 	tracer port.Tracer,
 	h *handler.Handler,
@@ -45,7 +46,7 @@ func NewRouter(
 		middleware.Logger(h.Logger),
 		middleware.Metrics(metrics),
 		middleware.CORS(cfg.HTTP.CORSOrigins),
-		middleware.RateLimit(cache, cfg.HTTP.RateLimitRPS),
+		middleware.RateLimit(limiter, cfg.HTTP.RateLimitRPS),
 	)
 
 	// Prometheus exposition endpoint.
@@ -98,7 +99,7 @@ func NewRouter(
 
 		// Authenticated customer area.
 		authed := api.Group("")
-		authed.Use(middleware.Auth(tokens, auth, false), middleware.RateLimitUser(cache, cfg.HTTP.RateLimitUserRPS))
+		authed.Use(middleware.Auth(tokens, auth, false), middleware.RateLimitUser(limiter, cfg.HTTP.RateLimitUserRPS))
 		{
 			authed.POST("/auth/logout", h.Logout)
 			authed.GET("/auth/me", h.Me)
