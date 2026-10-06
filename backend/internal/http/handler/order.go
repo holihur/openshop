@@ -68,6 +68,8 @@ type CheckoutRequest struct {
 	Email            string `json:"email"`
 	Phone            string `json:"phone"`
 	Currency         string `json:"currency"`
+	// Address is an inline shipping address (used by guests).
+	Address *addressRequest `json:"address"`
 }
 
 func (h *Handler) Checkout(c *gin.Context) {
@@ -84,12 +86,16 @@ func (h *Handler) Checkout(c *gin.Context) {
 		GuestEmail:       req.Email,
 		GuestPhone:       req.Phone,
 		Currency:         req.Currency,
+		ShippingAddress:  inlineAddress(req.Address),
 	})
 	if err != nil {
 		response.Fail(c, err)
 		return
 	}
-	response.Created(c, toOrderView(*order))
+	view := toOrderView(*order)
+	// Return the guest access token exactly once, at creation time.
+	view.AccessToken = order.AccessToken
+	response.Created(c, view)
 }
 
 func (h *Handler) ListOrders(c *gin.Context) {
@@ -285,11 +291,11 @@ func toOrderView(o domain.Order) orderView {
 		SubtotalCents: o.SubtotalCents, DiscountCents: o.DiscountCents, CouponCode: o.CouponCode,
 		ShippingCents: o.ShippingCents, TaxCents: o.TaxCents, ShippingMethod: o.ShippingMethodName,
 		TotalCents: o.TotalCents, Items: items, PaymentID: o.PaymentID,
-		TrackingNo:  o.TrackingNo,
-		ExpiresAt:   o.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
-		CreatedAt:   o.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
-		AccessToken: o.AccessToken,
+		TrackingNo: o.TrackingNo,
+		ExpiresAt:  o.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt:  o.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}
+	// The guest access token is only attached by Checkout, never on reads.
 	if o.ShippingAddress != nil {
 		view.ShippingAddress = &addressView{
 			ID: o.ShippingAddress.ID, Recipient: o.ShippingAddress.Recipient, Phone: o.ShippingAddress.Phone,

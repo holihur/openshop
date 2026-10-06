@@ -46,6 +46,10 @@ type verifyEmailRequest struct {
 	Token string `json:"token" binding:"required"`
 }
 
+type resendVerificationRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
 type userView struct {
 	ID            string `json:"id"`
 	Email         string `json:"email"`
@@ -151,7 +155,12 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 }
 
 func (h *Handler) ResendVerification(c *gin.Context) {
-	if err := h.Auth.ResendVerification(c.Request.Context(), middleware.UserID(c)); err != nil {
+	var req resendVerificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, wrapBind(err))
+		return
+	}
+	if err := h.Auth.ResendVerificationByEmail(c.Request.Context(), req.Email); err != nil {
 		response.Fail(c, err)
 		return
 	}

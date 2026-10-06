@@ -15,10 +15,11 @@ const dashboardCacheKey = "admin:dashboard"
 type AnalyticsService struct {
 	repo  port.AnalyticsRepository
 	cache port.Cache
+	base  string
 }
 
-func NewAnalyticsService(repo port.AnalyticsRepository, cache port.Cache) *AnalyticsService {
-	return &AnalyticsService{repo: repo, cache: cache}
+func NewAnalyticsService(repo port.AnalyticsRepository, cache port.Cache, base string) *AnalyticsService {
+	return &AnalyticsService{repo: repo, cache: cache, base: base}
 }
 
 func (s *AnalyticsService) Dashboard(ctx context.Context) (domain.Dashboard, error) {
@@ -30,6 +31,7 @@ func (s *AnalyticsService) Dashboard(ctx context.Context) (domain.Dashboard, err
 	if err != nil {
 		return domain.Dashboard{}, err
 	}
+	dashboard.RevenueCents = dashboard.RevenueByCurrency[s.base]
 	_ = s.cache.SetJSON(ctx, dashboardCacheKey, dashboard, 30*time.Second)
 	return dashboard, nil
 }

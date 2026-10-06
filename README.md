@@ -502,6 +502,24 @@ kubectl -n openshop scale deploy/openshop-backend --replicas=6
 - **frontend**: `npm ci`, type-check, production build
 - **docker**: builds both images
 
+## Known limitations
+
+Honest gaps a buyer should know about:
+
+- **No server-side rendering.** Per-page SEO meta is set client-side; crawlers
+  that do not execute JavaScript rely on `/sitemap.xml` and the base tags. Full
+  SEO would need SSR/SSG.
+- **Single base currency for pricing.** Products are priced in the store base
+  currency; other currencies are converted at checkout. Per-currency price lists
+  are not supported.
+- **Refunds always return stock.** Refunding a shipped order restores inventory,
+  which assumes the goods came back. A returns workflow is not modelled.
+- **No automated end-to-end or frontend tests.** Coverage is service unit tests,
+  one adapter integration test and a shell smoke test; there is no browser E2E
+  suite.
+- **Email/SMS default to log drivers.** Real delivery needs SMTP/SMS
+  credentials; the sandbox payment provider must be replaced for real charges.
+
 ## Design decisions
 
 - **Money as integers.** Prices are stored in minor units (`price_cents`) to

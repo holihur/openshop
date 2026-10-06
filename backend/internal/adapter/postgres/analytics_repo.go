@@ -18,14 +18,24 @@ func (r *AnalyticsRepository) Dashboard(ctx context.Context) (domain.Dashboard, 
 	var out domain.Dashboard
 	session := r.db.session(ctx)
 
-	// Revenue counts orders that were actually paid (and not later cancelled).
+	// Revenue is grouped by settlement currency; the service picks the base
+	// currency for the headline figure.
+	var revenueRows []struct {
+		Currency string
+		Total    int64
+	}
 	if err := session.Model(&orderModel{}).
-		Select("coalesce(sum(total_cents), 0)").
+		Select("currency, coalesce(sum(total_cents), 0) as total").
 		Where("status IN ?", []string{
 			string(domain.OrderPaid), string(domain.OrderShipped), string(domain.OrderCompleted),
 		}).
-		Scan(&out.RevenueCents).Error; err != nil {
+		Group("currency").
+		Scan(&revenueRows).Error; err != nil {
 		return domain.Dashboard{}, translate(err)
+	}
+	out.RevenueByCurrency = make(map[string]int64, len(revenueRows))
+	for _, row := range revenueRows {
+		out.RevenueByCurrency[row.Currency] = row.Total
 	}
 
 	counts := map[string]int64{}

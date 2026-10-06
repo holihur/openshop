@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
+	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/http/middleware"
 	"github.com/holihur/openshop/internal/http/response"
 	"github.com/holihur/openshop/internal/service"
@@ -98,5 +99,17 @@ func toAddressInput(req addressRequest) service.AddressInput {
 		Recipient: req.Recipient, Phone: req.Phone, Province: req.Province,
 		City: req.City, District: req.District, Line1: req.Line1,
 		PostalCode: req.PostalCode, Default: req.Default,
+	}
+}
+
+// inlineAddress converts an optional inline address into a domain address for
+// snapshotting onto an order (used by guest checkout).
+func inlineAddress(req *addressRequest) *domain.Address {
+	if req == nil || (req.Recipient == "" && req.Line1 == "") {
+		return nil
+	}
+	return &domain.Address{
+		Recipient: req.Recipient, Phone: req.Phone, Province: req.Province,
+		City: req.City, District: req.District, Line1: req.Line1, PostalCode: req.PostalCode,
 	}
 }

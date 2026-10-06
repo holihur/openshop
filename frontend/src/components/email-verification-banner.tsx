@@ -13,11 +13,12 @@ export function EmailVerificationBanner() {
   const [busy, setBusy] = useState(false);
 
   if (!user || user.emailVerified) return null;
+  const email = user.email;
 
   async function resend() {
     setBusy(true);
     try {
-      await api.post("/auth/email/resend");
+      await api.post("/auth/email/resend", { email });
       setSent(true);
       toast.success("Verification email sent");
     } catch (err) {

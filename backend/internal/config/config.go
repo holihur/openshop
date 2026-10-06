@@ -49,6 +49,9 @@ type HTTPConfig struct {
 	CORSOrigins      []string
 	RateLimitRPS     int
 	RateLimitUserRPS int
+	// TrustedProxies lists CIDRs whose X-Forwarded-For is trusted for ClientIP
+	// and rate limiting. Empty trusts all proxies (Gin default).
+	TrustedProxies []string
 }
 
 type PostgresConfig struct {
@@ -152,6 +155,7 @@ func Load() (*Config, error) {
 			CORSOrigins:      envList("HTTP_CORS_ORIGINS", []string{"http://localhost:5173"}),
 			RateLimitRPS:     envInt("HTTP_RATE_LIMIT_RPS", 50),
 			RateLimitUserRPS: envInt("HTTP_RATE_LIMIT_USER_RPS", 100),
+			TrustedProxies:   envList("HTTP_TRUSTED_PROXIES", nil),
 		},
 		Postgres: PostgresConfig{
 			DSN:             env("POSTGRES_DSN", "host=localhost port=5432 user=openshop password=openshop dbname=openshop sslmode=disable TimeZone=UTC"),

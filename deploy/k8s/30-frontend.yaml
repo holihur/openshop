@@ -61,6 +61,18 @@ spec:
               service:
                 name: openshop-backend
                 port: { number: 8080 }
+          - path: /robots.txt
+            pathType: Exact
+            backend:
+              service:
+                name: openshop-backend
+                port: { number: 8080 }
+          - path: /sitemap.xml
+            pathType: Exact
+            backend:
+              service:
+                name: openshop-backend
+                port: { number: 8080 }
           - path: /
             pathType: Prefix
             backend:

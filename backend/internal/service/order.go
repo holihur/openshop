@@ -96,6 +96,9 @@ type CheckoutInput struct {
 	// GuestEmail is required when there is no authenticated UserID.
 	GuestEmail string
 	GuestPhone string
+	// ShippingAddress lets guests (and users without a saved address) supply an
+	// inline delivery address, which is snapshotted onto the order.
+	ShippingAddress *domain.Address
 	// Currency is the settlement currency; empty means the store base currency.
 	Currency string
 }
@@ -163,6 +166,9 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 			return nil, domain.ErrNotFound
 		}
 		shipping = a
+	}
+	if shipping == nil && in.ShippingAddress != nil {
+		shipping = in.ShippingAddress
 	}
 
 	now := s.clock.Now()

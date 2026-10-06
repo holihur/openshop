@@ -396,6 +396,23 @@ func (s *AuthService) ResendVerification(ctx context.Context, userID string) err
 	return s.SendVerification(ctx, user)
 }
 
+// ResendVerificationByEmail re-sends a verification email for an address. It is
+// silent for unknown or already-verified accounts so it can be exposed publicly
+// without leaking account existence.
+func (s *AuthService) ResendVerificationByEmail(ctx context.Context, email string) error {
+	user, err := s.users.FindByEmail(ctx, normalizeEmail(email))
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	if user.EmailVerified {
+		return nil
+	}
+	return s.SendVerification(ctx, user)
+}
+
 // revokeFamily deletes every refresh token belonging to a compromised session.
 func (s *AuthService) revokeFamily(ctx context.Context, family string) {
 	for _, token := range s.familyTokens(ctx, family) {

@@ -34,6 +34,14 @@ export function CartPage() {
   const [addressId, setAddressId] = useState("");
   const [shippingMethodId, setShippingMethodId] = useState("");
   const [email, setEmail] = useState("");
+  const [guestAddress, setGuestAddress] = useState({
+    recipient: "",
+    phone: "",
+    province: "",
+    city: "",
+    line1: "",
+    postalCode: "",
+  });
   const { data: addresses } = useAddresses();
   const { data: shippingMethods } = useShippingMethods();
   const chosenAddress =
@@ -71,6 +79,7 @@ export function CartPage() {
           ...(shippingMethodId ? { shippingMethodId } : {}),
           email,
           currency,
+          address: guestAddress,
         });
         if (order.accessToken) localStorage.setItem("openshop.guestOrderToken", order.accessToken);
         const payment = await api.post<Payment>(`/guest/orders/${order.accessToken}/pay`, {
@@ -215,14 +224,43 @@ export function CartPage() {
 
             {!user && (
               <div className="space-y-2">
-                <span className="text-sm font-medium">Email for receipt</span>
+                <span className="text-sm font-medium">Delivery details</span>
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="Email for receipt"
                   required
                 />
+                <Input
+                  value={guestAddress.recipient}
+                  onChange={(e) => setGuestAddress({ ...guestAddress, recipient: e.target.value })}
+                  placeholder="Recipient name"
+                  required
+                />
+                <Input
+                  value={guestAddress.phone}
+                  onChange={(e) => setGuestAddress({ ...guestAddress, phone: e.target.value })}
+                  placeholder="Phone"
+                />
+                <Input
+                  value={guestAddress.line1}
+                  onChange={(e) => setGuestAddress({ ...guestAddress, line1: e.target.value })}
+                  placeholder="Address line"
+                  required
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    value={guestAddress.city}
+                    onChange={(e) => setGuestAddress({ ...guestAddress, city: e.target.value })}
+                    placeholder="City"
+                  />
+                  <Input
+                    value={guestAddress.postalCode}
+                    onChange={(e) => setGuestAddress({ ...guestAddress, postalCode: e.target.value })}
+                    placeholder="Postal code"
+                  />
+                </div>
               </div>
             )}
 
@@ -358,7 +396,10 @@ export function CartPage() {
             <Button
               className="w-full"
               size="lg"
-              disabled={checkout.isPending || (!user && email.trim() === "")}
+              disabled={
+                checkout.isPending ||
+                (!user && (email.trim() === "" || guestAddress.recipient.trim() === "" || guestAddress.line1.trim() === ""))
+              }
               onClick={() =>
                 checkout.mutate({
                   couponCode: applied?.code ?? "",

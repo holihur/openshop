@@ -33,6 +33,11 @@ func NewRouter(
 
 	r := gin.New()
 	r.RedirectTrailingSlash = false
+	// ClientIP (used by the per-IP rate limiter and audit) honours
+	// X-Forwarded-For only from configured proxies.
+	if len(cfg.HTTP.TrustedProxies) > 0 {
+		_ = r.SetTrustedProxies(cfg.HTTP.TrustedProxies)
+	}
 	r.Use(
 		middleware.RequestID(),
 		middleware.Tracing(tracer),
@@ -86,6 +91,7 @@ func NewRouter(
 		api.POST("/auth/password/forgot", h.ForgotPassword)
 		api.POST("/auth/password/reset", h.ResetPassword)
 		api.POST("/auth/email/verify", h.VerifyEmail)
+		api.POST("/auth/email/resend", h.ResendVerification)
 
 		// Provider callbacks are public and authenticated by signature.
 		api.POST("/webhooks/payments/:provider", h.PaymentWebhook)
@@ -97,7 +103,6 @@ func NewRouter(
 			authed.POST("/auth/logout", h.Logout)
 			authed.GET("/auth/me", h.Me)
 			authed.POST("/auth/password/change", h.ChangePassword)
-			authed.POST("/auth/email/resend", h.ResendVerification)
 
 			authed.GET("/wishlist", h.ListWishlist)
 			authed.POST("/wishlist", h.AddWishlist)

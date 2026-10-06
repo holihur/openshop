@@ -7,14 +7,15 @@ import (
 )
 
 type dashboardView struct {
-	RevenueCents    int64       `json:"revenueCents"`
-	PaidOrders      int64       `json:"paidOrders"`
-	PendingOrders   int64       `json:"pendingOrders"`
-	CancelledOrders int64       `json:"cancelledOrders"`
-	TotalOrders     int64       `json:"totalOrders"`
-	TotalProducts   int64       `json:"totalProducts"`
-	TotalUsers      int64       `json:"totalUsers"`
-	RecentOrders    []orderView `json:"recentOrders"`
+	RevenueCents      int64            `json:"revenueCents"`
+	RevenueByCurrency map[string]int64 `json:"revenueByCurrency,omitempty"`
+	PaidOrders        int64            `json:"paidOrders"`
+	PendingOrders     int64            `json:"pendingOrders"`
+	CancelledOrders   int64            `json:"cancelledOrders"`
+	TotalOrders       int64            `json:"totalOrders"`
+	TotalProducts     int64            `json:"totalProducts"`
+	TotalUsers        int64            `json:"totalUsers"`
+	RecentOrders      []orderView      `json:"recentOrders"`
 }
 
 func (h *Handler) Dashboard(c *gin.Context) {
@@ -28,13 +29,14 @@ func (h *Handler) Dashboard(c *gin.Context) {
 		recent = append(recent, toOrderView(o))
 	}
 	response.OK(c, dashboardView{
-		RevenueCents:    dashboard.RevenueCents,
-		PaidOrders:      dashboard.PaidOrders,
-		PendingOrders:   dashboard.PendingOrders,
-		CancelledOrders: dashboard.CancelledOrders,
-		TotalOrders:     dashboard.TotalOrders,
-		TotalProducts:   dashboard.TotalProducts,
-		TotalUsers:      dashboard.TotalUsers,
-		RecentOrders:    recent,
+		RevenueCents:      dashboard.RevenueCents,
+		RevenueByCurrency: dashboard.RevenueByCurrency,
+		PaidOrders:        dashboard.PaidOrders,
+		PendingOrders:     dashboard.PendingOrders,
+		CancelledOrders:   dashboard.CancelledOrders,
+		TotalOrders:       dashboard.TotalOrders,
+		TotalProducts:     dashboard.TotalProducts,
+		TotalUsers:        dashboard.TotalUsers,
+		RecentOrders:      recent,
 	})
 }

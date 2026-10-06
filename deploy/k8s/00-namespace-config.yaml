@@ -16,6 +16,9 @@ data:
   ORDER_TTL: 30m
   TAX_RATE_BPS: "600"
   PASSWORD_RESET_URL: https://shop.example.com/reset-password
+  EMAIL_VERIFY_URL: https://shop.example.com/verify-email
+  PUBLIC_SITE_URL: https://shop.example.com
+  HTTP_TRUSTED_PROXIES: "10.0.0.0/8,172.16.0.0/12"
   HTTP_ADDR: ":8080"
   HTTP_CORS_ORIGINS: "https://shop.example.com"
   HTTP_RATE_LIMIT_RPS: "200"
