@@ -89,3 +89,16 @@ type ReviewRepository interface {
 	ListByProduct(ctx context.Context, f domain.ReviewFilter) (domain.Page[domain.Review], error)
 	Summary(ctx context.Context, productID string) (domain.ReviewSummary, error)
 }
+
+// VariantRepository persists product variants and owns variant-level stock
+// mutations, which are the authoritative inventory for multi-variant products.
+type VariantRepository interface {
+	Create(ctx context.Context, v *domain.Variant) error
+	Update(ctx context.Context, v *domain.Variant) error
+	FindByID(ctx context.Context, id string) (*domain.Variant, error)
+	ListByProduct(ctx context.Context, productID string) ([]domain.Variant, error)
+	// DecreaseStock atomically decrements variant stock, returning
+	// ErrInsufficientStock when the guard fails.
+	DecreaseStock(ctx context.Context, variantID string, quantity int) error
+	IncreaseStock(ctx context.Context, variantID string, quantity int) error
+}

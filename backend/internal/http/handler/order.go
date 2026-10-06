@@ -9,12 +9,15 @@ import (
 )
 
 type orderItemView struct {
-	ID         string `json:"id"`
-	ProductID  string `json:"productId"`
-	Title      string `json:"title"`
-	PriceCents int64  `json:"priceCents"`
-	Quantity   int    `json:"quantity"`
-	Subtotal   int64  `json:"subtotal"`
+	ID          string `json:"id"`
+	ProductID   string `json:"productId"`
+	VariantID   string `json:"variantId,omitempty"`
+	VariantName string `json:"variantName,omitempty"`
+	SKU         string `json:"sku,omitempty"`
+	Title       string `json:"title"`
+	PriceCents  int64  `json:"priceCents"`
+	Quantity    int    `json:"quantity"`
+	Subtotal    int64  `json:"subtotal"`
 }
 
 type orderView struct {
@@ -115,8 +118,8 @@ func toOrderView(o domain.Order) orderView {
 	items := make([]orderItemView, 0, len(o.Items))
 	for _, it := range o.Items {
 		items = append(items, orderItemView{
-			ID: it.ID, ProductID: it.ProductID, Title: it.Title,
-			PriceCents: it.PriceCents, Quantity: it.Quantity, Subtotal: it.Subtotal,
+			ID: it.ID, ProductID: it.ProductID, VariantID: it.VariantID, VariantName: it.VariantName,
+			SKU: it.SKU, Title: it.Title, PriceCents: it.PriceCents, Quantity: it.Quantity, Subtotal: it.Subtotal,
 		})
 	}
 	view := orderView{

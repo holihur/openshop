@@ -111,17 +111,18 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	paymentRepo := postgres.NewPaymentRepository(db)
 	couponRepo := postgres.NewCouponRepository(db)
 	reviewRepo := postgres.NewReviewRepository(db)
+	variantRepo := postgres.NewVariantRepository(db)
 	outbox := postgres.NewOutboxRepository(db)
 
 	// --- services ---
 	authSvc := service.NewAuthService(users, hasher, tokens, cache, ids, clock, service.AuthConfig{
 		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL,
 	})
-	catalogSvc := service.NewCatalogService(categories, products, cache, ids, clock, cfg.App.Currency)
-	cartSvc := service.NewCartService(cartRepo, products)
+	catalogSvc := service.NewCatalogService(categories, products, variantRepo, cache, ids, clock, cfg.App.Currency)
+	cartSvc := service.NewCartService(cartRepo, products, variantRepo)
 	couponSvc := service.NewCouponService(couponRepo, ids, clock)
 	reviewSvc := service.NewReviewService(reviewRepo, products, cache, ids, clock)
-	orderSvc := service.NewOrderService(orders, products, couponRepo, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, cfg.App.OrderTTL, cfg.App.Currency)
+	orderSvc := service.NewOrderService(orders, products, couponRepo, variantRepo, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, cfg.App.OrderTTL, cfg.App.Currency)
 	paymentSvc := service.NewPaymentService(paymentRepo, orders, payments, orderSvc, ids, clock, log, promMetrics)
 
 	// --- HTTP surface ---

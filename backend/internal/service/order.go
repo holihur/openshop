@@ -26,6 +26,7 @@ type OrderService struct {
 	orders       port.OrderRepository
 	products     port.ProductRepository
 	coupons      port.CouponRepository
+	variants     port.VariantRepository
 	carts        port.CartRepository
 	locker       port.Locker
 	tx           port.TxManager
@@ -44,6 +45,7 @@ func NewOrderService(
 	orders port.OrderRepository,
 	products port.ProductRepository,
 	coupons port.CouponRepository,
+	variants port.VariantRepository,
 	carts port.CartRepository,
 	locker port.Locker,
 	tx port.TxManager,
@@ -64,7 +66,7 @@ func NewOrderService(
 		tracer = port.NoopTracer{}
 	}
 	return &OrderService{
-		orders: orders, products: products, coupons: coupons, carts: carts, locker: locker, tx: tx,
+		orders: orders, products: products, coupons: coupons, variants: variants, carts: carts, locker: locker, tx: tx,
 		outbox: outbox, ids: ids, clock: clock, logger: logger, productCache: productCache,
 		metrics: metrics, tracer: tracer, ttl: ttl, currency: currency,
 	}
@@ -124,15 +126,36 @@ func (s *OrderService) Checkout(ctx context.Context, userID, couponCode string) 
 			if p.Status != domain.ProductPublished {
 				return fmt.Errorf("%w: %s is no longer available", domain.ErrInvalidArgument, p.Title)
 			}
-			if err := s.products.DecreaseStock(txCtx, p.ID, ci.Quantity); err != nil {
-				return err
-			}
-			subtotal := p.PriceCents * int64(ci.Quantity)
-			total += subtotal
-			items = append(items, domain.OrderItem{
+
+			price := p.PriceCents
+			item := domain.OrderItem{
 				ID: s.ids.NewID(), OrderID: order.ID, ProductID: p.ID, Title: p.Title,
-				PriceCents: p.PriceCents, Quantity: ci.Quantity, Subtotal: subtotal,
-			})
+				Quantity: ci.Quantity,
+			}
+			if ci.VariantID != "" {
+				v, err := s.variants.FindByID(txCtx, ci.VariantID)
+				if err != nil {
+					return fmt.Errorf("load variant %s: %w", ci.VariantID, err)
+				}
+				if v.ProductID != p.ID || !v.Active {
+					return fmt.Errorf("%w: variant is no longer available", domain.ErrInvalidArgument)
+				}
+				if err := s.variants.DecreaseStock(txCtx, v.ID, ci.Quantity); err != nil {
+					return err
+				}
+				price = v.EffectivePrice(p.PriceCents)
+				item.VariantID = v.ID
+				item.VariantName = v.Name
+				item.SKU = v.SKU
+			} else {
+				if err := s.products.DecreaseStock(txCtx, p.ID, ci.Quantity); err != nil {
+					return err
+				}
+			}
+			item.PriceCents = price
+			item.Subtotal = price * int64(ci.Quantity)
+			total += item.Subtotal
+			items = append(items, item)
 		}
 		if total <= 0 {
 			return fmt.Errorf("%w: order total must be positive", domain.ErrInvalidArgument)
@@ -366,6 +389,12 @@ func (s *OrderService) ListExpired(ctx context.Context, now time.Time, limit int
 
 func (s *OrderService) releaseStock(ctx context.Context, o *domain.Order) error {
 	for _, item := range o.Items {
+		if item.VariantID != "" {
+			if err := s.variants.IncreaseStock(ctx, item.VariantID, item.Quantity); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := s.products.IncreaseStock(ctx, item.ProductID, item.Quantity); err != nil {
 			return err
 		}

@@ -14,13 +14,16 @@ const (
 )
 
 type OrderItem struct {
-	ID         string
-	OrderID    string
-	ProductID  string
-	Title      string
-	PriceCents int64
-	Quantity   int
-	Subtotal   int64
+	ID          string
+	OrderID     string
+	ProductID   string
+	VariantID   string
+	VariantName string
+	SKU         string
+	Title       string
+	PriceCents  int64
+	Quantity    int
+	Subtotal    int64
 }
 
 type Order struct {

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/holihur/openshop/internal/domain"
@@ -21,6 +22,7 @@ const (
 type CatalogService struct {
 	categories port.CategoryRepository
 	products   port.ProductRepository
+	variants   port.VariantRepository
 	cache      port.Cache
 	ids        port.IDGenerator
 	clock      port.Clock
@@ -30,12 +32,13 @@ type CatalogService struct {
 func NewCatalogService(
 	categories port.CategoryRepository,
 	products port.ProductRepository,
+	variants port.VariantRepository,
 	cache port.Cache,
 	ids port.IDGenerator,
 	clock port.Clock,
 	currency string,
 ) *CatalogService {
-	return &CatalogService{categories: categories, products: products, cache: cache, ids: ids, clock: clock, currency: currency}
+	return &CatalogService{categories: categories, products: products, variants: variants, cache: cache, ids: ids, clock: clock, currency: currency}
 }
 
 type CreateCategoryInput struct {
@@ -180,8 +183,22 @@ func (s *CatalogService) GetProduct(ctx context.Context, id string) (*domain.Pro
 	if err != nil {
 		return nil, err
 	}
+	s.attachVariants(ctx, p)
 	_ = s.cache.SetJSON(ctx, productCacheKey+id, p, catalogTTL)
 	return p, nil
+}
+
+// attachVariants loads a product's variants. Failure is non-fatal: the product
+// still renders without its variant selector.
+func (s *CatalogService) attachVariants(ctx context.Context, p *domain.Product) {
+	if s.variants == nil {
+		return
+	}
+	variants, err := s.variants.ListByProduct(ctx, p.ID)
+	if err != nil {
+		return
+	}
+	p.Variants = variants
 }
 
 func (s *CatalogService) ListProducts(ctx context.Context, f domain.ProductFilter) (domain.Page[domain.Product], error) {
@@ -199,4 +216,90 @@ func (s *CatalogService) InvalidateProductCache(ctx context.Context, ids ...stri
 	if len(keys) > 0 {
 		_ = s.cache.Delete(ctx, keys...)
 	}
+}
+
+type CreateVariantInput struct {
+	ProductID  string
+	SKU        string
+	Name       string
+	PriceCents int64
+	Stock      int
+	Attributes map[string]string
+	Sort       int
+	Active     bool
+}
+
+func (s *CatalogService) CreateVariant(ctx context.Context, in CreateVariantInput) (*domain.Variant, error) {
+	if in.Name == "" {
+		return nil, fmt.Errorf("%w: variant name is required", domain.ErrInvalidArgument)
+	}
+	if in.PriceCents < 0 || in.Stock < 0 {
+		return nil, fmt.Errorf("%w: price and stock must be non-negative", domain.ErrInvalidArgument)
+	}
+	if _, err := s.products.FindByID(ctx, in.ProductID); err != nil {
+		return nil, err
+	}
+	sku := in.SKU
+	if sku == "" {
+		sku = "SKU-" + strings.ToUpper(s.ids.NewID()[:8])
+	}
+	now := s.clock.Now()
+	v := &domain.Variant{
+		ID: s.ids.NewID(), ProductID: in.ProductID, SKU: sku, Name: in.Name,
+		PriceCents: in.PriceCents, Stock: in.Stock, Attributes: in.Attributes,
+		Sort: in.Sort, Active: in.Active, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := s.variants.Create(ctx, v); err != nil {
+		return nil, err
+	}
+	_ = s.cache.Delete(ctx, productCacheKey+in.ProductID)
+	return v, nil
+}
+
+type UpdateVariantInput struct {
+	SKU        *string
+	Name       *string
+	PriceCents *int64
+	Stock      *int
+	Attributes map[string]string
+	Sort       *int
+	Active     *bool
+}
+
+func (s *CatalogService) UpdateVariant(ctx context.Context, id string, in UpdateVariantInput) (*domain.Variant, error) {
+	v, err := s.variants.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if in.SKU != nil {
+		v.SKU = *in.SKU
+	}
+	if in.Name != nil {
+		v.Name = *in.Name
+	}
+	if in.PriceCents != nil {
+		v.PriceCents = *in.PriceCents
+	}
+	if in.Stock != nil {
+		v.Stock = *in.Stock
+	}
+	if in.Attributes != nil {
+		v.Attributes = in.Attributes
+	}
+	if in.Sort != nil {
+		v.Sort = *in.Sort
+	}
+	if in.Active != nil {
+		v.Active = *in.Active
+	}
+	v.UpdatedAt = s.clock.Now()
+	if err := s.variants.Update(ctx, v); err != nil {
+		return nil, err
+	}
+	_ = s.cache.Delete(ctx, productCacheKey+v.ProductID)
+	return v, nil
+}
+
+func (s *CatalogService) ListVariants(ctx context.Context, productID string) ([]domain.Variant, error) {
+	return s.variants.ListByProduct(ctx, productID)
 }

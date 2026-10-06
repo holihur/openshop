@@ -6,13 +6,15 @@ import "time"
 // without hitting the catalog on every request. Totals are recomputed from the
 // catalog at checkout time to avoid stale pricing.
 type CartItem struct {
-	ProductID  string    `json:"productId"`
-	Title      string    `json:"title"`
-	CoverImage string    `json:"coverImage"`
-	PriceCents int64     `json:"priceCents"`
-	Currency   string    `json:"currency"`
-	Quantity   int       `json:"quantity"`
-	AddedAt    time.Time `json:"addedAt"`
+	ProductID   string    `json:"productId"`
+	VariantID   string    `json:"variantId,omitempty"`
+	VariantName string    `json:"variantName,omitempty"`
+	Title       string    `json:"title"`
+	CoverImage  string    `json:"coverImage"`
+	PriceCents  int64     `json:"priceCents"`
+	Currency    string    `json:"currency"`
+	Quantity    int       `json:"quantity"`
+	AddedAt     time.Time `json:"addedAt"`
 }
 
 type Cart struct {
@@ -37,9 +39,9 @@ func (c *Cart) TotalQuantity() int {
 	return q
 }
 
-func (c *Cart) find(productID string) int {
+func (c *Cart) find(productID, variantID string) int {
 	for i, it := range c.Items {
-		if it.ProductID == productID {
+		if it.ProductID == productID && it.VariantID == variantID {
 			return i
 		}
 	}
@@ -51,10 +53,11 @@ func (c *Cart) AddItem(item CartItem) {
 	if item.Quantity < 1 {
 		item.Quantity = 1
 	}
-	if i := c.find(item.ProductID); i >= 0 {
+	if i := c.find(item.ProductID, item.VariantID); i >= 0 {
 		c.Items[i].Quantity += item.Quantity
 		// Refresh the snapshot with the latest catalog data.
 		c.Items[i].Title = item.Title
+		c.Items[i].VariantName = item.VariantName
 		c.Items[i].CoverImage = item.CoverImage
 		c.Items[i].PriceCents = item.PriceCents
 		c.Items[i].Currency = item.Currency
@@ -64,20 +67,20 @@ func (c *Cart) AddItem(item CartItem) {
 	c.Items = append(c.Items, item)
 }
 
-func (c *Cart) SetQuantity(productID string, quantity int) {
-	i := c.find(productID)
+func (c *Cart) SetQuantity(productID, variantID string, quantity int) {
+	i := c.find(productID, variantID)
 	if i < 0 {
 		return
 	}
 	if quantity <= 0 {
-		c.RemoveItem(productID)
+		c.RemoveItem(productID, variantID)
 		return
 	}
 	c.Items[i].Quantity = quantity
 }
 
-func (c *Cart) RemoveItem(productID string) {
-	i := c.find(productID)
+func (c *Cart) RemoveItem(productID, variantID string) {
+	i := c.find(productID, variantID)
 	if i < 0 {
 		return
 	}

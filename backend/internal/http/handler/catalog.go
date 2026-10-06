@@ -18,19 +18,31 @@ type categoryView struct {
 }
 
 type productView struct {
-	ID          string   `json:"id"`
-	CategoryID  string   `json:"categoryId"`
-	Title       string   `json:"title"`
-	Slug        string   `json:"slug"`
-	Description string   `json:"description"`
-	PriceCents  int64    `json:"priceCents"`
-	Currency    string   `json:"currency"`
-	CoverImage  string   `json:"coverImage"`
-	Images      []string `json:"images"`
-	Status      string   `json:"status"`
-	Stock       int      `json:"stock"`
-	Rating      float64  `json:"rating,omitempty"`
-	ReviewCount int64    `json:"reviewCount,omitempty"`
+	ID          string        `json:"id"`
+	CategoryID  string        `json:"categoryId"`
+	Title       string        `json:"title"`
+	Slug        string        `json:"slug"`
+	Description string        `json:"description"`
+	PriceCents  int64         `json:"priceCents"`
+	Currency    string        `json:"currency"`
+	CoverImage  string        `json:"coverImage"`
+	Images      []string      `json:"images"`
+	Status      string        `json:"status"`
+	Stock       int           `json:"stock"`
+	Variants    []variantView `json:"variants,omitempty"`
+	Rating      float64       `json:"rating,omitempty"`
+	ReviewCount int64         `json:"reviewCount,omitempty"`
+}
+
+type variantView struct {
+	ID         string            `json:"id"`
+	SKU        string            `json:"sku"`
+	Name       string            `json:"name"`
+	PriceCents int64             `json:"priceCents"`
+	Stock      int               `json:"stock"`
+	Attributes map[string]string `json:"attributes,omitempty"`
+	Sort       int               `json:"sort"`
+	Active     bool              `json:"active"`
 }
 
 type createCategoryRequest struct {
@@ -187,11 +199,21 @@ func toProductView(p domain.Product) productView {
 	if images == nil {
 		images = []string{}
 	}
-	return productView{
+	view := productView{
 		ID: p.ID, CategoryID: p.CategoryID, Title: p.Title, Slug: p.Slug,
 		Description: p.Description, PriceCents: p.PriceCents, Currency: p.Currency,
 		CoverImage: p.CoverImage, Images: images, Status: string(p.Status), Stock: p.Stock,
 	}
+	if len(p.Variants) > 0 {
+		view.Variants = make([]variantView, 0, len(p.Variants))
+		for _, v := range p.Variants {
+			view.Variants = append(view.Variants, variantView{
+				ID: v.ID, SKU: v.SKU, Name: v.Name, PriceCents: v.PriceCents,
+				Stock: v.Stock, Attributes: v.Attributes, Sort: v.Sort, Active: v.Active,
+			})
+		}
+	}
+	return view
 }
 
 func toProductViews(items []domain.Product) []productView {
@@ -200,4 +222,84 @@ func toProductViews(items []domain.Product) []productView {
 		out = append(out, toProductView(p))
 	}
 	return out
+}
+
+type createVariantRequest struct {
+	SKU        string            `json:"sku"`
+	Name       string            `json:"name" binding:"required"`
+	PriceCents int64             `json:"priceCents" binding:"gte=0"`
+	Stock      int               `json:"stock" binding:"gte=0"`
+	Attributes map[string]string `json:"attributes"`
+	Sort       int               `json:"sort"`
+	Active     *bool             `json:"active"`
+}
+
+type updateVariantRequest struct {
+	SKU        *string           `json:"sku"`
+	Name       *string           `json:"name"`
+	PriceCents *int64            `json:"priceCents"`
+	Stock      *int              `json:"stock"`
+	Attributes map[string]string `json:"attributes"`
+	Sort       *int              `json:"sort"`
+	Active     *bool             `json:"active"`
+}
+
+func (h *Handler) ListVariants(c *gin.Context) {
+	variants, err := h.Catalog.ListVariants(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	out := make([]variantView, 0, len(variants))
+	for _, v := range variants {
+		out = append(out, variantView{
+			ID: v.ID, SKU: v.SKU, Name: v.Name, PriceCents: v.PriceCents,
+			Stock: v.Stock, Attributes: v.Attributes, Sort: v.Sort, Active: v.Active,
+		})
+	}
+	response.OK(c, out)
+}
+
+func (h *Handler) CreateVariant(c *gin.Context) {
+	var req createVariantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, wrapBind(err))
+		return
+	}
+	active := true
+	if req.Active != nil {
+		active = *req.Active
+	}
+	v, err := h.Catalog.CreateVariant(c.Request.Context(), service.CreateVariantInput{
+		ProductID: c.Param("id"), SKU: req.SKU, Name: req.Name, PriceCents: req.PriceCents,
+		Stock: req.Stock, Attributes: req.Attributes, Sort: req.Sort, Active: active,
+	})
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.Created(c, variantView{
+		ID: v.ID, SKU: v.SKU, Name: v.Name, PriceCents: v.PriceCents,
+		Stock: v.Stock, Attributes: v.Attributes, Sort: v.Sort, Active: v.Active,
+	})
+}
+
+func (h *Handler) UpdateVariant(c *gin.Context) {
+	var req updateVariantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, wrapBind(err))
+		return
+	}
+	v, err := h.Catalog.UpdateVariant(c.Request.Context(), c.Param("id"), service.UpdateVariantInput{
+		SKU: req.SKU, Name: req.Name, PriceCents: req.PriceCents, Stock: req.Stock,
+		Attributes: req.Attributes, Sort: req.Sort, Active: req.Active,
+	})
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, variantView{
+		ID: v.ID, SKU: v.SKU, Name: v.Name, PriceCents: v.PriceCents,
+		Stock: v.Stock, Attributes: v.Attributes, Sort: v.Sort, Active: v.Active,
+	})
 }

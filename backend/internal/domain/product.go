@@ -34,8 +34,11 @@ type Product struct {
 	Images     []string
 	Status     ProductStatus
 	Stock      int
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	// Variants are loaded on demand and persisted in their own table. A product
+	// with no variants keeps its inventory on the product row.
+	Variants  []Variant
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (p *Product) Available() bool {

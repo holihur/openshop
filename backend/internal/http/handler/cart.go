@@ -9,12 +9,14 @@ import (
 )
 
 type cartItemView struct {
-	ProductID  string `json:"productId"`
-	Title      string `json:"title"`
-	CoverImage string `json:"coverImage"`
-	PriceCents int64  `json:"priceCents"`
-	Currency   string `json:"currency"`
-	Quantity   int    `json:"quantity"`
+	ProductID   string `json:"productId"`
+	VariantID   string `json:"variantId,omitempty"`
+	VariantName string `json:"variantName,omitempty"`
+	Title       string `json:"title"`
+	CoverImage  string `json:"coverImage"`
+	PriceCents  int64  `json:"priceCents"`
+	Currency    string `json:"currency"`
+	Quantity    int    `json:"quantity"`
 }
 
 type cartView struct {
@@ -25,11 +27,13 @@ type cartView struct {
 
 type addCartItemRequest struct {
 	ProductID string `json:"productId" binding:"required"`
+	VariantID string `json:"variantId"`
 	Quantity  int    `json:"quantity" binding:"gte=1"`
 }
 
 type updateCartItemRequest struct {
-	Quantity int `json:"quantity"`
+	VariantID string `json:"variantId"`
+	Quantity  int    `json:"quantity"`
 }
 
 func (h *Handler) GetCart(c *gin.Context) {
@@ -47,7 +51,7 @@ func (h *Handler) AddCartItem(c *gin.Context) {
 		response.Fail(c, wrapBind(err))
 		return
 	}
-	cart, err := h.Cart.AddItem(c.Request.Context(), middleware.UserID(c), req.ProductID, req.Quantity)
+	cart, err := h.Cart.AddItem(c.Request.Context(), middleware.UserID(c), req.ProductID, req.VariantID, req.Quantity)
 	if err != nil {
 		response.Fail(c, err)
 		return
@@ -61,7 +65,7 @@ func (h *Handler) UpdateCartItem(c *gin.Context) {
 		response.Fail(c, wrapBind(err))
 		return
 	}
-	cart, err := h.Cart.SetQuantity(c.Request.Context(), middleware.UserID(c), c.Param("productId"), req.Quantity)
+	cart, err := h.Cart.SetQuantity(c.Request.Context(), middleware.UserID(c), c.Param("productId"), req.VariantID, req.Quantity)
 	if err != nil {
 		response.Fail(c, err)
 		return
@@ -70,7 +74,7 @@ func (h *Handler) UpdateCartItem(c *gin.Context) {
 }
 
 func (h *Handler) RemoveCartItem(c *gin.Context) {
-	cart, err := h.Cart.RemoveItem(c.Request.Context(), middleware.UserID(c), c.Param("productId"))
+	cart, err := h.Cart.RemoveItem(c.Request.Context(), middleware.UserID(c), c.Param("productId"), c.Query("variantId"))
 	if err != nil {
 		response.Fail(c, err)
 		return
@@ -90,7 +94,8 @@ func toCartView(cart *domain.Cart) cartView {
 	items := make([]cartItemView, 0, len(cart.Items))
 	for _, it := range cart.Items {
 		items = append(items, cartItemView{
-			ProductID: it.ProductID, Title: it.Title, CoverImage: it.CoverImage,
+			ProductID: it.ProductID, VariantID: it.VariantID, VariantName: it.VariantName,
+			Title: it.Title, CoverImage: it.CoverImage,
 			PriceCents: it.PriceCents, Currency: it.Currency, Quantity: it.Quantity,
 		})
 	}

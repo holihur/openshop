@@ -399,6 +399,79 @@ func (r *fakeCouponRepo) CreateRedemption(_ context.Context, red *domain.CouponR
 	return nil
 }
 
+type fakeVariantRepo struct {
+	mu   sync.Mutex
+	data map[string]*domain.Variant
+}
+
+func newFakeVariantRepo() *fakeVariantRepo {
+	return &fakeVariantRepo{data: map[string]*domain.Variant{}}
+}
+
+func (r *fakeVariantRepo) put(v *domain.Variant) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cp := *v
+	r.data[v.ID] = &cp
+}
+
+func (r *fakeVariantRepo) Create(_ context.Context, v *domain.Variant) error {
+	r.put(v)
+	return nil
+}
+
+func (r *fakeVariantRepo) Update(_ context.Context, v *domain.Variant) error {
+	r.put(v)
+	return nil
+}
+
+func (r *fakeVariantRepo) FindByID(_ context.Context, id string) (*domain.Variant, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if v, ok := r.data[id]; ok {
+		cp := *v
+		return &cp, nil
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (r *fakeVariantRepo) ListByProduct(_ context.Context, productID string) ([]domain.Variant, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := []domain.Variant{}
+	for _, v := range r.data {
+		if v.ProductID == productID {
+			out = append(out, *v)
+		}
+	}
+	return out, nil
+}
+
+func (r *fakeVariantRepo) DecreaseStock(_ context.Context, id string, qty int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	v, ok := r.data[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	if v.Stock < qty {
+		return domain.ErrInsufficientStock
+	}
+	v.Stock -= qty
+	return nil
+}
+
+func (r *fakeVariantRepo) IncreaseStock(_ context.Context, id string, qty int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	v, ok := r.data[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	v.Stock += qty
+	return nil
+}
+
 type fakeCache struct {
 	mu   sync.Mutex
 	data map[string]string

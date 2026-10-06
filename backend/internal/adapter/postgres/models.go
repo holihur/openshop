@@ -77,6 +77,37 @@ func nullableUUID(s string) any {
 	return s
 }
 
+// jsonMap persists a map[string]string as a JSONB column.
+type jsonMap map[string]string
+
+func (m jsonMap) Value() (driver.Value, error) {
+	if m == nil {
+		return []byte("{}"), nil
+	}
+	return json.Marshal(map[string]string(m))
+}
+
+func (m *jsonMap) Scan(src any) error {
+	if src == nil {
+		*m = nil
+		return nil
+	}
+	var raw []byte
+	switch v := src.(type) {
+	case []byte:
+		raw = v
+	case string:
+		raw = []byte(v)
+	default:
+		return fmt.Errorf("jsonMap: unsupported type %T", src)
+	}
+	if len(raw) == 0 {
+		*m = nil
+		return nil
+	}
+	return json.Unmarshal(raw, (*map[string]string)(m))
+}
+
 type userModel struct {
 	ID           string    `gorm:"type:uuid;primaryKey"`
 	Email        string    `gorm:"size:255;uniqueIndex;not null"`
@@ -143,13 +174,16 @@ type orderModel struct {
 func (orderModel) TableName() string { return "orders" }
 
 type orderItemModel struct {
-	ID         string `gorm:"type:uuid;primaryKey"`
-	OrderID    string `gorm:"type:uuid;index;not null"`
-	ProductID  string `gorm:"type:uuid;index;not null"`
-	Title      string `gorm:"size:255;not null"`
-	PriceCents int64  `gorm:"not null"`
-	Quantity   int    `gorm:"not null"`
-	Subtotal   int64  `gorm:"not null"`
+	ID          string     `gorm:"type:uuid;primaryKey"`
+	OrderID     string     `gorm:"type:uuid;index;not null"`
+	ProductID   string     `gorm:"type:uuid;index;not null"`
+	VariantID   uuidString `gorm:"type:uuid;index"`
+	VariantName string     `gorm:"size:160;not null;default:''"`
+	SKU         string     `gorm:"size:64;not null;default:''"`
+	Title       string     `gorm:"size:255;not null"`
+	PriceCents  int64      `gorm:"not null"`
+	Quantity    int        `gorm:"not null"`
+	Subtotal    int64      `gorm:"not null"`
 }
 
 func (orderItemModel) TableName() string { return "order_items" }
@@ -213,6 +247,22 @@ type reviewModel struct {
 
 func (reviewModel) TableName() string { return "reviews" }
 
+type variantModel struct {
+	ID         string    `gorm:"type:uuid;primaryKey"`
+	ProductID  string    `gorm:"type:uuid;index;not null"`
+	SKU        string    `gorm:"size:64;not null"`
+	Name       string    `gorm:"size:160;not null"`
+	PriceCents int64     `gorm:"not null;default:0"`
+	Stock      int       `gorm:"not null;default:0"`
+	Attributes jsonMap   `gorm:"type:jsonb"`
+	Sort       int       `gorm:"not null;default:0"`
+	Active     bool      `gorm:"not null;default:true"`
+	CreatedAt  time.Time `gorm:"not null"`
+	UpdatedAt  time.Time `gorm:"not null"`
+}
+
+func (variantModel) TableName() string { return "product_variants" }
+
 // ---- mappers: persistence <-> domain ----
 
 func toUser(m *userModel) *domain.User {
@@ -267,8 +317,9 @@ func toOrder(m *orderModel) *domain.Order {
 	items := make([]domain.OrderItem, 0, len(m.Items))
 	for _, it := range m.Items {
 		items = append(items, domain.OrderItem{
-			ID: it.ID, OrderID: it.OrderID, ProductID: it.ProductID, Title: it.Title,
-			PriceCents: it.PriceCents, Quantity: it.Quantity, Subtotal: it.Subtotal,
+			ID: it.ID, OrderID: it.OrderID, ProductID: it.ProductID,
+			VariantID: string(it.VariantID), VariantName: it.VariantName, SKU: it.SKU,
+			Title: it.Title, PriceCents: it.PriceCents, Quantity: it.Quantity, Subtotal: it.Subtotal,
 		})
 	}
 	return &domain.Order{
@@ -284,8 +335,9 @@ func fromOrder(o *domain.Order) *orderModel {
 	items := make([]orderItemModel, 0, len(o.Items))
 	for _, it := range o.Items {
 		items = append(items, orderItemModel{
-			ID: it.ID, OrderID: o.ID, ProductID: it.ProductID, Title: it.Title,
-			PriceCents: it.PriceCents, Quantity: it.Quantity, Subtotal: it.Subtotal,
+			ID: it.ID, OrderID: o.ID, ProductID: it.ProductID,
+			VariantID: uuidString(it.VariantID), VariantName: it.VariantName, SKU: it.SKU,
+			Title: it.Title, PriceCents: it.PriceCents, Quantity: it.Quantity, Subtotal: it.Subtotal,
 		})
 	}
 	return &orderModel{
@@ -348,5 +400,21 @@ func fromReview(r *domain.Review) *reviewModel {
 	return &reviewModel{
 		ID: r.ID, ProductID: r.ProductID, UserID: r.UserID, Rating: int16(r.Rating),
 		Title: r.Title, Body: r.Body, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+	}
+}
+
+func toVariant(m *variantModel) *domain.Variant {
+	return &domain.Variant{
+		ID: m.ID, ProductID: m.ProductID, SKU: m.SKU, Name: m.Name,
+		PriceCents: m.PriceCents, Stock: m.Stock, Attributes: map[string]string(m.Attributes),
+		Sort: m.Sort, Active: m.Active, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
+	}
+}
+
+func fromVariant(v *domain.Variant) *variantModel {
+	return &variantModel{
+		ID: v.ID, ProductID: v.ProductID, SKU: v.SKU, Name: v.Name,
+		PriceCents: v.PriceCents, Stock: v.Stock, Attributes: jsonMap(v.Attributes),
+		Sort: v.Sort, Active: v.Active, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt,
 	}
 }

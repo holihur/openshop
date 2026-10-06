@@ -13,6 +13,7 @@ import (
 type orderFixture struct {
 	svc      *OrderService
 	products *fakeProductRepo
+	variants *fakeVariantRepo
 	carts    *fakeCartRepo
 	orders   *fakeOrderRepo
 	coupons  *fakeCouponRepo
@@ -22,18 +23,19 @@ type orderFixture struct {
 
 func newOrderFixture() *orderFixture {
 	products := newFakeProductRepo()
+	variants := newFakeVariantRepo()
 	carts := newFakeCartRepo()
 	orders := newFakeOrderRepo()
 	coupons := newFakeCouponRepo()
 	outbox := newFakeOutbox()
 	locker := newFakeLocker()
 	svc := NewOrderService(
-		orders, products, coupons, carts, locker, fakeTx{}, outbox,
+		orders, products, coupons, variants, carts, locker, fakeTx{}, outbox,
 		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
 		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, 30*time.Minute, "CNY",
 	)
 	return &orderFixture{
-		svc: svc, products: products, carts: carts, orders: orders,
+		svc: svc, products: products, variants: variants, carts: carts, orders: orders,
 		coupons: coupons, outbox: outbox, locker: locker,
 	}
 }
@@ -236,6 +238,70 @@ func TestMarkRefundedRestoresStockAndIsIdempotent(t *testing.T) {
 	p1, _ = f.products.FindByID(context.Background(), "p1")
 	if p1.Stock != 5 {
 		t.Fatalf("stock after double refund = %d, want 5", p1.Stock)
+	}
+}
+
+func TestCheckoutWithVariantUsesVariantStockAndPrice(t *testing.T) {
+	f := newOrderFixture()
+	// Product itself has no stock; the variant carries inventory and price.
+	seedProduct(f, "p1", 0, 1000)
+	f.variants.put(&domain.Variant{
+		ID: "v1", ProductID: "p1", SKU: "SKU-RED-L", Name: "Red / L",
+		PriceCents: 1200, Stock: 3, Active: true,
+	})
+
+	cart := &domain.Cart{UserID: "u1", Items: []domain.CartItem{
+		{ProductID: "p1", VariantID: "v1", Quantity: 2},
+	}}
+	_ = f.carts.Save(context.Background(), cart)
+
+	order, err := f.svc.Checkout(context.Background(), "u1", "")
+	if err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+	if order.TotalCents != 2400 {
+		t.Fatalf("total = %d, want 2400 (variant price)", order.TotalCents)
+	}
+	if len(order.Items) != 1 || order.Items[0].VariantID != "v1" || order.Items[0].VariantName != "Red / L" {
+		t.Fatalf("order item missing variant: %+v", order.Items)
+	}
+
+	v, _ := f.variants.FindByID(context.Background(), "v1")
+	if v.Stock != 1 {
+		t.Fatalf("variant stock = %d, want 1", v.Stock)
+	}
+	// The product's own stock must be untouched.
+	p, _ := f.products.FindByID(context.Background(), "p1")
+	if p.Stock != 0 {
+		t.Fatalf("product stock changed: %d", p.Stock)
+	}
+
+	// Cancelling restores the variant stock, not the product's.
+	if _, err := f.svc.Cancel(context.Background(), "u1", order.ID, false); err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	v, _ = f.variants.FindByID(context.Background(), "v1")
+	if v.Stock != 3 {
+		t.Fatalf("variant stock after cancel = %d, want 3", v.Stock)
+	}
+}
+
+func TestCheckoutRejectsInsufficientVariantStock(t *testing.T) {
+	f := newOrderFixture()
+	seedProduct(f, "p1", 100, 1000)
+	f.variants.put(&domain.Variant{ID: "v1", ProductID: "p1", Name: "Red", Stock: 1, Active: true})
+
+	cart := &domain.Cart{UserID: "u1", Items: []domain.CartItem{
+		{ProductID: "p1", VariantID: "v1", Quantity: 2},
+	}}
+	_ = f.carts.Save(context.Background(), cart)
+
+	if _, err := f.svc.Checkout(context.Background(), "u1", ""); !errors.Is(err, domain.ErrInsufficientStock) {
+		t.Fatalf("err = %v, want ErrInsufficientStock", err)
+	}
+	p, _ := f.products.FindByID(context.Background(), "p1")
+	if p.Stock != 100 {
+		t.Fatalf("product stock changed: %d", p.Stock)
 	}
 }
 
