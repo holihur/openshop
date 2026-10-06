@@ -14,11 +14,13 @@ import { formatMoney } from "@/lib/format";
 import { useCart, useClearCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/useCart";
 import { useAddresses } from "@/hooks/useAddresses";
 import { useShippingMethods } from "@/hooks/useShipping";
+import { useAuth } from "@/lib/auth";
 import type { CouponPreview, Order, Payment } from "@/lib/types";
 
 export function CartPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { data: cart, isLoading } = useCart();
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveCartItem();
@@ -28,6 +30,7 @@ export function CartPage() {
   const [applied, setApplied] = useState<CouponPreview | null>(null);
   const [addressId, setAddressId] = useState("");
   const [shippingMethodId, setShippingMethodId] = useState("");
+  const [email, setEmail] = useState("");
   const { data: addresses } = useAddresses();
   const { data: shippingMethods } = useShippingMethods();
   const chosenAddress =
@@ -57,7 +60,21 @@ export function CartPage() {
   });
 
   const checkout = useMutation({
-    mutationFn: async ({ couponCode, addressId, shippingMethodId }: { couponCode: string; addressId: string; shippingMethodId: string }) => {
+    mutationFn: async ({ couponCode, addressId, shippingMethodId, email }: { couponCode: string; addressId: string; shippingMethodId: string; email: string }) => {
+      if (!user) {
+        // Guest checkout: the cart is keyed by the X-Guest-Id header.
+        const order = await api.post<Order>("/orders", {
+          ...(couponCode ? { couponCode } : {}),
+          ...(shippingMethodId ? { shippingMethodId } : {}),
+          email,
+        });
+        if (order.accessToken) localStorage.setItem("openshop.guestOrderToken", order.accessToken);
+        const payment = await api.post<Payment>(`/guest/orders/${order.accessToken}/pay`, {
+          provider: "mock",
+          returnUrl: `${window.location.origin}/payment/result`,
+        });
+        return { order, payment };
+      }
       // Creating the order reserves stock atomically on the server.
       const order = await api.post<Order>("/orders", {
         ...(couponCode ? { couponCode } : {}),
@@ -77,6 +94,8 @@ export function CartPage() {
       void queryClient.invalidateQueries({ queryKey: ["orders"] });
       if (payment.redirectUrl) {
         window.location.href = payment.redirectUrl;
+      } else if (!user && order.accessToken) {
+        window.location.href = `/guest/orders/${order.accessToken}`;
       } else {
         navigate(`/orders/${order.id}`);
       }
@@ -189,9 +208,23 @@ export function CartPage() {
               <span>{cart.totalCount}</span>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Shipping address</span>
+            {!user && (
+              <div className="space-y-2">
+                <span className="text-sm font-medium">Email for receipt</span>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                />
+              </div>
+            )}
+
+            {user && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Shipping address</span>
                 <Link to="/account/addresses" className="text-muted-foreground text-xs underline">
                   Manage
                 </Link>
@@ -229,6 +262,7 @@ export function CartPage() {
                 </p>
               )}
             </div>
+            )}
 
             <div className="space-y-2">
               <span className="text-sm font-medium">Shipping</span>
@@ -319,12 +353,13 @@ export function CartPage() {
             <Button
               className="w-full"
               size="lg"
-              disabled={checkout.isPending}
+              disabled={checkout.isPending || (!user && email.trim() === "")}
               onClick={() =>
                 checkout.mutate({
                   couponCode: applied?.code ?? "",
                   addressId: chosenAddress,
                   shippingMethodId: chosenMethod?.id ?? "",
+                  email,
                 })
               }
             >

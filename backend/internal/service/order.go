@@ -83,12 +83,16 @@ func NewOrderService(
 // per-user lock prevents duplicate submissions from retries or double clicks;
 // the transaction guarantees stock and order move together.
 // CheckoutInput describes a checkout request. Coupon, address and shipping are
-// optional.
+// optional. Subject is the cart owner (a user id or a guest id).
 type CheckoutInput struct {
 	UserID           string
+	Subject          string
 	CouponCode       string
 	AddressID        string
 	ShippingMethodID string
+	// GuestEmail is required when there is no authenticated UserID.
+	GuestEmail string
+	GuestPhone string
 }
 
 func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *domain.Order, err error) {
@@ -104,13 +108,24 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 		span.End()
 	}()
 
-	lock, err := s.locker.Acquire(ctx, "lock:checkout:"+in.UserID, 15*time.Second, 3*time.Second)
+	subject := in.Subject
+	if subject == "" {
+		subject = in.UserID
+	}
+	if subject == "" {
+		return nil, fmt.Errorf("%w: no cart owner", domain.ErrInvalidArgument)
+	}
+	if in.UserID == "" && in.GuestEmail == "" {
+		return nil, fmt.Errorf("%w: email is required for guest checkout", domain.ErrInvalidArgument)
+	}
+
+	lock, err := s.locker.Acquire(ctx, "lock:checkout:"+subject, 15*time.Second, 3*time.Second)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = lock.Release(ctx) }()
 
-	cart, err := s.carts.Get(ctx, in.UserID)
+	cart, err := s.carts.Get(ctx, subject)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +135,7 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 
 	// Snapshot the shipping address so later edits never change the order.
 	var shipping *domain.Address
-	if in.AddressID != "" {
+	if in.AddressID != "" && in.UserID != "" {
 		a, err := s.addresses.FindByID(ctx, in.AddressID)
 		if err != nil {
 			return nil, err
@@ -136,12 +151,21 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 		ID:              s.ids.NewID(),
 		OrderNo:         orderNo(now, s.ids.NewID()),
 		UserID:          in.UserID,
+		GuestEmail:      in.GuestEmail,
+		GuestPhone:      in.GuestPhone,
 		Status:          domain.OrderPendingPayment,
 		Currency:        s.currency,
 		ShippingAddress: shipping,
 		ExpiresAt:       now.Add(s.ttl),
 		CreatedAt:       now,
 		UpdatedAt:       now,
+	}
+	if in.UserID == "" {
+		token, err := randomToken(32)
+		if err != nil {
+			return nil, err
+		}
+		order.AccessToken = token
 	}
 
 	err = s.tx.WithinTx(ctx, func(txCtx context.Context) error {
@@ -195,7 +219,7 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 		order.Items = items
 
 		if in.CouponCode != "" {
-			if err := s.applyCoupon(txCtx, order, in.UserID, in.CouponCode, now); err != nil {
+			if err := s.applyCoupon(txCtx, order, subject, in.CouponCode, now); err != nil {
 				return err
 			}
 		}
@@ -240,14 +264,22 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 
 	// The cart is cleared only after the transaction commits. Redis is shared,
 	// so the change is visible to the user's next request on any instance.
-	if err := s.carts.Delete(ctx, in.UserID); err != nil {
-		s.logger.Warn("failed to clear cart after checkout", "userId", in.UserID, "error", err)
+	if err := s.carts.Delete(ctx, subject); err != nil {
+		s.logger.Warn("failed to clear cart after checkout", "subject", subject, "error", err)
 	}
 
 	s.invalidateProducts(ctx, order)
 	s.metrics.Counter("openshop_orders_created_total", 1, map[string]string{"currency": order.Currency})
 	s.metrics.Gauge("openshop_orders_pending_total", 1, nil)
 	return order, nil
+}
+
+// FindByAccessToken resolves a guest order from its access token.
+func (s *OrderService) FindByAccessToken(ctx context.Context, token string) (*domain.Order, error) {
+	if token == "" {
+		return nil, domain.ErrNotFound
+	}
+	return s.orders.FindByAccessToken(ctx, token)
 }
 
 func (s *OrderService) Get(ctx context.Context, userID, orderID string, isAdmin bool) (*domain.Order, error) {

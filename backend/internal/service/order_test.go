@@ -418,6 +418,31 @@ func TestFreeShippingThreshold(t *testing.T) {
 	}
 }
 
+func TestGuestCheckoutRequiresEmailAndIssuesToken(t *testing.T) {
+	f := newOrderFixture()
+	seedProduct(f, "p1", 5, 1000)
+	cart := &domain.Cart{UserID: "guest-1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 1}}}
+	_ = f.carts.Save(context.Background(), cart)
+
+	// A guest order without an email is rejected.
+	if _, err := f.svc.Checkout(context.Background(), CheckoutInput{Subject: "guest-1"}); !errors.Is(err, domain.ErrInvalidArgument) {
+		t.Fatalf("err = %v, want ErrInvalidArgument", err)
+	}
+
+	order, err := f.svc.Checkout(context.Background(), CheckoutInput{Subject: "guest-1", GuestEmail: "g@example.com"})
+	if err != nil {
+		t.Fatalf("guest checkout: %v", err)
+	}
+	if order.UserID != "" || order.GuestEmail != "g@example.com" || order.AccessToken == "" {
+		t.Fatalf("guest order wrong: %+v", order)
+	}
+
+	got, err := f.svc.FindByAccessToken(context.Background(), order.AccessToken)
+	if err != nil || got.ID != order.ID {
+		t.Fatalf("token lookup: %v", err)
+	}
+}
+
 func TestExpiredOrdersAreListed(t *testing.T) {
 	f := newOrderFixture()
 	seedProduct(f, "p1", 5, 100)

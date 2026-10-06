@@ -56,6 +56,14 @@ func (r *OrderRepository) FindByOrderNo(ctx context.Context, orderNo string) (*d
 	return toOrder(&m), nil
 }
 
+func (r *OrderRepository) FindByAccessToken(ctx context.Context, token string) (*domain.Order, error) {
+	var m orderModel
+	if err := r.db.session(ctx).Preload("Items").First(&m, "access_token = ?", token).Error; err != nil {
+		return nil, translate(err)
+	}
+	return toOrder(&m), nil
+}
+
 func (r *OrderRepository) FindExpiredPending(ctx context.Context, now time.Time, limit int) ([]domain.Order, error) {
 	if limit < 1 {
 		limit = 100

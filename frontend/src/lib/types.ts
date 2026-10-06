@@ -113,6 +113,7 @@ export interface Order {
   expiresAt: string;
   paidAt?: string;
   createdAt: string;
+  accessToken?: string;
 }
 
 export interface Review {

@@ -27,11 +27,16 @@ type OrderItem struct {
 }
 
 type Order struct {
-	ID       string
-	OrderNo  string
-	UserID   string
-	Status   OrderStatus
-	Currency string
+	ID      string
+	OrderNo string
+	UserID  string
+	// Guest orders have no UserID; GuestEmail identifies the buyer and
+	// AccessToken lets them view and pay without an account.
+	GuestEmail  string
+	GuestPhone  string
+	AccessToken string
+	Status      OrderStatus
+	Currency    string
 	// SubtotalCents is the pre-discount total; TotalCents is what the customer
 	// pays after DiscountCents is applied.
 	SubtotalCents int64

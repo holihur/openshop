@@ -50,6 +50,7 @@ type OrderRepository interface {
 	Update(ctx context.Context, o *domain.Order) error
 	FindByID(ctx context.Context, id string) (*domain.Order, error)
 	FindByOrderNo(ctx context.Context, orderNo string) (*domain.Order, error)
+	FindByAccessToken(ctx context.Context, token string) (*domain.Order, error)
 	// FindExpiredPending returns pending orders past their expiry, used by the
 	// auto-cancel worker. Scoped by limit so each run stays bounded.
 	FindExpiredPending(ctx context.Context, now time.Time, limit int) ([]domain.Order, error)

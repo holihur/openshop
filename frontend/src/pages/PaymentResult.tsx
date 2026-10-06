@@ -5,6 +5,7 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 type State = "loading" | "success" | "error";
 
@@ -15,6 +16,7 @@ type State = "loading" | "success" | "error";
  */
 export function PaymentResultPage() {
   const [params] = useSearchParams();
+  const { user } = useAuth();
   const providerRef = params.get("payment_ref") ?? "";
   const provider = params.get("provider") ?? "mock";
   const [state, setState] = useState<State>("loading");
@@ -27,8 +29,9 @@ export function PaymentResultPage() {
       return;
     }
     let cancelled = false;
+    const endpoint = user ? "/payments/simulate" : "/guest/payments/simulate";
     api
-      .post("/payments/simulate", { providerRef, provider })
+      .post(endpoint, { providerRef, provider })
       .then(() => {
         if (!cancelled) setState("success");
       })
@@ -41,7 +44,7 @@ export function PaymentResultPage() {
     return () => {
       cancelled = true;
     };
-  }, [providerRef, provider]);
+  }, [providerRef, provider, user]);
 
   return (
     <div className="mx-auto max-w-md py-16">

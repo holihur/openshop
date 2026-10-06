@@ -238,6 +238,18 @@ func (r *fakeOrderRepo) FindByOrderNo(_ context.Context, no string) (*domain.Ord
 	return nil, domain.ErrNotFound
 }
 
+func (r *fakeOrderRepo) FindByAccessToken(_ context.Context, token string) (*domain.Order, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, o := range r.data {
+		if o.AccessToken == token && token != "" {
+			cp := *o
+			return &cp, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
 func (r *fakeOrderRepo) FindExpiredPending(_ context.Context, now time.Time, limit int) ([]domain.Order, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

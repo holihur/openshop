@@ -37,7 +37,7 @@ type updateCartItemRequest struct {
 }
 
 func (h *Handler) GetCart(c *gin.Context) {
-	cart, err := h.Cart.Get(c.Request.Context(), middleware.UserID(c))
+	cart, err := h.Cart.Get(c.Request.Context(), middleware.Subject(c))
 	if err != nil {
 		response.Fail(c, err)
 		return
@@ -51,7 +51,7 @@ func (h *Handler) AddCartItem(c *gin.Context) {
 		response.Fail(c, wrapBind(err))
 		return
 	}
-	cart, err := h.Cart.AddItem(c.Request.Context(), middleware.UserID(c), req.ProductID, req.VariantID, req.Quantity)
+	cart, err := h.Cart.AddItem(c.Request.Context(), middleware.Subject(c), req.ProductID, req.VariantID, req.Quantity)
 	if err != nil {
 		response.Fail(c, err)
 		return
@@ -65,7 +65,7 @@ func (h *Handler) UpdateCartItem(c *gin.Context) {
 		response.Fail(c, wrapBind(err))
 		return
 	}
-	cart, err := h.Cart.SetQuantity(c.Request.Context(), middleware.UserID(c), c.Param("productId"), req.VariantID, req.Quantity)
+	cart, err := h.Cart.SetQuantity(c.Request.Context(), middleware.Subject(c), c.Param("productId"), req.VariantID, req.Quantity)
 	if err != nil {
 		response.Fail(c, err)
 		return
@@ -74,7 +74,7 @@ func (h *Handler) UpdateCartItem(c *gin.Context) {
 }
 
 func (h *Handler) RemoveCartItem(c *gin.Context) {
-	cart, err := h.Cart.RemoveItem(c.Request.Context(), middleware.UserID(c), c.Param("productId"), c.Query("variantId"))
+	cart, err := h.Cart.RemoveItem(c.Request.Context(), middleware.Subject(c), c.Param("productId"), c.Query("variantId"))
 	if err != nil {
 		response.Fail(c, err)
 		return
@@ -83,7 +83,7 @@ func (h *Handler) RemoveCartItem(c *gin.Context) {
 }
 
 func (h *Handler) ClearCart(c *gin.Context) {
-	if err := h.Cart.Clear(c.Request.Context(), middleware.UserID(c)); err != nil {
+	if err := h.Cart.Clear(c.Request.Context(), middleware.Subject(c)); err != nil {
 		response.Fail(c, err)
 		return
 	}

@@ -157,7 +157,10 @@ func (productModel) TableName() string { return "products" }
 type orderModel struct {
 	ID                 string     `gorm:"type:uuid;primaryKey"`
 	OrderNo            string     `gorm:"size:64;uniqueIndex;not null"`
-	UserID             string     `gorm:"type:uuid;index;not null"`
+	UserID             uuidString `gorm:"type:uuid;index"`
+	GuestEmail         string     `gorm:"size:255;not null;default:''"`
+	GuestPhone         string     `gorm:"size:32;not null;default:''"`
+	AccessToken        string     `gorm:"size:128;not null;default:''"`
 	Status             string     `gorm:"size:32;index;not null"`
 	Currency           string     `gorm:"size:8;not null"`
 	SubtotalCents      int64      `gorm:"not null;default:0"`
@@ -199,17 +202,17 @@ type orderItemModel struct {
 func (orderItemModel) TableName() string { return "order_items" }
 
 type paymentModel struct {
-	ID            string    `gorm:"type:uuid;primaryKey"`
-	OrderID       string    `gorm:"type:uuid;index;not null"`
-	UserID        string    `gorm:"type:uuid;index;not null"`
-	Provider      string    `gorm:"size:64;index;not null"`
-	ProviderRef   string    `gorm:"size:128;index"`
-	AmountCents   int64     `gorm:"not null"`
-	Currency      string    `gorm:"size:8;not null"`
-	Status        string    `gorm:"size:32;index;not null"`
-	FailureReason string    `gorm:"size:512"`
-	CreatedAt     time.Time `gorm:"not null"`
-	UpdatedAt     time.Time `gorm:"not null"`
+	ID            string     `gorm:"type:uuid;primaryKey"`
+	OrderID       string     `gorm:"type:uuid;index;not null"`
+	UserID        uuidString `gorm:"type:uuid;index"`
+	Provider      string     `gorm:"size:64;index;not null"`
+	ProviderRef   string     `gorm:"size:128;index"`
+	AmountCents   int64      `gorm:"not null"`
+	Currency      string     `gorm:"size:8;not null"`
+	Status        string     `gorm:"size:32;index;not null"`
+	FailureReason string     `gorm:"size:512"`
+	CreatedAt     time.Time  `gorm:"not null"`
+	UpdatedAt     time.Time  `gorm:"not null"`
 }
 
 func (paymentModel) TableName() string { return "payments" }
@@ -366,7 +369,8 @@ func toOrder(m *orderModel) *domain.Order {
 		})
 	}
 	return &domain.Order{
-		ID: m.ID, OrderNo: m.OrderNo, UserID: m.UserID, Status: domain.OrderStatus(m.Status),
+		ID: m.ID, OrderNo: m.OrderNo, UserID: string(m.UserID), Status: domain.OrderStatus(m.Status),
+		GuestEmail: m.GuestEmail, GuestPhone: m.GuestPhone, AccessToken: m.AccessToken,
 		Currency: m.Currency, SubtotalCents: m.SubtotalCents, DiscountCents: m.DiscountCents,
 		CouponID: string(m.CouponID), CouponCode: m.CouponCode, TotalCents: m.TotalCents,
 		ShippingCents: m.ShippingCents, TaxCents: m.TaxCents,
@@ -410,7 +414,8 @@ func fromOrder(o *domain.Order) *orderModel {
 		})
 	}
 	return &orderModel{
-		ID: o.ID, OrderNo: o.OrderNo, UserID: o.UserID, Status: string(o.Status),
+		ID: o.ID, OrderNo: o.OrderNo, UserID: uuidString(o.UserID), Status: string(o.Status),
+		GuestEmail: o.GuestEmail, GuestPhone: o.GuestPhone, AccessToken: o.AccessToken,
 		Currency: o.Currency, SubtotalCents: o.SubtotalCents, DiscountCents: o.DiscountCents,
 		CouponID: uuidString(o.CouponID), CouponCode: o.CouponCode, TotalCents: o.TotalCents,
 		ShippingCents: o.ShippingCents, TaxCents: o.TaxCents,
@@ -424,7 +429,7 @@ func fromOrder(o *domain.Order) *orderModel {
 
 func toPayment(m *paymentModel) *domain.Payment {
 	return &domain.Payment{
-		ID: m.ID, OrderID: m.OrderID, UserID: m.UserID, Provider: m.Provider,
+		ID: m.ID, OrderID: m.OrderID, UserID: string(m.UserID), Provider: m.Provider,
 		ProviderRef: m.ProviderRef, AmountCents: m.AmountCents, Currency: m.Currency,
 		Status: domain.PaymentStatus(m.Status), FailureReason: m.FailureReason,
 		CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
@@ -433,7 +438,7 @@ func toPayment(m *paymentModel) *domain.Payment {
 
 func fromPayment(p *domain.Payment) *paymentModel {
 	return &paymentModel{
-		ID: p.ID, OrderID: p.OrderID, UserID: p.UserID, Provider: p.Provider,
+		ID: p.ID, OrderID: p.OrderID, UserID: uuidString(p.UserID), Provider: p.Provider,
 		ProviderRef: p.ProviderRef, AmountCents: p.AmountCents, Currency: p.Currency,
 		Status: string(p.Status), FailureReason: p.FailureReason,
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,

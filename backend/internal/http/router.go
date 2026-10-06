@@ -102,13 +102,6 @@ func NewRouter(
 			authed.POST("/wishlist", h.AddWishlist)
 			authed.DELETE("/wishlist/:productId", h.RemoveWishlist)
 
-			authed.GET("/cart", h.GetCart)
-			authed.POST("/cart/items", h.AddCartItem)
-			authed.PATCH("/cart/items/:productId", h.UpdateCartItem)
-			authed.DELETE("/cart/items/:productId", h.RemoveCartItem)
-			authed.DELETE("/cart", h.ClearCart)
-
-			authed.POST("/orders", middleware.Idempotency(cache, 24*time.Hour), h.Checkout)
 			authed.GET("/orders", h.ListOrders)
 			authed.GET("/orders/:id", h.GetOrder)
 			authed.POST("/orders/:id/cancel", h.CancelOrder)
@@ -127,6 +120,25 @@ func NewRouter(
 			authed.PATCH("/reviews/:id", h.UpdateReview)
 			authed.DELETE("/reviews/:id", h.DeleteReview)
 		}
+
+		// Cart & checkout: signed-in users or guests (X-Guest-Id header).
+		shop := api.Group("")
+		shop.Use(middleware.Auth(tokens, auth, true), middleware.ResolveSubject(), middleware.RequireSubject())
+		{
+			shop.GET("/cart", h.GetCart)
+			shop.POST("/cart/items", h.AddCartItem)
+			shop.PATCH("/cart/items/:productId", h.UpdateCartItem)
+			shop.DELETE("/cart/items/:productId", h.RemoveCartItem)
+			shop.DELETE("/cart", h.ClearCart)
+			shop.POST("/orders", middleware.Idempotency(cache, 24*time.Hour), h.Checkout)
+		}
+
+		// Guest orders are authorised by an unguessable access token.
+		api.GET("/guest/orders/:token", h.GuestOrder)
+		api.POST("/guest/orders/:token/pay", h.GuestPay)
+		api.POST("/guest/orders/:token/cancel", h.GuestCancel)
+		api.POST("/guest/orders/:token/complete", h.GuestComplete)
+		api.POST("/guest/payments/simulate", h.GuestSimulate)
 
 		// Admin area.
 		admin := api.Group("/admin")

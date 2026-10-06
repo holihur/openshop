@@ -42,6 +42,9 @@ type orderView struct {
 	ExpiresAt       string          `json:"expiresAt"`
 	PaidAt          string          `json:"paidAt,omitempty"`
 	CreatedAt       string          `json:"createdAt"`
+	// AccessToken is returned once for guest orders so the buyer can view and
+	// pay without an account.
+	AccessToken string `json:"accessToken,omitempty"`
 }
 
 type addressView struct {
@@ -56,12 +59,14 @@ type addressView struct {
 	Default    bool   `json:"default"`
 }
 
-// CheckoutRequest is optional: callers may include a coupon, address and
-// shipping method.
+// CheckoutRequest is optional: callers may include a coupon, address, shipping
+// method, and (for guests) an email.
 type CheckoutRequest struct {
 	CouponCode       string `json:"couponCode"`
 	AddressID        string `json:"addressId"`
 	ShippingMethodID string `json:"shippingMethodId"`
+	Email            string `json:"email"`
+	Phone            string `json:"phone"`
 }
 
 func (h *Handler) Checkout(c *gin.Context) {
@@ -71,9 +76,12 @@ func (h *Handler) Checkout(c *gin.Context) {
 
 	order, err := h.Orders.Checkout(c.Request.Context(), service.CheckoutInput{
 		UserID:           middleware.UserID(c),
+		Subject:          middleware.Subject(c),
 		CouponCode:       req.CouponCode,
 		AddressID:        req.AddressID,
 		ShippingMethodID: req.ShippingMethodID,
+		GuestEmail:       req.Email,
+		GuestPhone:       req.Phone,
 	})
 	if err != nil {
 		response.Fail(c, err)
@@ -186,6 +194,82 @@ func (h *Handler) ConfirmReceipt(c *gin.Context) {
 	response.OK(c, toOrderView(*order))
 }
 
+// --- Guest order endpoints (authorised by an unguessable access token) ---
+
+func (h *Handler) GuestOrder(c *gin.Context) {
+	order, err := h.Orders.FindByAccessToken(c.Request.Context(), c.Param("token"))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, toOrderView(*order))
+}
+
+func (h *Handler) GuestPay(c *gin.Context) {
+	order, err := h.Orders.FindByAccessToken(c.Request.Context(), c.Param("token"))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	var req createPaymentRequest
+	_ = c.ShouldBindJSON(&req)
+	res, err := h.Payments.Create(c.Request.Context(), service.CreatePaymentInput{
+		UserID: "", OrderID: order.ID, ProviderName: req.Provider, ReturnURL: req.ReturnURL,
+	})
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.Created(c, paymentView{
+		ID: res.Payment.ID, OrderID: res.Payment.OrderID, Provider: res.Payment.Provider,
+		Status: string(res.Payment.Status), AmountCents: res.Payment.AmountCents,
+		Currency: res.Payment.Currency, RedirectURL: res.RedirectURL,
+	})
+}
+
+func (h *Handler) GuestCancel(c *gin.Context) {
+	order, err := h.Orders.FindByAccessToken(c.Request.Context(), c.Param("token"))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	cancelled, err := h.Orders.Cancel(c.Request.Context(), "", order.ID, true)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, toOrderView(*cancelled))
+}
+
+func (h *Handler) GuestComplete(c *gin.Context) {
+	order, err := h.Orders.FindByAccessToken(c.Request.Context(), c.Param("token"))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	completed, err := h.Orders.MarkCompleted(c.Request.Context(), order.ID)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, toOrderView(*completed))
+}
+
+// GuestSimulate confirms a sandbox payment for a guest order. The provider
+// reference is unguessable, which authorises the call.
+func (h *Handler) GuestSimulate(c *gin.Context) {
+	var req simulatePaymentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, wrapBind(err))
+		return
+	}
+	if err := h.Payments.Simulate(c.Request.Context(), "", req.Provider, req.ProviderRef); err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{"status": "succeeded"})
+}
+
 func toOrderView(o domain.Order) orderView {
 	items := make([]orderItemView, 0, len(o.Items))
 	for _, it := range o.Items {
@@ -199,9 +283,10 @@ func toOrderView(o domain.Order) orderView {
 		SubtotalCents: o.SubtotalCents, DiscountCents: o.DiscountCents, CouponCode: o.CouponCode,
 		ShippingCents: o.ShippingCents, TaxCents: o.TaxCents, ShippingMethod: o.ShippingMethodName,
 		TotalCents: o.TotalCents, Items: items, PaymentID: o.PaymentID,
-		TrackingNo: o.TrackingNo,
-		ExpiresAt:  o.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
-		CreatedAt:  o.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		TrackingNo:  o.TrackingNo,
+		ExpiresAt:   o.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt:   o.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		AccessToken: o.AccessToken,
 	}
 	if o.ShippingAddress != nil {
 		view.ShippingAddress = &addressView{

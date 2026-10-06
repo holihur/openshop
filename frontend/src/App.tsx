@@ -14,6 +14,7 @@ import { RegisterPage } from "@/pages/Register";
 import { ForgotPasswordPage } from "@/pages/ForgotPassword";
 import { ResetPasswordPage } from "@/pages/ResetPassword";
 import { VerifyEmailPage } from "@/pages/VerifyEmail";
+import { GuestOrderPage } from "@/pages/GuestOrder";
 import { PaymentResultPage } from "@/pages/PaymentResult";
 import { AddressesPage } from "@/pages/Addresses";
 import { WishlistPage } from "@/pages/Wishlist";
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
         <Route path="reset-password" element={<ResetPasswordPage />} />
         <Route path="verify-email" element={<VerifyEmailPage />} />
+        <Route path="guest/orders/:token" element={<GuestOrderPage />} />
         <Route path="payment/result" element={<PaymentResultPage />} />
 
         <Route element={<ProtectedRoute />}>

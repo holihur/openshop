@@ -11,6 +11,20 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? "/api/v1";
 
 const ACCESS_KEY = "openshop.accessToken";
 const REFRESH_KEY = "openshop.refreshToken";
+const GUEST_KEY = "openshop.guestId";
+
+// guestId returns a stable per-browser id so anonymous shoppers get a cart
+// without signing in. It is sent as X-Guest-Id on every request.
+export function guestId(): string {
+  let id = localStorage.getItem(GUEST_KEY);
+  if (!id) {
+    id = typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem(GUEST_KEY, id);
+  }
+  return id;
+}
 
 export interface ApiErrorShape {
   code: string;
@@ -118,6 +132,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<E
     if (body !== undefined) finalHeaders["Content-Type"] = "application/json";
     const token = tokenStore.access();
     if (auth && token) finalHeaders["Authorization"] = `Bearer ${token}`;
+    finalHeaders["X-Guest-Id"] = guestId();
 
     return fetch(`${API_BASE}${path}`, {
       method,
