@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/holihur/openshop/internal/http/response"
+	"github.com/holihur/openshop/internal/version"
 )
 
 // Healthz is a liveness probe: it only reports that the process is running.
@@ -35,7 +36,12 @@ func (h *Handler) Readyz(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "checks": results})
 }
 
-// Liveness alias for orchestration systems that expect /health.
+// Version reports the build metadata injected at release time.
 func (h *Handler) Version(c *gin.Context) {
-	response.OK(c, gin.H{"name": "openshop", "version": "1.0.0"})
+	response.OK(c, gin.H{
+		"name":    "openshop",
+		"version": version.Version,
+		"commit":  version.Commit,
+		"date":    version.Date,
+	})
 }

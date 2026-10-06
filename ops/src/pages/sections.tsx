@@ -34,50 +34,7 @@ import { api } from "@lib/api";
 import { formatDate, formatMoney } from "@lib/format";
 import type { AuditLog, Coupon, ExchangeRate, Order, Product, Review, ShippingMethod, ShippingZone } from "@lib/types";
 
-type Tab = "dashboard" | "products" | "orders" | "coupons" | "reviews" | "shipping" | "audit" | "currency";
-
-export function AdminPage() {
-  const [tab, setTab] = useState<Tab>("dashboard");
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Admin</h1>
-        <p className="text-muted-foreground">Overview, catalog, orders and promotions.</p>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {(["dashboard", "products", "orders", "coupons", "reviews", "shipping", "audit", "currency"] as Tab[]).map((t) => (
-          <Button
-            key={t}
-            variant={tab === t ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTab(t)}
-            className="capitalize"
-          >
-            {t}
-          </Button>
-        ))}
-      </div>
-
-      {tab === "dashboard" && <AdminDashboard />}
-      {tab === "products" && <AdminProducts />}
-      {tab === "orders" && <AdminOrders />}
-      {tab === "coupons" && <AdminCoupons />}
-      {tab === "reviews" && <AdminReviews />}
-      {tab === "shipping" && (
-        <div className="space-y-4">
-          <AdminShipping />
-          <AdminZones />
-        </div>
-      )}
-      {tab === "audit" && <AdminAudit />}
-      {tab === "currency" && <AdminCurrency />}
-    </div>
-  );
-}
-
-function AdminCurrency() {
+export function AdminCurrency() {
   const { data, isLoading } = useCurrencies();
   const saveRate = useSetCurrencyRate();
   const [code, setCode] = useState("");
@@ -176,7 +133,7 @@ function AdminCurrency() {
   );
 }
 
-function AdminAudit() {
+export function AdminAudit() {
   const { data, isLoading } = useAuditLogs();
 
   if (isLoading) {
@@ -218,7 +175,7 @@ function AdminAudit() {
   );
 }
 
-function AdminZones() {
+export function AdminZones() {
   const { data: zones } = useAdminShippingZones();
   const { data: methods } = useAdminShippingMethods();
   const createZone = useCreateShippingZone();
@@ -349,7 +306,7 @@ function AdminZones() {
   );
 }
 
-function AdminReviews() {
+export function AdminReviews() {
   const { data, isLoading } = useAdminReviews();
   const remove = useDeleteReviewAdmin();
 
@@ -403,7 +360,7 @@ function AdminReviews() {
   );
 }
 
-function AdminShipping() {
+export function AdminShipping() {
   const { data, isLoading } = useAdminShippingMethods();
   const create = useCreateShippingMethod();
   const update = useUpdateShippingMethod();
@@ -536,7 +493,7 @@ function AdminShipping() {
   );
 }
 
-function AdminDashboard() {
+export function AdminDashboard() {
   const { data, isLoading } = useDashboard();
 
   if (isLoading || !data) {
@@ -627,7 +584,7 @@ function AdminDashboard() {
   );
 }
 
-function AdminCoupons() {
+export function AdminCoupons() {
   const { data, isLoading } = useAdminCoupons();
   const create = useCreateCoupon();
   const update = useUpdateCoupon();
@@ -786,7 +743,7 @@ function AdminCoupons() {
   );
 }
 
-function AdminProducts() {
+export function AdminProducts() {
   const [page, setPage] = useState(1);
   const { data, isLoading } = useAdminProducts(page, 50);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -886,7 +843,7 @@ function AdminProducts() {
   );
 }
 
-function AdminOrders() {
+export function AdminOrders() {
   const [page, setPage] = useState(1);
   const { data, isLoading } = useAdminOrders(page, 50);
   const queryClient = useQueryClient();

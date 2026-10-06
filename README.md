@@ -19,10 +19,11 @@ composition root (`internal/bootstrap`).
 full-text search, reviews with ratings, cart, coupons, shipping methods and tax,
 saved addresses, checkout, order tracking and self-service cancellation.
 
-**Operations** — merchant dashboard (revenue, order counts, low stock),
-product/variant management with image upload, order fulfilment (ship with
-tracking, complete, refund), coupon and shipping-method management, exchange
-rates, an audit trail (including failed logins), and review moderation.
+**Operations** — a routed admin console (`/ops`) with a sidebar: merchant
+dashboard (revenue, order counts, low stock), product/variant management with
+image upload, order fulfilment (ship with tracking, complete, refund), coupon
+and shipping-method/zone management, exchange rates, an audit trail (including
+failed logins), and review moderation.
 
 **Platform** — JWT auth with refresh rotation, theft detection, email
 verification and password reset; per-IP and per-user sliding-window rate
