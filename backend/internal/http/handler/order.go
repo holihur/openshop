@@ -6,6 +6,7 @@ import (
 	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/http/middleware"
 	"github.com/holihur/openshop/internal/http/response"
+	"github.com/holihur/openshop/internal/service"
 )
 
 type orderItemView struct {
@@ -21,24 +22,41 @@ type orderItemView struct {
 }
 
 type orderView struct {
-	ID            string          `json:"id"`
-	OrderNo       string          `json:"orderNo"`
-	Status        string          `json:"status"`
-	Currency      string          `json:"currency"`
-	SubtotalCents int64           `json:"subtotalCents"`
-	DiscountCents int64           `json:"discountCents"`
-	CouponCode    string          `json:"couponCode,omitempty"`
-	TotalCents    int64           `json:"totalCents"`
-	Items         []orderItemView `json:"items"`
-	PaymentID     string          `json:"paymentId"`
-	ExpiresAt     string          `json:"expiresAt"`
-	PaidAt        string          `json:"paidAt,omitempty"`
-	CreatedAt     string          `json:"createdAt"`
+	ID              string          `json:"id"`
+	OrderNo         string          `json:"orderNo"`
+	Status          string          `json:"status"`
+	Currency        string          `json:"currency"`
+	SubtotalCents   int64           `json:"subtotalCents"`
+	DiscountCents   int64           `json:"discountCents"`
+	CouponCode      string          `json:"couponCode,omitempty"`
+	TotalCents      int64           `json:"totalCents"`
+	Items           []orderItemView `json:"items"`
+	PaymentID       string          `json:"paymentId"`
+	ShippingAddress *addressView    `json:"shippingAddress,omitempty"`
+	TrackingNo      string          `json:"trackingNo,omitempty"`
+	ShippedAt       string          `json:"shippedAt,omitempty"`
+	CompletedAt     string          `json:"completedAt,omitempty"`
+	ExpiresAt       string          `json:"expiresAt"`
+	PaidAt          string          `json:"paidAt,omitempty"`
+	CreatedAt       string          `json:"createdAt"`
 }
 
-// CheckoutRequest is optional: callers may include a coupon code.
+type addressView struct {
+	ID         string `json:"id"`
+	Recipient  string `json:"recipient"`
+	Phone      string `json:"phone"`
+	Province   string `json:"province"`
+	City       string `json:"city"`
+	District   string `json:"district"`
+	Line1      string `json:"line1"`
+	PostalCode string `json:"postalCode"`
+	Default    bool   `json:"default"`
+}
+
+// CheckoutRequest is optional: callers may include a coupon and an address.
 type CheckoutRequest struct {
 	CouponCode string `json:"couponCode"`
+	AddressID  string `json:"addressId"`
 }
 
 func (h *Handler) Checkout(c *gin.Context) {
@@ -46,7 +64,11 @@ func (h *Handler) Checkout(c *gin.Context) {
 	// The body is optional, so binding failures are ignored.
 	_ = c.ShouldBindJSON(&req)
 
-	order, err := h.Orders.Checkout(c.Request.Context(), middleware.UserID(c), req.CouponCode)
+	order, err := h.Orders.Checkout(c.Request.Context(), service.CheckoutInput{
+		UserID:     middleware.UserID(c),
+		CouponCode: req.CouponCode,
+		AddressID:  req.AddressID,
+	})
 	if err != nil {
 		response.Fail(c, err)
 		return
@@ -114,6 +136,46 @@ func (h *Handler) RefundOrder(c *gin.Context) {
 	response.OK(c, toOrderView(*order))
 }
 
+type shipRequest struct {
+	TrackingNo string `json:"trackingNo"`
+}
+
+// ShipOrder marks a paid order as shipped (admin only).
+func (h *Handler) ShipOrder(c *gin.Context) {
+	var req shipRequest
+	_ = c.ShouldBindJSON(&req)
+	order, err := h.Orders.MarkShipped(c.Request.Context(), c.Param("id"), req.TrackingNo)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, toOrderView(*order))
+}
+
+// CompleteOrder closes a shipped order.
+func (h *Handler) CompleteOrder(c *gin.Context) {
+	order, err := h.Orders.MarkCompleted(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, toOrderView(*order))
+}
+
+// ConfirmReceipt lets a customer confirm delivery of their own shipped order.
+func (h *Handler) ConfirmReceipt(c *gin.Context) {
+	if _, err := h.Orders.Get(c.Request.Context(), middleware.UserID(c), c.Param("id"), middleware.IsAdmin(c)); err != nil {
+		response.Fail(c, err)
+		return
+	}
+	order, err := h.Orders.MarkCompleted(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, toOrderView(*order))
+}
+
 func toOrderView(o domain.Order) orderView {
 	items := make([]orderItemView, 0, len(o.Items))
 	for _, it := range o.Items {
@@ -126,8 +188,22 @@ func toOrderView(o domain.Order) orderView {
 		ID: o.ID, OrderNo: o.OrderNo, Status: string(o.Status), Currency: o.Currency,
 		SubtotalCents: o.SubtotalCents, DiscountCents: o.DiscountCents, CouponCode: o.CouponCode,
 		TotalCents: o.TotalCents, Items: items, PaymentID: o.PaymentID,
-		ExpiresAt: o.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
-		CreatedAt: o.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		TrackingNo: o.TrackingNo,
+		ExpiresAt:  o.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt:  o.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+	}
+	if o.ShippingAddress != nil {
+		view.ShippingAddress = &addressView{
+			ID: o.ShippingAddress.ID, Recipient: o.ShippingAddress.Recipient, Phone: o.ShippingAddress.Phone,
+			Province: o.ShippingAddress.Province, City: o.ShippingAddress.City, District: o.ShippingAddress.District,
+			Line1: o.ShippingAddress.Line1, PostalCode: o.ShippingAddress.PostalCode, Default: o.ShippingAddress.Default,
+		}
+	}
+	if o.ShippedAt != nil {
+		view.ShippedAt = o.ShippedAt.UTC().Format("2006-01-02T15:04:05Z07:00")
+	}
+	if o.CompletedAt != nil {
+		view.CompletedAt = o.CompletedAt.UTC().Format("2006-01-02T15:04:05Z07:00")
 	}
 	if o.PaidAt != nil {
 		view.PaidAt = o.PaidAt.UTC().Format("2006-01-02T15:04:05Z07:00")

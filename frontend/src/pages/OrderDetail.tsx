@@ -47,6 +47,16 @@ export function OrderDetailPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const confirmReceipt = useMutation({
+    mutationFn: () => api.post<Order>(`/orders/${id}/complete`),
+    onSuccess: () => {
+      toast.success("Thanks for confirming delivery");
+      void queryClient.invalidateQueries({ queryKey: ["order", id] });
+      void queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -102,6 +112,11 @@ export function OrderDetailPage() {
             </Button>
           </div>
         )}
+        {order.status === "shipped" && (
+          <Button disabled={confirmReceipt.isPending} onClick={() => confirmReceipt.mutate()}>
+            {confirmReceipt.isPending ? "Confirming…" : "Confirm receipt"}
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -138,8 +153,7 @@ export function OrderDetailPage() {
           <CardHeader>
             <CardTitle>Summary</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between text-sm">
+          <CardContent className="space-y-4">            <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatMoney(order.subtotalCents, order.currency)}</span>
             </div>
@@ -154,6 +168,36 @@ export function OrderDetailPage() {
               <span>Total</span>
               <span>{formatMoney(order.totalCents, order.currency)}</span>
             </div>
+
+            {order.shippingAddress && (
+              <>
+                <Separator />
+                <div className="space-y-1 text-sm">
+                  <p className="font-medium">Shipping to</p>
+                  <p>
+                    {order.shippingAddress.recipient}
+                    {order.shippingAddress.phone ? ` · ${order.shippingAddress.phone}` : ""}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {[
+                      order.shippingAddress.province,
+                      order.shippingAddress.city,
+                      order.shippingAddress.district,
+                      order.shippingAddress.line1,
+                      order.shippingAddress.postalCode,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  </p>
+                </div>
+              </>
+            )}
+            {order.trackingNo && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Tracking</span>
+                <span className="font-mono text-xs">{order.trackingNo}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

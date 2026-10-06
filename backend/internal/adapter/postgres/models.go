@@ -153,17 +153,21 @@ type productModel struct {
 func (productModel) TableName() string { return "products" }
 
 type orderModel struct {
-	ID            string           `gorm:"type:uuid;primaryKey"`
-	OrderNo       string           `gorm:"size:64;uniqueIndex;not null"`
-	UserID        string           `gorm:"type:uuid;index;not null"`
-	Status        string           `gorm:"size:32;index;not null"`
-	Currency      string           `gorm:"size:8;not null"`
-	SubtotalCents int64            `gorm:"not null;default:0"`
-	DiscountCents int64            `gorm:"not null;default:0"`
-	CouponID      uuidString       `gorm:"type:uuid;index"`
-	CouponCode    string           `gorm:"size:64;not null;default:''"`
-	TotalCents    int64            `gorm:"not null"`
-	PaymentID     uuidString       `gorm:"type:uuid;index"`
+	ID            string     `gorm:"type:uuid;primaryKey"`
+	OrderNo       string     `gorm:"size:64;uniqueIndex;not null"`
+	UserID        string     `gorm:"type:uuid;index;not null"`
+	Status        string     `gorm:"size:32;index;not null"`
+	Currency      string     `gorm:"size:8;not null"`
+	SubtotalCents int64      `gorm:"not null;default:0"`
+	DiscountCents int64      `gorm:"not null;default:0"`
+	CouponID      uuidString `gorm:"type:uuid;index"`
+	CouponCode    string     `gorm:"size:64;not null;default:''"`
+	TotalCents    int64      `gorm:"not null"`
+	PaymentID     uuidString `gorm:"type:uuid;index"`
+	ShippingJSON  []byte     `gorm:"column:shipping_address;type:jsonb"`
+	TrackingNo    string     `gorm:"size:128;not null;default:''"`
+	ShippedAt     *time.Time
+	CompletedAt   *time.Time
 	ExpiresAt     time.Time        `gorm:"index;not null"`
 	PaidAt        *time.Time       `gorm:"index"`
 	Items         []orderItemModel `gorm:"foreignKey:OrderID;constraint:OnDelete:CASCADE"`
@@ -263,6 +267,23 @@ type variantModel struct {
 
 func (variantModel) TableName() string { return "product_variants" }
 
+type addressModel struct {
+	ID         string    `gorm:"type:uuid;primaryKey"`
+	UserID     string    `gorm:"type:uuid;index;not null"`
+	Recipient  string    `gorm:"size:128;not null"`
+	Phone      string    `gorm:"size:32;not null;default:''"`
+	Province   string    `gorm:"size:64;not null;default:''"`
+	City       string    `gorm:"size:64;not null;default:''"`
+	District   string    `gorm:"size:64;not null;default:''"`
+	Line1      string    `gorm:"size:255;not null"`
+	PostalCode string    `gorm:"size:16;not null;default:''"`
+	Default    bool      `gorm:"column:is_default;not null;default:false"`
+	CreatedAt  time.Time `gorm:"not null"`
+	UpdatedAt  time.Time `gorm:"not null"`
+}
+
+func (addressModel) TableName() string { return "addresses" }
+
 // ---- mappers: persistence <-> domain ----
 
 func toUser(m *userModel) *domain.User {
@@ -327,8 +348,32 @@ func toOrder(m *orderModel) *domain.Order {
 		Currency: m.Currency, SubtotalCents: m.SubtotalCents, DiscountCents: m.DiscountCents,
 		CouponID: string(m.CouponID), CouponCode: m.CouponCode, TotalCents: m.TotalCents,
 		Items: items, PaymentID: string(m.PaymentID),
+		ShippingAddress: decodeAddress(m.ShippingJSON),
+		TrackingNo:      m.TrackingNo, ShippedAt: m.ShippedAt, CompletedAt: m.CompletedAt,
 		ExpiresAt: m.ExpiresAt, PaidAt: m.PaidAt, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
+}
+
+func decodeAddress(raw []byte) *domain.Address {
+	if len(raw) == 0 {
+		return nil
+	}
+	var a domain.Address
+	if err := json.Unmarshal(raw, &a); err != nil {
+		return nil
+	}
+	return &a
+}
+
+func encodeAddress(a *domain.Address) []byte {
+	if a == nil {
+		return nil
+	}
+	b, err := json.Marshal(a)
+	if err != nil {
+		return nil
+	}
+	return b
 }
 
 func fromOrder(o *domain.Order) *orderModel {
@@ -344,7 +389,9 @@ func fromOrder(o *domain.Order) *orderModel {
 		ID: o.ID, OrderNo: o.OrderNo, UserID: o.UserID, Status: string(o.Status),
 		Currency: o.Currency, SubtotalCents: o.SubtotalCents, DiscountCents: o.DiscountCents,
 		CouponID: uuidString(o.CouponID), CouponCode: o.CouponCode, TotalCents: o.TotalCents,
-		PaymentID: uuidString(o.PaymentID), ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Items: items,
+		PaymentID: uuidString(o.PaymentID), ShippingJSON: encodeAddress(o.ShippingAddress),
+		TrackingNo: o.TrackingNo, ShippedAt: o.ShippedAt, CompletedAt: o.CompletedAt,
+		ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Items: items,
 		CreatedAt: o.CreatedAt, UpdatedAt: o.UpdatedAt,
 	}
 }
@@ -416,5 +463,21 @@ func fromVariant(v *domain.Variant) *variantModel {
 		ID: v.ID, ProductID: v.ProductID, SKU: v.SKU, Name: v.Name,
 		PriceCents: v.PriceCents, Stock: v.Stock, Attributes: jsonMap(v.Attributes),
 		Sort: v.Sort, Active: v.Active, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt,
+	}
+}
+
+func toAddress(m *addressModel) *domain.Address {
+	return &domain.Address{
+		ID: m.ID, UserID: m.UserID, Recipient: m.Recipient, Phone: m.Phone,
+		Province: m.Province, City: m.City, District: m.District, Line1: m.Line1,
+		PostalCode: m.PostalCode, Default: m.Default, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
+	}
+}
+
+func fromAddress(a *domain.Address) *addressModel {
+	return &addressModel{
+		ID: a.ID, UserID: a.UserID, Recipient: a.Recipient, Phone: a.Phone,
+		Province: a.Province, City: a.City, District: a.District, Line1: a.Line1,
+		PostalCode: a.PostalCode, Default: a.Default, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt,
 	}
 }

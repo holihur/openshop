@@ -79,6 +79,18 @@ export type OrderStatus =
   | "completed"
   | "refunded";
 
+export interface Address {
+  id: string;
+  recipient: string;
+  phone: string;
+  province: string;
+  city: string;
+  district: string;
+  line1: string;
+  postalCode: string;
+  default: boolean;
+}
+
 export interface Order {
   id: string;
   orderNo: string;
@@ -90,6 +102,10 @@ export interface Order {
   totalCents: number;
   items: OrderItem[];
   paymentId: string;
+  shippingAddress?: Address;
+  trackingNo?: string;
+  shippedAt?: string;
+  completedAt?: string;
   expiresAt: string;
   paidAt?: string;
   createdAt: string;

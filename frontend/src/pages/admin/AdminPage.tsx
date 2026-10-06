@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Plus, RotateCcw } from "lucide-react";
+import { Pencil, Plus, RotateCcw, Truck } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -168,6 +168,25 @@ function AdminOrders() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const ship = useMutation({
+    mutationFn: ({ id, trackingNo }: { id: string; trackingNo: string }) =>
+      api.post<Order>(`/admin/orders/${id}/ship`, { trackingNo }),
+    onSuccess: () => {
+      toast.success("Order shipped");
+      void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const complete = useMutation({
+    mutationFn: (id: string) => api.post<Order>(`/admin/orders/${id}/complete`),
+    onSuccess: () => {
+      toast.success("Order completed");
+      void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -204,17 +223,43 @@ function AdminOrders() {
                   {formatDate(order.createdAt)}
                 </TableCell>
                 <TableCell className="text-right">
-                  {["paid", "shipped", "completed"].includes(order.status) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={refund.isPending}
-                      onClick={() => refund.mutate(order.id)}
-                    >
-                      <RotateCcw className="size-4" />
-                      Refund
-                    </Button>
-                  )}
+                  <div className="flex justify-end gap-1">
+                    {order.status === "paid" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={ship.isPending}
+                        onClick={() => {
+                          const trackingNo = window.prompt("Tracking number", "");
+                          if (trackingNo !== null) ship.mutate({ id: order.id, trackingNo });
+                        }}
+                      >
+                        <Truck className="size-4" />
+                        Ship
+                      </Button>
+                    )}
+                    {order.status === "shipped" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={complete.isPending}
+                        onClick={() => complete.mutate(order.id)}
+                      >
+                        Complete
+                      </Button>
+                    )}
+                    {["paid", "shipped", "completed"].includes(order.status) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={refund.isPending}
+                        onClick={() => refund.mutate(order.id)}
+                      >
+                        <RotateCcw className="size-4" />
+                        Refund
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

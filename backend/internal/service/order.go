@@ -27,6 +27,7 @@ type OrderService struct {
 	products     port.ProductRepository
 	coupons      port.CouponRepository
 	variants     port.VariantRepository
+	addresses    port.AddressRepository
 	carts        port.CartRepository
 	locker       port.Locker
 	tx           port.TxManager
@@ -46,6 +47,7 @@ func NewOrderService(
 	products port.ProductRepository,
 	coupons port.CouponRepository,
 	variants port.VariantRepository,
+	addresses port.AddressRepository,
 	carts port.CartRepository,
 	locker port.Locker,
 	tx port.TxManager,
@@ -66,7 +68,8 @@ func NewOrderService(
 		tracer = port.NoopTracer{}
 	}
 	return &OrderService{
-		orders: orders, products: products, coupons: coupons, variants: variants, carts: carts, locker: locker, tx: tx,
+		orders: orders, products: products, coupons: coupons, variants: variants, addresses: addresses,
+		carts: carts, locker: locker, tx: tx,
 		outbox: outbox, ids: ids, clock: clock, logger: logger, productCache: productCache,
 		metrics: metrics, tracer: tracer, ttl: ttl, currency: currency,
 	}
@@ -75,10 +78,18 @@ func NewOrderService(
 // Checkout converts the user's cart into a pending order, reserving stock. The
 // per-user lock prevents duplicate submissions from retries or double clicks;
 // the transaction guarantees stock and order move together.
-func (s *OrderService) Checkout(ctx context.Context, userID, couponCode string) (out *domain.Order, err error) {
+// CheckoutInput describes a checkout request. Coupon and address are optional.
+type CheckoutInput struct {
+	UserID     string
+	CouponCode string
+	AddressID  string
+}
+
+func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *domain.Order, err error) {
 	ctx, span := s.tracer.Start(ctx, "order.checkout",
-		port.Attribute{Key: "user.id", Value: userID},
-		port.Attribute{Key: "coupon", Value: couponCode},
+		port.Attribute{Key: "user.id", Value: in.UserID},
+		port.Attribute{Key: "coupon", Value: in.CouponCode},
+		port.Attribute{Key: "address.id", Value: in.AddressID},
 	)
 	defer func() {
 		if err != nil {
@@ -87,13 +98,13 @@ func (s *OrderService) Checkout(ctx context.Context, userID, couponCode string) 
 		span.End()
 	}()
 
-	lock, err := s.locker.Acquire(ctx, "lock:checkout:"+userID, 15*time.Second, 3*time.Second)
+	lock, err := s.locker.Acquire(ctx, "lock:checkout:"+in.UserID, 15*time.Second, 3*time.Second)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = lock.Release(ctx) }()
 
-	cart, err := s.carts.Get(ctx, userID)
+	cart, err := s.carts.Get(ctx, in.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -101,16 +112,30 @@ func (s *OrderService) Checkout(ctx context.Context, userID, couponCode string) 
 		return nil, domain.ErrCartEmpty
 	}
 
+	// Snapshot the shipping address so later edits never change the order.
+	var shipping *domain.Address
+	if in.AddressID != "" {
+		a, err := s.addresses.FindByID(ctx, in.AddressID)
+		if err != nil {
+			return nil, err
+		}
+		if a.UserID != in.UserID {
+			return nil, domain.ErrNotFound
+		}
+		shipping = a
+	}
+
 	now := s.clock.Now()
 	order := &domain.Order{
-		ID:        s.ids.NewID(),
-		OrderNo:   orderNo(now, s.ids.NewID()),
-		UserID:    userID,
-		Status:    domain.OrderPendingPayment,
-		Currency:  s.currency,
-		ExpiresAt: now.Add(s.ttl),
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:              s.ids.NewID(),
+		OrderNo:         orderNo(now, s.ids.NewID()),
+		UserID:          in.UserID,
+		Status:          domain.OrderPendingPayment,
+		Currency:        s.currency,
+		ShippingAddress: shipping,
+		ExpiresAt:       now.Add(s.ttl),
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	err = s.tx.WithinTx(ctx, func(txCtx context.Context) error {
@@ -163,8 +188,8 @@ func (s *OrderService) Checkout(ctx context.Context, userID, couponCode string) 
 		order.SubtotalCents = total
 		order.Items = items
 
-		if couponCode != "" {
-			if err := s.applyCoupon(txCtx, order, userID, couponCode, now); err != nil {
+		if in.CouponCode != "" {
+			if err := s.applyCoupon(txCtx, order, in.UserID, in.CouponCode, now); err != nil {
 				return err
 			}
 		}
@@ -178,7 +203,7 @@ func (s *OrderService) Checkout(ctx context.Context, userID, couponCode string) 
 		}
 		if order.CouponID != "" {
 			if err := s.coupons.CreateRedemption(txCtx, &domain.CouponRedemption{
-				ID: s.ids.NewID(), CouponID: order.CouponID, UserID: userID,
+				ID: s.ids.NewID(), CouponID: order.CouponID, UserID: in.UserID,
 				OrderID: order.ID, CreatedAt: now,
 			}); err != nil {
 				return err
@@ -194,8 +219,8 @@ func (s *OrderService) Checkout(ctx context.Context, userID, couponCode string) 
 
 	// The cart is cleared only after the transaction commits. Redis is shared,
 	// so the change is visible to the user's next request on any instance.
-	if err := s.carts.Delete(ctx, userID); err != nil {
-		s.logger.Warn("failed to clear cart after checkout", "userId", userID, "error", err)
+	if err := s.carts.Delete(ctx, in.UserID); err != nil {
+		s.logger.Warn("failed to clear cart after checkout", "userId", in.UserID, "error", err)
 	}
 
 	s.invalidateProducts(ctx, order)
@@ -340,6 +365,84 @@ func (s *OrderService) MarkRefunded(ctx context.Context, orderID, paymentID stri
 		return nil, err
 	}
 	s.invalidateProducts(ctx, out)
+	return out, nil
+}
+
+// MarkShipped transitions a paid order to shipped and records the tracking
+// number. Idempotent and serialised by a distributed lock.
+func (s *OrderService) MarkShipped(ctx context.Context, orderID, trackingNo string) (*domain.Order, error) {
+	lock, err := s.locker.Acquire(ctx, "lock:order:"+orderID, 10*time.Second, 3*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = lock.Release(ctx) }()
+
+	var out *domain.Order
+	err = s.tx.WithinTx(ctx, func(txCtx context.Context) error {
+		o, err := s.orders.FindByID(txCtx, orderID)
+		if err != nil {
+			return err
+		}
+		if o.Status == domain.OrderShipped || o.Status == domain.OrderCompleted {
+			out = o
+			return nil
+		}
+		if !o.Shippable() {
+			return domain.ErrOrderNotShippable
+		}
+		now := s.clock.Now()
+		o.Status = domain.OrderShipped
+		o.TrackingNo = trackingNo
+		o.ShippedAt = &now
+		o.UpdatedAt = now
+		if err := s.orders.Update(txCtx, o); err != nil {
+			return err
+		}
+		out = o
+		s.metrics.Counter("openshop_orders_shipped_total", 1, nil)
+		return s.enqueue(txCtx, SubjectOrderShipped, o)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// MarkCompleted closes a shipped order. Idempotent.
+func (s *OrderService) MarkCompleted(ctx context.Context, orderID string) (*domain.Order, error) {
+	lock, err := s.locker.Acquire(ctx, "lock:order:"+orderID, 10*time.Second, 3*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = lock.Release(ctx) }()
+
+	var out *domain.Order
+	err = s.tx.WithinTx(ctx, func(txCtx context.Context) error {
+		o, err := s.orders.FindByID(txCtx, orderID)
+		if err != nil {
+			return err
+		}
+		if o.Status == domain.OrderCompleted {
+			out = o
+			return nil
+		}
+		if !o.Completetable() {
+			return domain.ErrOrderNotCompletable
+		}
+		now := s.clock.Now()
+		o.Status = domain.OrderCompleted
+		o.CompletedAt = &now
+		o.UpdatedAt = now
+		if err := s.orders.Update(txCtx, o); err != nil {
+			return err
+		}
+		out = o
+		s.metrics.Counter("openshop_orders_completed_total", 1, nil)
+		return s.enqueue(txCtx, SubjectOrderCompleted, o)
+	})
+	if err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 

@@ -102,3 +102,15 @@ type VariantRepository interface {
 	DecreaseStock(ctx context.Context, variantID string, quantity int) error
 	IncreaseStock(ctx context.Context, variantID string, quantity int) error
 }
+
+// AddressRepository persists a user's shipping address book.
+type AddressRepository interface {
+	Create(ctx context.Context, a *domain.Address) error
+	Update(ctx context.Context, a *domain.Address) error
+	Delete(ctx context.Context, id string) error
+	FindByID(ctx context.Context, id string) (*domain.Address, error)
+	ListByUser(ctx context.Context, userID string) ([]domain.Address, error)
+	// ClearDefault unsets the default flag for every address of a user, so a new
+	// default can be set atomically by the caller.
+	ClearDefault(ctx context.Context, userID string) error
+}

@@ -100,11 +100,17 @@ func NewRouter(
 			authed.GET("/orders", h.ListOrders)
 			authed.GET("/orders/:id", h.GetOrder)
 			authed.POST("/orders/:id/cancel", h.CancelOrder)
+			authed.POST("/orders/:id/complete", h.ConfirmReceipt)
 
 			authed.POST("/payments", middleware.Idempotency(cache, 24*time.Hour), h.CreatePayment)
 			authed.POST("/payments/simulate", h.SimulatePayment)
 
 			authed.POST("/coupons/preview", h.PreviewCoupon)
+			authed.GET("/addresses", h.ListAddresses)
+			authed.POST("/addresses", h.CreateAddress)
+			authed.PATCH("/addresses/:id", h.UpdateAddress)
+			authed.DELETE("/addresses/:id", h.DeleteAddress)
+			authed.POST("/addresses/:id/default", h.SetDefaultAddress)
 			authed.POST("/products/:id/reviews", h.AddReview)
 			authed.PATCH("/reviews/:id", h.UpdateReview)
 			authed.DELETE("/reviews/:id", h.DeleteReview)
@@ -124,6 +130,8 @@ func NewRouter(
 			admin.POST("/uploads", h.UploadImage)
 			admin.GET("/orders", h.ListOrders)
 			admin.POST("/orders/:id/refund", h.RefundOrder)
+			admin.POST("/orders/:id/ship", h.ShipOrder)
+			admin.POST("/orders/:id/complete", h.CompleteOrder)
 			admin.GET("/coupons", h.ListCoupons)
 			admin.POST("/coupons", h.CreateCoupon)
 		}

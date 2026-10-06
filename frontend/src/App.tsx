@@ -12,6 +12,7 @@ import { OrderDetailPage } from "@/pages/OrderDetail";
 import { LoginPage } from "@/pages/Login";
 import { RegisterPage } from "@/pages/Register";
 import { PaymentResultPage } from "@/pages/PaymentResult";
+import { AddressesPage } from "@/pages/Addresses";
 import { AdminPage } from "@/pages/admin/AdminPage";
 import { NotFoundPage } from "@/pages/NotFound";
 
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="cart" element={<CartPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
+          <Route path="account/addresses" element={<AddressesPage />} />
         </Route>
 
         <Route element={<AdminRoute />}>

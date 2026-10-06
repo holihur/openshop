@@ -297,6 +297,12 @@ retries safe.
 | `GET` | `/orders` | ✔ | List orders (admins see all) |
 | `GET` | `/orders/:id` | ✔ | Order detail |
 | `POST` | `/orders/:id/cancel` | ✔ | Cancel & release stock |
+| `POST` | `/orders/:id/complete` | ✔ | Confirm receipt of a shipped order |
+| `GET` | `/addresses` | ✔ | List shipping addresses |
+| `POST` | `/addresses` | ✔ | Create an address |
+| `PATCH` | `/addresses/:id` | ✔ | Update an address |
+| `DELETE` | `/addresses/:id` | ✔ | Delete an address |
+| `POST` | `/addresses/:id/default` | ✔ | Set the default address |
 | `POST` | `/payments` | ✔ | Create a payment session |
 | `POST` | `/payments/simulate` | ✔ | Sandbox: confirm a mock payment |
 | `POST` | `/webhooks/payments/:provider` | — | Provider callback (signature-verified) |
@@ -311,6 +317,8 @@ retries safe.
 | `POST` | `/admin/uploads` | Upload an image (multipart) |
 | `GET` | `/admin/orders` | List all orders |
 | `POST` | `/admin/orders/:id/refund` | Refund a paid order (restores stock) |
+| `POST` | `/admin/orders/:id/ship` | Mark a paid order shipped (tracking number) |
+| `POST` | `/admin/orders/:id/complete` | Mark a shipped order completed |
 | `GET` | `/admin/coupons` | List coupons |
 | `POST` | `/admin/coupons` | Create a coupon |
 | `GET` | `/admin/products/:id/variants` | List a product's variants |
@@ -489,3 +497,8 @@ kubectl -n openshop scale deploy/openshop-backend --replicas=6
   Checkout resolves the purchasable unit, so both share the same atomic
   reservation, cancellation and refund logic. Cart lines are keyed by
   `(product, variant)`.
+- **Addresses are snapshotted.** Checkout copies the chosen address onto the
+  order, so editing the address book never rewrites order history.
+- **Explicit fulfilment state machine.** `pending_payment → paid → shipped →
+  completed`, with `cancelled`/`refunded` as terminal branches. Every transition
+  is idempotent, lock-protected and emits an event.

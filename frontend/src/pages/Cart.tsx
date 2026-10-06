@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { useCart, useClearCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/useCart";
+import { useAddresses } from "@/hooks/useAddresses";
 import type { CouponPreview, Order, Payment } from "@/lib/types";
 
 export function CartPage() {
@@ -24,6 +25,10 @@ export function CartPage() {
 
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState<CouponPreview | null>(null);
+  const [addressId, setAddressId] = useState("");
+  const { data: addresses } = useAddresses();
+  const chosenAddress =
+    addressId || addresses?.find((a) => a.default)?.id || addresses?.[0]?.id || "";
 
   const previewCoupon = useMutation({
     mutationFn: (code: string) =>
@@ -42,9 +47,12 @@ export function CartPage() {
   });
 
   const checkout = useMutation({
-    mutationFn: async (couponCode: string) => {
+    mutationFn: async ({ couponCode, addressId }: { couponCode: string; addressId: string }) => {
       // Creating the order reserves stock atomically on the server.
-      const order = await api.post<Order>("/orders", couponCode ? { couponCode } : {});
+      const order = await api.post<Order>("/orders", {
+        ...(couponCode ? { couponCode } : {}),
+        ...(addressId ? { addressId } : {}),
+      });
       // Then open a payment session with the (sandbox) provider.
       const payment = await api.post<Payment>("/payments", {
         orderId: order.id,
@@ -171,6 +179,47 @@ export function CartPage() {
             </div>
 
             <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Shipping address</span>
+                <Link to="/account/addresses" className="text-muted-foreground text-xs underline">
+                  Manage
+                </Link>
+              </div>
+              {addresses && addresses.length > 0 ? (
+                <div className="space-y-1">
+                  {addresses.map((a) => (
+                    <label
+                      key={a.id}
+                      className="flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm"
+                    >
+                      <input
+                        type="radio"
+                        name="shipping-address"
+                        className="mt-1"
+                        checked={chosenAddress === a.id}
+                        onChange={() => setAddressId(a.id)}
+                      />
+                      <span>
+                        <span className="font-medium">{a.recipient}</span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          {[a.province, a.city, a.district, a.line1].filter(Boolean).join(" ")}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-xs">
+                  No address yet.{" "}
+                  <Link to="/account/addresses" className="underline">
+                    Add one
+                  </Link>
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
               {applied ? (
                 <div className="bg-muted flex items-center justify-between rounded-md px-3 py-2 text-sm">
                   <span className="flex items-center gap-2">
@@ -224,7 +273,7 @@ export function CartPage() {
               className="w-full"
               size="lg"
               disabled={checkout.isPending}
-              onClick={() => checkout.mutate(applied?.code ?? "")}
+              onClick={() => checkout.mutate({ couponCode: applied?.code ?? "", addressId: chosenAddress })}
             >
               {checkout.isPending ? "Processing…" : "Checkout"}
             </Button>

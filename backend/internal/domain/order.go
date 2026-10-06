@@ -41,6 +41,11 @@ type Order struct {
 	TotalCents    int64
 	Items         []OrderItem
 	PaymentID     string
+	// ShippingAddress is a snapshot taken at checkout (nil for digital orders).
+	ShippingAddress *Address
+	TrackingNo      string
+	ShippedAt       *time.Time
+	CompletedAt     *time.Time
 	// ExpiresAt drives the "auto cancel unpaid order" worker. It is persisted so
 	// any instance can reclaim the released inventory after a restart.
 	ExpiresAt time.Time
@@ -65,6 +70,10 @@ func (o *Order) Refundable() bool {
 		return false
 	}
 }
+
+func (o *Order) Shippable() bool { return o.Status == OrderPaid }
+
+func (o *Order) Completetable() bool { return o.Status == OrderShipped }
 
 func (o *Order) Expired(now time.Time) bool {
 	return o.Status == OrderPendingPayment && !o.ExpiresAt.IsZero() && now.After(o.ExpiresAt)

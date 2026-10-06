@@ -24,9 +24,12 @@ func (r *OrderRepository) Create(ctx context.Context, o *domain.Order) error {
 
 func (r *OrderRepository) Update(ctx context.Context, o *domain.Order) error {
 	res := r.db.session(ctx).Model(&orderModel{}).Where("id = ?", o.ID).Updates(map[string]any{
-		"status":     string(o.Status),
-		"payment_id": nullableUUID(o.PaymentID),
-		"paid_at":    o.PaidAt,
+		"status":       string(o.Status),
+		"payment_id":   nullableUUID(o.PaymentID),
+		"paid_at":      o.PaidAt,
+		"tracking_no":  o.TrackingNo,
+		"shipped_at":   o.ShippedAt,
+		"completed_at": o.CompletedAt,
 	})
 	if res.Error != nil {
 		return translate(res.Error)

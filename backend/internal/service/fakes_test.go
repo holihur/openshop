@@ -472,6 +472,78 @@ func (r *fakeVariantRepo) IncreaseStock(_ context.Context, id string, qty int) e
 	return nil
 }
 
+type fakeAddressRepo struct {
+	mu   sync.Mutex
+	data map[string]*domain.Address
+}
+
+func newFakeAddressRepo() *fakeAddressRepo {
+	return &fakeAddressRepo{data: map[string]*domain.Address{}}
+}
+
+func (r *fakeAddressRepo) put(a *domain.Address) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cp := *a
+	r.data[a.ID] = &cp
+}
+
+func (r *fakeAddressRepo) Create(_ context.Context, a *domain.Address) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cp := *a
+	r.data[a.ID] = &cp
+	return nil
+}
+
+func (r *fakeAddressRepo) Update(_ context.Context, a *domain.Address) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cp := *a
+	r.data[a.ID] = &cp
+	return nil
+}
+
+func (r *fakeAddressRepo) Delete(_ context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.data, id)
+	return nil
+}
+
+func (r *fakeAddressRepo) FindByID(_ context.Context, id string) (*domain.Address, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if a, ok := r.data[id]; ok {
+		cp := *a
+		return &cp, nil
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (r *fakeAddressRepo) ListByUser(_ context.Context, userID string) ([]domain.Address, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := []domain.Address{}
+	for _, a := range r.data {
+		if a.UserID == userID {
+			out = append(out, *a)
+		}
+	}
+	return out, nil
+}
+
+func (r *fakeAddressRepo) ClearDefault(_ context.Context, userID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, a := range r.data {
+		if a.UserID == userID {
+			a.Default = false
+		}
+	}
+	return nil
+}
+
 type fakeCache struct {
 	mu   sync.Mutex
 	data map[string]string

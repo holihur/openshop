@@ -18,16 +18,17 @@ type ReadinessCheck struct {
 
 // Handler bundles the services and infrastructure the HTTP layer needs.
 type Handler struct {
-	Auth     *service.AuthService
-	Catalog  *service.CatalogService
-	Cart     *service.CartService
-	Orders   *service.OrderService
-	Payments *service.PaymentService
-	Coupons  *service.CouponService
-	Reviews  *service.ReviewService
-	Storage  port.ObjectStorage
-	IDs      port.IDGenerator
-	Logger   port.Logger
-	Metrics  http.Handler
-	Checks   []ReadinessCheck
+	Auth      *service.AuthService
+	Catalog   *service.CatalogService
+	Cart      *service.CartService
+	Orders    *service.OrderService
+	Payments  *service.PaymentService
+	Coupons   *service.CouponService
+	Reviews   *service.ReviewService
+	Addresses *service.AddressService
+	Storage   port.ObjectStorage
+	IDs       port.IDGenerator
+	Logger    port.Logger
+	Metrics   http.Handler
+	Checks    []ReadinessCheck
 }
