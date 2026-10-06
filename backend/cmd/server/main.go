@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -15,9 +16,17 @@ import (
 
 	"github.com/holihur/openshop/internal/bootstrap"
 	"github.com/holihur/openshop/internal/config"
+	"github.com/holihur/openshop/internal/version"
 )
 
 func main() {
+	showVersion := flag.Bool("version", false, "print version and exit")
+	flag.Parse()
+	if *showVersion {
+		fmt.Println(version.String())
+		return
+	}
+
 	// .env is optional; real deployments inject environment variables.
 	_ = godotenv.Load(".env", "../.env")
 

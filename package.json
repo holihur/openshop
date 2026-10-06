@@ -1,0 +1,13 @@
+{
+  "name": "openshop-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "build": "pnpm --filter @openshop/front build && pnpm --filter @openshop/ops build",
+    "dev:front": "pnpm --filter @openshop/front dev",
+    "dev:ops": "pnpm --filter @openshop/ops dev",
+    "lint": "pnpm --filter @openshop/front lint && pnpm --filter @openshop/ops lint"
+  }
+}

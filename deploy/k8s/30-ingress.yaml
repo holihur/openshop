@@ -1,0 +1,22 @@
+# The backend serves the API, the storefront and the admin console (both are
+# embedded in the binary), so a single ingress rule routes everything to it.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: openshop
+  namespace: openshop
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: shop.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: openshop-backend
+                port: { number: 8080 }

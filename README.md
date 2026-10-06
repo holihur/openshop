@@ -3,7 +3,10 @@
 A production-grade, **horizontally scalable** e-commerce storefront.
 
 - **Backend** — Go · Gin · GORM · PostgreSQL · NATS (JetStream) · Redis
-- **Frontend** — React 19 · TypeScript · Vite · TailwindCSS v4 · shadcn/ui · pnpm
+- **Frontends** — two React 19 + TypeScript + Vite + TailwindCSS v4 + shadcn/ui
+  SPAs: `front` (storefront) and `ops` (admin console). Both are compiled and
+  **embedded into the Go binary**, so one process serves the API and both UIs.
+  Package management is pnpm (workspace).
 
 Every third-party integration is reached through a **port interface**, so the
 business logic never depends on a concrete database, cache, broker, payment
@@ -30,6 +33,11 @@ checkout; distributed locks; NATS queue-group consumers; Redis cache/locks/carts
 Prometheus metrics; OpenTelemetry tracing across the async boundary; versioned
 migrations; SEO (robots/sitemap/JSON-LD); Docker Compose, Kubernetes manifests,
 CI, a smoke test and a k6 load test.
+
+**Delivery** — a single self-contained binary that serves the API, the storefront
+(`/`) and the admin console (`/ops`); GoReleaser publishes signed-checksum
+binaries for Linux/macOS/Windows to GitHub Releases, and a one-line install
+script downloads the right build for the host.
 
 ---
 
@@ -166,21 +174,19 @@ openshop/
 │   │   ├── port/           # interfaces (the dependency boundary)
 │   │   ├── service/        # use cases + tests with fakes
 │   │   ├── adapter/        # postgres, redis, nats, payment, storage, mail, sms, security, logger, metrics
-│   │   ├── http/           # router, middleware, handlers, response, docs (OpenAPI)
+│   │   ├── http/           # router, middleware, handlers, response, docs (OpenAPI), web (embedded SPAs)
 │   │   ├── worker/         # event consumers, order sweeper, outbox relay
 │   │   ├── config/         # 12-factor env configuration
+│   │   ├── version/        # build metadata injected by GoReleaser
 │   │   └── bootstrap/      # composition root
-│   └── migrations/         # *.sql (core, outbox, coupons, reviews, search, tracing, variants)
-├── frontend/
-│   └── src/
-│       ├── components/ui/  # shadcn/ui primitives
-│       ├── components/     # app components (header, product card, admin form, …)
-│       ├── pages/          # routes (incl. pages/admin)
-│       ├── hooks/          # react-query data hooks
-│       └── lib/            # api client, auth context, types, formatting
-├── deploy/k8s/             # namespace/config, infra, backend (HPA+PDB), frontend+ingress
-├── scripts/                # dev-setup.sh, smoke.sh, loadtest.js (k6)
-├── .github/workflows/      # CI (backend, frontend, docker)
+│   └── migrations/         # *.sql up + down/ (reversible)
+├── lib/                    # shared frontend code: api client, auth, types, ui, hooks
+├── front/                  # storefront SPA (Vite, built to front/dist)
+├── ops/                    # admin console SPA (Vite base /ops, built to ops/dist)
+├── deploy/k8s/             # namespace/config, infra, backend (HPA+PDB), ingress
+├── scripts/                # dev-setup.sh, embed-frontend.sh, install.sh, smoke.sh, loadtest.js
+├── .github/workflows/      # CI (backend, frontends, docker) + release (GoReleaser)
+├── .goreleaser.yaml        # release binaries for GitHub Releases
 ├── docker-compose.yml
 └── Makefile
 ```
@@ -189,17 +195,44 @@ openshop/
 
 ## Quick start
 
-### Option A — Docker Compose (everything)
+### Option 0 — Install the release binary (one line)
+
+No Go or Node toolchain required; the binaries already embed both SPAs.
 
 ```bash
-docker compose up --build -d
-docker compose run --rm migrate      # apply migrations
-docker compose run --rm seed         # optional demo data (profile: seed)
+curl -fsSL https://raw.githubusercontent.com/holihur/openshop/main/scripts/install.sh | sh
 ```
 
-- Storefront: <http://localhost:5173>
-- API: <http://localhost:8080/api/v1>
+The installer detects the OS/arch, verifies the SHA-256 checksum, installs
+`openshop`, `openshop-migrate` and `openshop-seed` (plus the SQL migrations) and
+prints the next steps. Then point it at PostgreSQL/Redis/NATS, migrate and run:
+
+```bash
+export POSTGRES_DSN='host=localhost port=5432 user=openshop password=openshop dbname=openshop sslmode=disable TimeZone=UTC'
+export REDIS_ADDR='localhost:6379'
+export NATS_URL='nats://localhost:4222'
+export JWT_SECRET="$(head -c 32 /dev/urandom | base64)"
+openshop-migrate -dir ~/.local/share/openshop/migrations
+openshop
+# storefront http://localhost:8080/ · admin http://localhost:8080/ops · docs /docs
+```
+
+### Option A — Docker Compose (everything)
+
+One image contains the API and both embedded SPAs.
+
+```bash
+docker compose up --build -d          # builds the image, migrates, starts backend
+docker compose run --rm seed          # optional demo data (profile: seed)
+```
+
+- Storefront: <http://localhost:8080/>
+- Admin console (ops): <http://localhost:8080/ops>
+- API: <http://localhost:8080/api/v1> · docs <http://localhost:8080/docs>
 - NATS monitoring: <http://localhost:8222>
+
+A root `.env` (generated by `install.sh`, or copy `backend/.env.example`) can set
+`POSTGRES_PASSWORD`, `JWT_SECRET`, `HTTP_PORT`, `APP_CURRENCY`, …
 
 Run several API replicas to see horizontal scaling:
 
@@ -222,11 +255,14 @@ go run ./cmd/migrate -dir migrations
 go run ./cmd/seed
 go run ./cmd/server
 
-# 3. Frontend (separate terminal)
-cd frontend
+# 3. Frontends (separate terminals)
 pnpm install
-pnpm run dev
+pnpm --filter @openshop/front dev   # storefront on :5173
+pnpm --filter @openshop/ops dev     # admin console on :5174
 ```
+
+To serve the built SPAs from the Go binary locally, run `make fe-build` before
+`go run ./cmd/server`; it builds `front`/`ops` and copies them into the module.
 
 Demo credentials created by the seed: `admin@openshop.local` / `admin12345`.
 
@@ -240,7 +276,10 @@ make migrate-down N=1   # revert the last migration
 make seed        # insert demo data
 make run         # run the API
 make test        # go test ./... -race
-make fe-dev      # frontend dev server
+make fe-build    # build front + ops and embed them into the backend
+make fe-dev      # storefront dev server
+make ops-dev     # admin console dev server
+make release     # local GoReleaser snapshot build
 ```
 
 ---
@@ -259,7 +298,7 @@ All configuration is environment-based (see `backend/.env.example`). Highlights:
 | `PAYMENT_PROVIDER` | `mock` | active payment gateway |
 | `STORAGE_DRIVER` | `local` | `local` or `s3` |
 | `WORKER_ENABLED` | `true` | run event consumers + sweeper |
-| `HTTP_CORS_ORIGINS` | `http://localhost:5173` | allowed SPA origins |
+| `HTTP_CORS_ORIGINS` | `http://localhost:5173,http://localhost:5174` | allowed SPA dev origins |
 
 ---
 
@@ -500,7 +539,8 @@ OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4318 OTEL_INSECURE=true go run ./cmd/serve
 - `20-backend.yaml` — Deployment (3 replicas, rolling update, anti-affinity,
   topology spread), readiness/liveness probes, **HPA** (3→20 on CPU/memory), **PDB**,
   and an **init container** that runs migrations (safe on every pod via the advisory lock)
-- `30-frontend.yaml` — Deployment, Service and Ingress
+- `30-ingress.yaml` — Ingress routing everything to the backend, which serves the
+  API and both embedded SPAs
 
 ```bash
 kubectl apply -f deploy/k8s/
@@ -508,14 +548,32 @@ kubectl -n openshop rollout status deploy/openshop-backend
 kubectl -n openshop scale deploy/openshop-backend --replicas=6
 ```
 
+### Release binaries (GoReleaser)
+
+Tag a release and GitHub Actions builds and publishes the binaries:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+`.goreleaser.yaml` cross-compiles `openshop`, `openshop-migrate` and
+`openshop-seed` for Linux/macOS/Windows (amd64 + arm64), embeds both SPAs into
+the server binary, injects the version/commit/date, and ships the SQL migrations
+in each archive. `scripts/install.sh` installs the right build for the host and
+verifies its checksum.
+
 ### CI
 
 `.github/workflows/ci.yml` runs on every push/PR:
 
 - **backend**: `gofmt` check, `go vet`, `go build`, `go test -race` with real
   PostgreSQL + Redis services (integration tests included), coverage summary
-- **frontend**: `pnpm install --frozen-lockfile`, type-check, production build
-- **docker**: builds both images
+- **frontends**: `pnpm install --frozen-lockfile`, type-check and production build
+  of both `front` and `ops`
+- **docker**: builds the single backend image (API + embedded SPAs)
+- **release-config**: `goreleaser check`
+
+`.github/workflows/release.yml` publishes a GitHub Release on every `v*` tag.
 
 ## Known limitations
 

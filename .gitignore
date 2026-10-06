@@ -11,8 +11,17 @@
 
 # Node
 node_modules/
-/frontend/dist/
-/frontend/.vite/
+/front/dist/
+/front/.vite/
+/ops/dist/
+/ops/.vite/
+/lib/.vite/
+
+# Embedded SPA output (built by scripts/embed-frontend.sh; placeholders tracked)
+/backend/internal/http/web/front/dist/*
+!/backend/internal/http/web/front/dist/.gitkeep
+/backend/internal/http/web/ops/dist/*
+!/backend/internal/http/web/ops/dist/.gitkeep
 
 # Editors / OS
 .DS_Store

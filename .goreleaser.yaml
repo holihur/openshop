@@ -1,0 +1,97 @@
+# GoReleaser builds the OpenShop binaries (API + embedded storefront and admin
+# console) and publishes them to GitHub Releases. Triggered by a v* tag; see
+# .github/workflows/release.yml.
+version: 2
+
+project_name: openshop
+
+before:
+  hooks:
+    # Builds front + ops and copies their output into the Go module so the
+    # embedded SPAs ship inside the binaries. No-op when pnpm is unavailable.
+    - sh scripts/embed-frontend.sh
+
+builds:
+  - id: openshop
+    dir: backend
+    main: ./cmd/server
+    binary: openshop
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/holihur/openshop/internal/version.Version={{.Version}}
+      - -X github.com/holihur/openshop/internal/version.Commit={{.Commit}}
+      - -X github.com/holihur/openshop/internal/version.Date={{.Date}}
+  - id: openshop-migrate
+    dir: backend
+    main: ./cmd/migrate
+    binary: openshop-migrate
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/holihur/openshop/internal/version.Version={{.Version}}
+      - -X github.com/holihur/openshop/internal/version.Commit={{.Commit}}
+      - -X github.com/holihur/openshop/internal/version.Date={{.Date}}
+  - id: openshop-seed
+    dir: backend
+    main: ./cmd/seed
+    binary: openshop-seed
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/holihur/openshop/internal/version.Version={{.Version}}
+      - -X github.com/holihur/openshop/internal/version.Commit={{.Commit}}
+      - -X github.com/holihur/openshop/internal/version.Date={{.Date}}
+
+archives:
+  - id: openshop
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - backend/.env.example
+      - src: backend/migrations
+        dst: migrations
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "Merge pull request"
+      - "Merge branch"
+
+release:
+  github:
+    owner: holihur
+    name: openshop
+  draft: false
+  prerelease: auto
+  footer: |
+    ## Install
+
+    ```sh
+    curl -fsSL https://raw.githubusercontent.com/holihur/openshop/main/scripts/install.sh | sh
+    ```
+
+    This downloads the latest release for your OS/arch, verifies its checksum and
+    installs `openshop`, `openshop-migrate` and `openshop-seed` into
+    `~/.local/bin` (or `/usr/local/bin` when writable).

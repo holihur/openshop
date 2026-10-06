@@ -1,0 +1,72 @@
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Package } from "lucide-react";
+
+import { Button } from "@lib/components/ui/button";
+import { Card, CardContent } from "@lib/components/ui/card";
+import { Skeleton } from "@lib/components/ui/skeleton";
+import { OrderStatusBadge } from "@lib/components/order-status-badge";
+import { api } from "@lib/api";
+import { formatDate, formatMoney } from "@lib/format";
+import type { Order } from "@lib/types";
+
+export function OrdersPage() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["orders"],
+    queryFn: () => api.getPage<Order[]>("/orders?pageSize=20"),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
+
+  if (!data || data.items.length === 0) {
+    return (
+      <div className="py-20 text-center">
+        <Package className="text-muted-foreground mx-auto size-10" />
+        <p className="mt-4 text-lg font-medium">No orders yet</p>
+        <Button className="mt-6" asChild>
+          <Link to="/products">Start shopping</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">Your orders</h1>
+      <div className="space-y-3">
+        {data.items.map((order) => (
+          <Card key={order.id}>
+            <CardContent className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-3">
+                  <Link to={`/orders/${order.id}`} className="font-medium hover:underline">
+                    {order.orderNo}
+                  </Link>
+                  <OrderStatusBadge status={order.status} />
+                </div>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  {formatDate(order.createdAt)} · {order.items.length} item(s)
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="font-semibold">
+                  {formatMoney(order.totalCents, order.currency)}
+                </span>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/orders/${order.id}`}>View</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}

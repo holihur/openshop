@@ -26,8 +26,10 @@ import (
 	"github.com/holihur/openshop/internal/config"
 	apphttp "github.com/holihur/openshop/internal/http"
 	"github.com/holihur/openshop/internal/http/handler"
+	"github.com/holihur/openshop/internal/http/web"
 	"github.com/holihur/openshop/internal/port"
 	"github.com/holihur/openshop/internal/service"
+	"github.com/holihur/openshop/internal/version"
 	"github.com/holihur/openshop/internal/worker"
 )
 
@@ -52,6 +54,7 @@ type App struct {
 // New builds the full dependency graph and returns a ready-to-run App.
 func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	log := logger.New(cfg.App.LogLevel, cfg.App.IsProduction(), cfg.App.Name, "instance", cfg.App.InstanceID)
+	log.Info("starting", "version", version.Version, "commit", version.Commit, "front_embedded", web.FrontBuilt(), "ops_embedded", web.OpsBuilt())
 
 	// --- infrastructure (each behind a port) ---
 	db, err := postgres.Open(cfg.Postgres, log)

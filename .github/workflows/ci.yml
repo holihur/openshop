@@ -58,12 +58,9 @@ jobs:
       - name: Coverage summary
         run: go tool cover -func=coverage.out | tail -1
 
-  frontend:
-    name: Frontend (React)
+  frontends:
+    name: Frontends (React)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -75,7 +72,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install
         run: pnpm install --frozen-lockfile
@@ -83,16 +80,30 @@ jobs:
       - name: Type-check
         run: pnpm run lint
 
-      - name: Build
+      - name: Build storefront and ops
         run: pnpm run build
 
   docker:
-    name: Docker images
+    name: Docker image
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend, frontends]
     steps:
       - uses: actions/checkout@v4
-      - name: Build backend image
-        run: docker build -t openshop-backend ./backend
-      - name: Build frontend image
-        run: docker build -t openshop-frontend ./frontend
+      - name: Build backend image (API + embedded SPAs)
+        run: docker build -f backend/Dockerfile -t openshop-backend .
+
+  release-config:
+    name: GoReleaser config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: check

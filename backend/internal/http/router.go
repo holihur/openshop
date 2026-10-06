@@ -4,6 +4,7 @@ package http
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +13,7 @@ import (
 	"github.com/holihur/openshop/internal/http/docs"
 	"github.com/holihur/openshop/internal/http/handler"
 	"github.com/holihur/openshop/internal/http/middleware"
+	"github.com/holihur/openshop/internal/http/web"
 	"github.com/holihur/openshop/internal/port"
 	"github.com/holihur/openshop/internal/service"
 )
@@ -185,8 +187,25 @@ func NewRouter(
 		}
 	}
 
+	// Everything that is not an API, docs, metrics or upload route is served by
+	// an embedded single-page app: the admin console under /ops, the storefront
+	// everywhere else. Each falls back to index.html for client-side routes.
+	front := web.Front()
+	ops := web.Ops()
 	r.NoRoute(func(c *gin.Context) {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "not_found", "message": "route not found"}})
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "not_found", "message": "route not found"}})
+			return
+		}
+		// Gin sets a 404 status before invoking NoRoute; reset it so the SPA
+		// handlers can serve their content with a 200.
+		c.Status(http.StatusOK)
+		if path == "/ops" || strings.HasPrefix(path, "/ops/") {
+			ops.ServeHTTP(c.Writer, c.Request)
+			return
+		}
+		front.ServeHTTP(c.Writer, c.Request)
 	})
 
 	return r

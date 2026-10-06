@@ -1,6 +1,5 @@
 SHELL := /bin/bash
 BACKEND := backend
-FRONTEND := frontend
 
 .PHONY: help
 help: ## Show this help
@@ -11,8 +10,12 @@ tidy: ## Resolve Go dependencies
 	cd $(BACKEND) && go mod tidy
 
 .PHONY: build
-build: ## Build the backend binaries
+build: ## Build the backend binaries (serves the embedded SPAs if present)
 	cd $(BACKEND) && go build ./...
+
+.PHONY: embed
+embed: ## Build front + ops and embed them into the backend
+	./scripts/embed-frontend.sh
 
 .PHONY: test
 test: ## Run backend tests
@@ -68,13 +71,21 @@ down: ## Stop the stack
 	docker compose down
 
 .PHONY: fe-install
-fe-install: ## Install frontend dependencies
-	cd $(FRONTEND) && pnpm install
+fe-install: ## Install frontend dependencies (pnpm workspace)
+	pnpm install
 
 .PHONY: fe-dev
-fe-dev: ## Run the frontend dev server
-	cd $(FRONTEND) && pnpm run dev
+fe-dev: ## Run the storefront dev server (http://localhost:5173)
+	pnpm --filter @openshop/front dev
+
+.PHONY: ops-dev
+ops-dev: ## Run the admin console dev server (http://localhost:5174)
+	pnpm --filter @openshop/ops dev
 
 .PHONY: fe-build
-fe-build: ## Build the frontend
-	cd $(FRONTEND) && pnpm run build
+fe-build: ## Build both SPAs and copy them into the backend
+	./scripts/embed-frontend.sh
+
+.PHONY: release
+release: ## Build release artifacts locally with GoReleaser (snapshot)
+	goreleaser release --snapshot --clean

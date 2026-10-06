@@ -37,8 +37,8 @@ pass "login"
 AUTH=(-H "Authorization: Bearer $TOKEN")
 
 # 3. Catalog — pick a simple product (no variants) that is in stock.
-PRODUCT_ID=$(curl -fsS "$API_BASE/products?pageSize=50" | jq -r '[.data[] | select(.stock > 0)][0].id')
-[ -n "$PRODUCT_ID" ] && [ "$PRODUCT_ID" != "null" ] || fail "no in-stock product (run: make seed)"
+PRODUCT_ID=$(curl -fsS "$API_BASE/products?pageSize=50" | jq -r '[.data[] | select(.stock > 1)][0].id')
+[ -n "$PRODUCT_ID" ] && [ "$PRODUCT_ID" != "null" ] || fail "no product with stock > 1 (run: make seed)"
 STOCK_BEFORE=$(curl -fsS "$API_BASE/products/$PRODUCT_ID" | jq -r .data.stock)
 pass "catalog (product $PRODUCT_ID, stock $STOCK_BEFORE)"
 

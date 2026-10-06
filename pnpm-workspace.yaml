@@ -1,0 +1,7 @@
+packages:
+  - lib
+  - front
+  - ops
+
+allowBuilds:
+  esbuild: true

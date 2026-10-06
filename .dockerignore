@@ -1,0 +1,14 @@
+# Keep the Docker build context small; the web stages build their own outputs.
+.git
+.github
+**/node_modules
+node_modules
+front/dist
+ops/dist
+backend/data
+bin
+.dev
+data
+*.log
+backend/internal/http/web/front/dist
+backend/internal/http/web/ops/dist
