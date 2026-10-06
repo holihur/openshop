@@ -45,6 +45,21 @@ func (h *Handler) ListReviews(c *gin.Context) {
 	response.Paginated(c, out, reviews.Total, reviews.Page, reviews.PageSize)
 }
 
+// ListAllReviews powers the admin moderation view.
+func (h *Handler) ListAllReviews(c *gin.Context) {
+	page, size := parsePage(c, 20)
+	reviews, err := h.Reviews.ListAll(c.Request.Context(), page, size)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	out := make([]reviewView, 0, len(reviews.Items))
+	for _, r := range reviews.Items {
+		out = append(out, toReviewView(r))
+	}
+	response.Paginated(c, out, reviews.Total, reviews.Page, reviews.PageSize)
+}
+
 func (h *Handler) AddReview(c *gin.Context) {
 	var req addReviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

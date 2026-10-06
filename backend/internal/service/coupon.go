@@ -73,6 +73,64 @@ func (s *CouponService) List(ctx context.Context) ([]domain.Coupon, error) {
 	return s.coupons.List(ctx)
 }
 
+// UpdateCouponInput carries partial updates; nil fields are left unchanged.
+type UpdateCouponInput struct {
+	Description      *string
+	DiscountValue    *int64
+	MinSubtotalCents *int64
+	MaxDiscountCents *int64
+	UsageLimit       *int
+	PerUserLimit     *int
+	StartsAt         *time.Time
+	EndsAt           *time.Time
+	Active           *bool
+}
+
+func (s *CouponService) Update(ctx context.Context, id string, in UpdateCouponInput) (*domain.Coupon, error) {
+	c, err := s.coupons.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if in.Description != nil {
+		c.Description = *in.Description
+	}
+	if in.DiscountValue != nil {
+		if c.DiscountType == domain.DiscountPercent && (*in.DiscountValue < 1 || *in.DiscountValue > 100) {
+			return nil, fmt.Errorf("%w: percent discount must be between 1 and 100", domain.ErrInvalidArgument)
+		}
+		if c.DiscountType == domain.DiscountFixed && *in.DiscountValue < 1 {
+			return nil, fmt.Errorf("%w: fixed discount must be positive", domain.ErrInvalidArgument)
+		}
+		c.DiscountValue = *in.DiscountValue
+	}
+	if in.MinSubtotalCents != nil {
+		c.MinSubtotalCents = *in.MinSubtotalCents
+	}
+	if in.MaxDiscountCents != nil {
+		c.MaxDiscountCents = *in.MaxDiscountCents
+	}
+	if in.UsageLimit != nil {
+		c.UsageLimit = *in.UsageLimit
+	}
+	if in.PerUserLimit != nil {
+		c.PerUserLimit = *in.PerUserLimit
+	}
+	if in.StartsAt != nil {
+		c.StartsAt = in.StartsAt
+	}
+	if in.EndsAt != nil {
+		c.EndsAt = in.EndsAt
+	}
+	if in.Active != nil {
+		c.Active = *in.Active
+	}
+	c.UpdatedAt = s.clock.Now()
+	if err := s.coupons.Update(ctx, c); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 // CouponPreview is the result of validating a coupon against a subtotal.
 type CouponPreview struct {
 	Coupon        *domain.Coupon

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/holihur/openshop/internal/http/middleware"
@@ -92,6 +94,13 @@ func (h *Handler) Login(c *gin.Context) {
 		Identifier: req.Identifier, Password: req.Password,
 	})
 	if err != nil {
+		if h.Audit != nil {
+			h.Audit.Record(c.Request.Context(), service.Entry{
+				Action: "auth.login_failed", ResourceType: "user",
+				Metadata: map[string]string{"identifier": maskIdentifier(req.Identifier)},
+				IP:       c.ClientIP(),
+			})
+		}
 		response.Fail(c, err)
 		return
 	}
@@ -207,6 +216,25 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	}
 	h.audit(c, "auth.password_change", "user", middleware.UserID(c), nil)
 	response.OK(c, gin.H{"changed": true})
+}
+
+// maskIdentifier keeps audit entries useful without storing full PII.
+func maskIdentifier(id string) string {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return ""
+	}
+	if at := strings.IndexByte(id, '@'); at >= 0 {
+		local := id[:at]
+		if len(local) > 2 {
+			local = local[:2] + "***"
+		}
+		return local + id[at:]
+	}
+	if len(id) > 4 {
+		return id[:2] + "****" + id[len(id)-2:]
+	}
+	return "***"
 }
 
 func toAuthView(res *service.AuthResult) authView {

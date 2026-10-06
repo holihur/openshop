@@ -989,6 +989,45 @@ paths:
                 provider: { type: string }
       responses:
         "200": { description: Confirmed }
+  /admin/coupons/{id}:
+    patch:
+      tags: [Admin]
+      summary: Update or deactivate a coupon
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description: { type: string }
+                discountValue: { type: integer, format: int64 }
+                minSubtotalCents: { type: integer, format: int64 }
+                maxDiscountCents: { type: integer, format: int64 }
+                usageLimit: { type: integer }
+                perUserLimit: { type: integer }
+                active: { type: boolean }
+      responses:
+        "200": { description: Updated }
+  /admin/reviews:
+    get:
+      tags: [Admin]
+      summary: List reviews across products for moderation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: page, schema: { type: integer, default: 1 } }
+      responses:
+        "200": { description: A page of reviews }
+  /admin/inventory/low-stock:
+    get:
+      tags: [Admin]
+      summary: Products and variants at or below the low-stock threshold
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Low-stock items }
 components:
   securitySchemes:
     bearerAuth:

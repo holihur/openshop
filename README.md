@@ -16,10 +16,10 @@ composition root (`internal/bootstrap`).
 full-text search, reviews with ratings, cart, coupons, shipping methods and tax,
 saved addresses, checkout, order tracking and self-service cancellation.
 
-**Operations** — merchant dashboard (revenue, order counts), product/variant
-management with image upload, order fulfilment (ship with tracking, complete,
-refund), coupon and shipping-method management, exchange rates, an audit trail,
-and review moderation.
+**Operations** — merchant dashboard (revenue, order counts, low stock),
+product/variant management with image upload, order fulfilment (ship with
+tracking, complete, refund), coupon and shipping-method management, exchange
+rates, an audit trail (including failed logins), and review moderation.
 
 **Platform** — JWT auth with refresh rotation, theft detection, email
 verification and password reset; per-IP and per-user rate limiting; payments
@@ -350,7 +350,10 @@ retries safe.
 | `PATCH` | `/admin/products/:id` | Update a product |
 | `POST` | `/admin/uploads` | Upload an image (multipart) |
 | `GET` | `/admin/orders` | List all orders |
-| `GET` | `/admin/stats` | Dashboard: revenue, order counts, recent orders |
+| `GET` | `/admin/stats` | Dashboard: revenue, order counts, recent orders, low stock |
+| `PATCH` | `/admin/coupons/:id` | Update or deactivate a coupon |
+| `GET` | `/admin/reviews` | List reviews for moderation |
+| `GET` | `/admin/inventory/low-stock` | Products/variants at or below the threshold |
 | `GET` | `/admin/audit-logs` | Audit trail (security and admin actions) |
 | `PUT` | `/admin/currencies/:code` | Set an exchange rate |
 | `POST` | `/admin/orders/:id/refund` | Refund a paid order (restores stock) |

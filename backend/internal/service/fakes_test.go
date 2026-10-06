@@ -345,6 +345,19 @@ func (r *fakeCouponRepo) Create(_ context.Context, c *domain.Coupon) error {
 	return nil
 }
 
+func (r *fakeCouponRepo) Update(_ context.Context, c *domain.Coupon) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for code, existing := range r.byCode {
+		if existing.ID == c.ID {
+			cp := *c
+			r.byCode[code] = &cp
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
 func (r *fakeCouponRepo) FindByID(_ context.Context, id string) (*domain.Coupon, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

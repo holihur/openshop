@@ -94,6 +94,35 @@ func (h *Handler) ListCoupons(c *gin.Context) {
 	response.OK(c, out)
 }
 
+type updateCouponRequest struct {
+	Description      *string `json:"description"`
+	DiscountValue    *int64  `json:"discountValue"`
+	MinSubtotalCents *int64  `json:"minSubtotalCents"`
+	MaxDiscountCents *int64  `json:"maxDiscountCents"`
+	UsageLimit       *int    `json:"usageLimit"`
+	PerUserLimit     *int    `json:"perUserLimit"`
+	Active           *bool   `json:"active"`
+}
+
+func (h *Handler) UpdateCoupon(c *gin.Context) {
+	var req updateCouponRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, wrapBind(err))
+		return
+	}
+	coupon, err := h.Coupons.Update(c.Request.Context(), c.Param("id"), service.UpdateCouponInput{
+		Description: req.Description, DiscountValue: req.DiscountValue,
+		MinSubtotalCents: req.MinSubtotalCents, MaxDiscountCents: req.MaxDiscountCents,
+		UsageLimit: req.UsageLimit, PerUserLimit: req.PerUserLimit, Active: req.Active,
+	})
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	h.audit(c, "coupon.update", "coupon", coupon.ID, map[string]string{"code": coupon.Code})
+	response.OK(c, toCouponView(*coupon))
+}
+
 // PreviewCoupon validates a coupon against a subtotal without consuming it, so
 // the storefront can show the discounted total before checkout.
 func (h *Handler) PreviewCoupon(c *gin.Context) {

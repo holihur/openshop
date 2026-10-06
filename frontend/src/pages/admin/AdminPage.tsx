@@ -20,7 +20,8 @@ import {
 import { ProductForm } from "@/components/admin/product-form";
 import { VariantsEditor } from "@/components/admin/variants-editor";
 import { OrderStatusBadge } from "@/components/order-status-badge";
-import { useAdminCoupons, useAdminOrders, useAdminProducts, useAuditLogs, useCreateCoupon, useCurrencies, useDashboard, useSetCurrencyRate } from "@/hooks/useAdmin";
+import { Pagination } from "@/components/pagination";
+import { useAdminCoupons, useAdminOrders, useAdminProducts, useAdminReviews, useAuditLogs, useCreateCoupon, useCurrencies, useDashboard, useDeleteReviewAdmin, useSetCurrencyRate, useUpdateCoupon } from "@/hooks/useAdmin";
 import {
   useAdminShippingMethods,
   useCreateShippingMethod,
@@ -28,9 +29,9 @@ import {
 } from "@/hooks/useShipping";
 import { api } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
-import type { AuditLog, Coupon, ExchangeRate, Order, Product, ShippingMethod } from "@/lib/types";
+import type { AuditLog, Coupon, ExchangeRate, Order, Product, Review, ShippingMethod } from "@/lib/types";
 
-type Tab = "dashboard" | "products" | "orders" | "coupons" | "shipping" | "audit" | "currency";
+type Tab = "dashboard" | "products" | "orders" | "coupons" | "reviews" | "shipping" | "audit" | "currency";
 
 export function AdminPage() {
   const [tab, setTab] = useState<Tab>("dashboard");
@@ -43,7 +44,7 @@ export function AdminPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(["dashboard", "products", "orders", "coupons", "shipping", "audit", "currency"] as Tab[]).map((t) => (
+        {(["dashboard", "products", "orders", "coupons", "reviews", "shipping", "audit", "currency"] as Tab[]).map((t) => (
           <Button
             key={t}
             variant={tab === t ? "default" : "outline"}
@@ -60,6 +61,7 @@ export function AdminPage() {
       {tab === "products" && <AdminProducts />}
       {tab === "orders" && <AdminOrders />}
       {tab === "coupons" && <AdminCoupons />}
+      {tab === "reviews" && <AdminReviews />}
       {tab === "shipping" && <AdminShipping />}
       {tab === "audit" && <AdminAudit />}
       {tab === "currency" && <AdminCurrency />}
@@ -199,6 +201,60 @@ function AdminAudit() {
                   {l.resourceId ? ` · ${l.resourceId.slice(0, 8)}` : ""}
                 </TableCell>
                 <TableCell className="text-muted-foreground text-xs">{l.ip}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AdminReviews() {
+  const { data, isLoading } = useAdminReviews();
+  const remove = useDeleteReviewAdmin();
+
+  if (isLoading) {
+    return <Skeleton className="h-64 w-full" />;
+  }
+
+  return (
+    <Card className="py-0">
+      <CardContent className="px-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Rating</TableHead>
+              <TableHead>Review</TableHead>
+              <TableHead>Product</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data?.items.map((r: Review) => (
+              <TableRow key={r.id}>
+                <TableCell>{"★".repeat(r.rating)}</TableCell>
+                <TableCell className="max-w-md">
+                  {r.title && <span className="font-medium">{r.title}</span>}
+                  {r.body && <p className="text-muted-foreground text-sm">{r.body}</p>}
+                </TableCell>
+                <TableCell className="text-muted-foreground font-mono text-xs">
+                  {r.productId.slice(0, 8)}
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm">
+                  {formatDate(r.createdAt)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={remove.isPending}
+                    onClick={() => remove.mutate(r.id)}
+                  >
+                    Delete
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -376,6 +432,27 @@ function AdminDashboard() {
         ))}
       </div>
 
+      {data.lowStock.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Low stock ({data.lowStock.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {data.lowStock.slice(0, 10).map((item) => (
+              <div key={`${item.type}-${item.id}`} className="flex items-center justify-between text-sm">
+                <span>
+                  {item.title}
+                  {item.variantName ? ` · ${item.variantName}` : ""}
+                </span>
+                <Badge variant={item.stock === 0 ? "destructive" : "warning"}>
+                  {item.stock} left
+                </Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="py-0">
         <CardHeader>
           <CardTitle className="py-4">Recent orders</CardTitle>
@@ -414,6 +491,7 @@ function AdminDashboard() {
 function AdminCoupons() {
   const { data, isLoading } = useAdminCoupons();
   const create = useCreateCoupon();
+  const update = useUpdateCoupon();
   const [code, setCode] = useState("");
   const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent");
   const [value, setValue] = useState("10");
@@ -513,6 +591,7 @@ function AdminCoupons() {
                   <TableHead>Discount</TableHead>
                   <TableHead>Used / limit</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -531,6 +610,31 @@ function AdminCoupons() {
                       <Badge variant={c.active ? "success" : "secondary"}>
                         {c.active ? "active" : "inactive"}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={update.isPending}
+                          onClick={() => update.mutate({ id: c.id, input: { active: !c.active } })}
+                        >
+                          {c.active ? "Deactivate" : "Activate"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={update.isPending}
+                          onClick={() => {
+                            const v = window.prompt("Usage limit (0 = unlimited)", String(c.usageLimit));
+                            if (v !== null) {
+                              update.mutate({ id: c.id, input: { usageLimit: Number.parseInt(v, 10) || 0 } });
+                            }
+                          }}
+                        >
+                          Edit limit
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -644,7 +748,8 @@ function AdminProducts() {
 }
 
 function AdminOrders() {
-  const { data, isLoading } = useAdminOrders(1, 50);
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useAdminOrders(page, 50);
   const queryClient = useQueryClient();
 
   const refund = useMutation({
@@ -755,6 +860,14 @@ function AdminOrders() {
           </TableBody>
         </Table>
       </CardContent>
+      {data && data.total > data.pageSize && (
+        <Pagination
+          page={data.page}
+          pageSize={data.pageSize}
+          total={data.total}
+          onChange={setPage}
+        />
+      )}
     </Card>
   );
 }

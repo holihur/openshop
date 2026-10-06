@@ -73,3 +73,45 @@ func (r *AnalyticsRepository) Dashboard(ctx context.Context) (domain.Dashboard, 
 }
 
 var _ port.AnalyticsRepository = (*AnalyticsRepository)(nil)
+
+// LowStock lists published products and active variants at or below threshold.
+func (r *AnalyticsRepository) LowStock(ctx context.Context, threshold int) ([]domain.LowStockItem, error) {
+	session := r.db.session(ctx)
+	out := make([]domain.LowStockItem, 0)
+
+	var products []productModel
+	if err := session.Where("status = ? AND stock <= ?", string(domain.ProductPublished), threshold).
+		Order("stock asc").Limit(100).Find(&products).Error; err != nil {
+		return nil, translate(err)
+	}
+	for i := range products {
+		out = append(out, domain.LowStockItem{
+			Type: "product", ID: products[i].ID, ProductID: products[i].ID,
+			Title: products[i].Title, Stock: products[i].Stock,
+		})
+	}
+
+	var rows []struct {
+		ID        string
+		ProductID string
+		Name      string
+		SKU       string
+		Stock     int
+		Title     string
+	}
+	if err := session.Table("product_variants AS v").
+		Select("v.id, v.product_id, v.name, v.sku, v.stock, p.title").
+		Joins("JOIN products AS p ON p.id = v.product_id").
+		Where("v.active AND v.stock <= ?", threshold).
+		Order("v.stock asc").Limit(100).
+		Scan(&rows).Error; err != nil {
+		return nil, translate(err)
+	}
+	for _, row := range rows {
+		out = append(out, domain.LowStockItem{
+			Type: "variant", ID: row.ID, ProductID: row.ProductID, Title: row.Title,
+			VariantName: row.Name, SKU: row.SKU, Stock: row.Stock,
+		})
+	}
+	return out, nil
+}

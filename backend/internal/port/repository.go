@@ -69,6 +69,7 @@ type PaymentRepository interface {
 // the distributed-safe guard that enforces global usage limits.
 type CouponRepository interface {
 	Create(ctx context.Context, c *domain.Coupon) error
+	Update(ctx context.Context, c *domain.Coupon) error
 	FindByID(ctx context.Context, id string) (*domain.Coupon, error)
 	FindByCode(ctx context.Context, code string) (*domain.Coupon, error)
 	List(ctx context.Context) ([]domain.Coupon, error)
@@ -88,6 +89,9 @@ type ReviewRepository interface {
 	FindByID(ctx context.Context, id string) (*domain.Review, error)
 	FindByUserAndProduct(ctx context.Context, userID, productID string) (*domain.Review, error)
 	ListByProduct(ctx context.Context, f domain.ReviewFilter) (domain.Page[domain.Review], error)
+	// List returns reviews across products for moderation; an empty ProductID
+	// means all products.
+	List(ctx context.Context, f domain.ReviewFilter) (domain.Page[domain.Review], error)
 	Summary(ctx context.Context, productID string) (domain.ReviewSummary, error)
 }
 
@@ -119,6 +123,8 @@ type AddressRepository interface {
 // AnalyticsRepository provides aggregate reads for the merchant dashboard.
 type AnalyticsRepository interface {
 	Dashboard(ctx context.Context) (domain.Dashboard, error)
+	// LowStock lists products and variants at or below the threshold.
+	LowStock(ctx context.Context, threshold int) ([]domain.LowStockItem, error)
 }
 
 // ShippingMethodRepository persists selectable shipping options.

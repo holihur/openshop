@@ -23,6 +23,27 @@ func (r *CouponRepository) Create(ctx context.Context, c *domain.Coupon) error {
 	return nil
 }
 
+func (r *CouponRepository) Update(ctx context.Context, c *domain.Coupon) error {
+	res := r.db.session(ctx).Model(&couponModel{}).Where("id = ?", c.ID).Updates(map[string]any{
+		"description":        c.Description,
+		"discount_value":     c.DiscountValue,
+		"min_subtotal_cents": c.MinSubtotalCents,
+		"max_discount_cents": c.MaxDiscountCents,
+		"usage_limit":        c.UsageLimit,
+		"per_user_limit":     c.PerUserLimit,
+		"starts_at":          c.StartsAt,
+		"ends_at":            c.EndsAt,
+		"active":             c.Active,
+	})
+	if res.Error != nil {
+		return translate(res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 func (r *CouponRepository) FindByID(ctx context.Context, id string) (*domain.Coupon, error) {
 	var m couponModel
 	if err := r.db.session(ctx).First(&m, "id = ?", id).Error; err != nil {

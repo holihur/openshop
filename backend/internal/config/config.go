@@ -39,6 +39,8 @@ type AppConfig struct {
 	RequireEmailVerification bool
 	// TaxRateBps is the tax rate in basis points (600 = 6%).
 	TaxRateBps int
+	// LowStockThreshold flags products/variants at or below this stock level.
+	LowStockThreshold int
 }
 
 type HTTPConfig struct {
@@ -146,6 +148,7 @@ func Load() (*Config, error) {
 			PublicSiteURL:            env("PUBLIC_SITE_URL", "http://localhost:5173"),
 			RequireEmailVerification: envBool("REQUIRE_EMAIL_VERIFICATION", false),
 			TaxRateBps:               envInt("TAX_RATE_BPS", 0),
+			LowStockThreshold:        envInt("LOW_STOCK_THRESHOLD", 5),
 		},
 		HTTP: HTTPConfig{
 			Addr:             env("HTTP_ADDR", ":8080"),

@@ -130,7 +130,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	couponSvc := service.NewCouponService(couponRepo, ids, clock)
 	reviewSvc := service.NewReviewService(reviewRepo, products, cache, ids, clock)
 	addressSvc := service.NewAddressService(addressRepo, ids, clock)
-	analyticsSvc := service.NewAnalyticsService(analyticsRepo, cache, cfg.App.Currency)
+	analyticsSvc := service.NewAnalyticsService(analyticsRepo, cache, cfg.App.Currency, cfg.App.LowStockThreshold)
 	shippingSvc := service.NewShippingService(shippingRepo, ids, clock)
 	auditSvc := service.NewAuditService(auditRepo, ids, clock, log)
 	wishlistSvc := service.NewWishlistService(wishlistRepo, products)

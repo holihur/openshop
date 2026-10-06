@@ -46,13 +46,17 @@ func Idempotency(cache port.Cache, ttl time.Duration) gin.HandlerFunc {
 	}
 	return func(c *gin.Context) {
 		key := c.GetHeader("Idempotency-Key")
-		userID := UserID(c)
-		if key == "" || userID == "" {
+		// Key on the cart subject (user or guest) so guest retries are also safe.
+		subject := Subject(c)
+		if subject == "" {
+			subject = UserID(c)
+		}
+		if key == "" || subject == "" {
 			c.Next()
 			return
 		}
 
-		cacheKey := "idem:" + userID + ":" + key
+		cacheKey := "idem:" + subject + ":" + key
 		ctx := c.Request.Context()
 
 		// Replay a previously stored response.

@@ -181,6 +181,8 @@ export interface CurrenciesResponse {
 
 export interface Dashboard {
   revenueCents: number;
+  revenueByCurrency?: Record<string, number>;
+  lowStock: LowStockItem[];
   paidOrders: number;
   pendingOrders: number;
   cancelledOrders: number;
@@ -188,6 +190,16 @@ export interface Dashboard {
   totalProducts: number;
   totalUsers: number;
   recentOrders: Order[];
+}
+
+export interface LowStockItem {
+  type: "product" | "variant";
+  id: string;
+  productId: string;
+  title: string;
+  variantName?: string;
+  sku?: string;
+  stock: number;
 }
 
 export interface Payment {

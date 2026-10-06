@@ -64,8 +64,21 @@ func (r *ReviewRepository) FindByUserAndProduct(ctx context.Context, userID, pro
 }
 
 func (r *ReviewRepository) ListByProduct(ctx context.Context, f domain.ReviewFilter) (domain.Page[domain.Review], error) {
+	return r.list(ctx, f, true)
+}
+
+func (r *ReviewRepository) List(ctx context.Context, f domain.ReviewFilter) (domain.Page[domain.Review], error) {
+	return r.list(ctx, f, false)
+}
+
+func (r *ReviewRepository) list(ctx context.Context, f domain.ReviewFilter, requireProduct bool) (domain.Page[domain.Review], error) {
 	page, size := normalizePage(f.Page, f.PageSize, 10)
-	q := r.db.session(ctx).Model(&reviewModel{}).Where("product_id = ?", f.ProductID)
+	q := r.db.session(ctx).Model(&reviewModel{})
+	if f.ProductID != "" {
+		q = q.Where("product_id = ?", f.ProductID)
+	} else if requireProduct {
+		return domain.Page[domain.Review]{}, domain.ErrInvalidArgument
+	}
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {

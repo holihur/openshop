@@ -160,6 +160,7 @@ func NewRouter(
 			admin.POST("/uploads", h.UploadImage)
 			admin.GET("/orders", h.ListOrders)
 			admin.GET("/stats", h.Dashboard)
+			admin.GET("/inventory/low-stock", h.LowStock)
 			admin.GET("/audit-logs", h.ListAuditLogs)
 			admin.GET("/shipping-methods", h.AdminListShippingMethods)
 			admin.POST("/shipping-methods", h.CreateShippingMethod)
@@ -169,7 +170,9 @@ func NewRouter(
 			admin.POST("/orders/:id/ship", h.ShipOrder)
 			admin.POST("/orders/:id/complete", h.CompleteOrder)
 			admin.GET("/coupons", h.ListCoupons)
+			admin.GET("/reviews", h.ListAllReviews)
 			admin.POST("/coupons", h.CreateCoupon)
+			admin.PATCH("/coupons/:id", h.UpdateCoupon)
 		}
 	}
 

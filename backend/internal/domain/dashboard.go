@@ -6,6 +6,7 @@ type Dashboard struct {
 	// RevenueByCurrency is the paid revenue per settlement currency; RevenueCents
 	// is the slice for the store base currency.
 	RevenueByCurrency map[string]int64
+	LowStock          []LowStockItem
 	PaidOrders        int64
 	PendingOrders     int64
 	CancelledOrders   int64

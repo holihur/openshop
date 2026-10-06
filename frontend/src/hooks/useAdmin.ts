@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
-import type { AuditLog, Category, Coupon, CurrenciesResponse, Dashboard, ExchangeRate, Order, Product, Variant } from "@/lib/types";
+import type { AuditLog, Category, Coupon, CurrenciesResponse, Dashboard, ExchangeRate, Order, Product, Review, Variant } from "@/lib/types";
 
 export interface ProductInput {
   categoryId?: string;
@@ -99,6 +99,38 @@ export function useCreateCoupon() {
     onSuccess: () => {
       toast.success("Coupon created");
       void queryClient.invalidateQueries({ queryKey: ["admin", "coupons"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useUpdateCoupon() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: Partial<CouponInput> }) =>
+      api.patch<Coupon>(`/admin/coupons/${id}`, input),
+    onSuccess: () => {
+      toast.success("Coupon updated");
+      void queryClient.invalidateQueries({ queryKey: ["admin", "coupons"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useAdminReviews() {
+  return useQuery({
+    queryKey: ["admin", "reviews"],
+    queryFn: () => api.getPage<Review[]>("/admin/reviews?pageSize=100"),
+  });
+}
+
+export function useDeleteReviewAdmin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del(`/reviews/${id}`),
+    onSuccess: () => {
+      toast.success("Review removed");
+      void queryClient.invalidateQueries({ queryKey: ["admin", "reviews"] });
     },
     onError: (error: Error) => toast.error(error.message),
   });

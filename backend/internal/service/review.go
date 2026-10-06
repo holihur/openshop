@@ -112,6 +112,12 @@ func (s *ReviewService) List(ctx context.Context, productID string, page, size i
 	return s.reviews.ListByProduct(ctx, domain.ReviewFilter{ProductID: productID, Page: page, PageSize: size})
 }
 
+// ListAll returns reviews across all products for admin moderation.
+func (s *ReviewService) ListAll(ctx context.Context, page, size int) (domain.Page[domain.Review], error) {
+	page, size = clampPage(page, size, 20)
+	return s.reviews.List(ctx, domain.ReviewFilter{Page: page, PageSize: size})
+}
+
 // Summary returns the cached aggregate rating, computing it on a miss.
 func (s *ReviewService) Summary(ctx context.Context, productID string) (domain.ReviewSummary, error) {
 	var cached domain.ReviewSummary
