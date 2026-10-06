@@ -30,6 +30,10 @@ test-integration: ## Run PostgreSQL integration tests
 smoke: ## Run the end-to-end smoke test against a running API
 	API_BASE="$${API_BASE:-http://localhost:8080/api/v1}" ./scripts/smoke.sh
 
+.PHONY: smoke-web
+smoke-web: ## Verify the embedded SPAs are served by a running server
+	WEB_BASE="$${WEB_BASE:-http://localhost:8080}" ./scripts/smoke-web.sh
+
 .PHONY: lint
 lint: ## Run gofmt check and go vet
 	cd $(BACKEND) && test -z "$$(gofmt -l .)" && go vet ./...

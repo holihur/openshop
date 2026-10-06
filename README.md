@@ -483,6 +483,16 @@ API_BASE=http://localhost:8080/api/v1 ./scripts/smoke.sh
 It verifies login, catalog, stock reservation, **idempotent replay**, payment
 and the resulting paid order.
 
+To verify the Go binary serves both embedded SPAs (build them first with
+`make fe-build`):
+
+```bash
+WEB_BASE=http://localhost:8080 ./scripts/smoke-web.sh
+```
+
+It checks the storefront shell, SPA fallback routes, the admin console under
+`/ops`, the hashed JS assets and `GET /api/v1/version`.
+
 ### Load test
 
 ```bash
