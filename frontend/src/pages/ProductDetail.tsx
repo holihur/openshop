@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReviewsSection } from "@/components/reviews-section";
+import { WishlistButton } from "@/components/wishlist-button";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { useAddToCart } from "@/hooks/useCart";
@@ -108,7 +109,10 @@ export function ProductDetailPage() {
 
         <div className="space-y-5">
           <div>
-            <h1 className="text-3xl font-bold">{product.title}</h1>
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-3xl font-bold">{product.title}</h1>
+              <WishlistButton productId={product.id} />
+            </div>
             <div className="mt-2 flex items-center gap-3">
               <span className="text-2xl font-semibold">
                 {formatMoney(effectivePrice, product.currency)}

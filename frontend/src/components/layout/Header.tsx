@@ -71,6 +71,21 @@ export function Header() {
               Addresses
             </NavLink>
           )}
+          {user && (
+            <NavLink
+              to="/account/wishlist"
+              className={({ isActive }) =>
+                cn(
+                  "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )
+              }
+            >
+              Wishlist
+            </NavLink>
+          )}
           {user?.role === "admin" && (
             <NavLink
               to="/admin"

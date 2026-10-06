@@ -16,6 +16,7 @@ import { ResetPasswordPage } from "@/pages/ResetPassword";
 import { VerifyEmailPage } from "@/pages/VerifyEmail";
 import { PaymentResultPage } from "@/pages/PaymentResult";
 import { AddressesPage } from "@/pages/Addresses";
+import { WishlistPage } from "@/pages/Wishlist";
 import { AdminPage } from "@/pages/admin/AdminPage";
 import { NotFoundPage } from "@/pages/NotFound";
 
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="account/addresses" element={<AddressesPage />} />
+          <Route path="account/wishlist" element={<WishlistPage />} />
         </Route>
 
         <Route element={<AdminRoute />}>

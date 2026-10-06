@@ -96,6 +96,10 @@ func NewRouter(
 			authed.POST("/auth/password/change", h.ChangePassword)
 			authed.POST("/auth/email/resend", h.ResendVerification)
 
+			authed.GET("/wishlist", h.ListWishlist)
+			authed.POST("/wishlist", h.AddWishlist)
+			authed.DELETE("/wishlist/:productId", h.RemoveWishlist)
+
 			authed.GET("/cart", h.GetCart)
 			authed.POST("/cart/items", h.AddCartItem)
 			authed.PATCH("/cart/items/:productId", h.UpdateCartItem)

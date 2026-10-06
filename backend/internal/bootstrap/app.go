@@ -116,6 +116,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	analyticsRepo := postgres.NewAnalyticsRepository(db)
 	shippingRepo := postgres.NewShippingMethodRepository(db)
 	auditRepo := postgres.NewAuditRepository(db)
+	wishlistRepo := postgres.NewWishlistRepository(db)
 	outbox := postgres.NewOutboxRepository(db)
 
 	// --- services ---
@@ -131,13 +132,14 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	analyticsSvc := service.NewAnalyticsService(analyticsRepo, cache)
 	shippingSvc := service.NewShippingService(shippingRepo, ids, clock)
 	auditSvc := service.NewAuditService(auditRepo, ids, clock, log)
+	wishlistSvc := service.NewWishlistService(wishlistRepo, products)
 	orderSvc := service.NewOrderService(orders, products, couponRepo, variantRepo, addressRepo, shippingRepo, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, cfg.App.TaxRateBps, cfg.App.OrderTTL, cfg.App.Currency)
 	paymentSvc := service.NewPaymentService(paymentRepo, orders, payments, orderSvc, ids, clock, log, promMetrics)
 
 	// --- HTTP surface ---
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Cart: cartSvc, Orders: orderSvc,
-		Payments: paymentSvc, Coupons: couponSvc, Reviews: reviewSvc, Addresses: addressSvc, Analytics: analyticsSvc, Shipping: shippingSvc, Audit: auditSvc,
+		Payments: paymentSvc, Coupons: couponSvc, Reviews: reviewSvc, Addresses: addressSvc, Analytics: analyticsSvc, Shipping: shippingSvc, Audit: auditSvc, Wishlist: wishlistSvc,
 		Storage: objectStore, IDs: ids, Logger: log,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{

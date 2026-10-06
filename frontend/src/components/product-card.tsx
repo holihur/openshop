@@ -4,6 +4,7 @@ import { ImageOff, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { WishlistButton } from "@/components/wishlist-button";
 import { formatMoney } from "@/lib/format";
 import { useAddToCart } from "@/hooks/useCart";
 import { useAuth } from "@/lib/auth";
@@ -35,6 +36,7 @@ export function ProductCard({ product }: { product: Product }) {
               Out of stock
             </Badge>
           )}
+          <WishlistButton productId={product.id} className="absolute top-2 right-2" />
         </div>
       </Link>
       <CardContent className="flex-1">

@@ -29,6 +29,7 @@ type Handler struct {
 	Analytics *service.AnalyticsService
 	Shipping  *service.ShippingService
 	Audit     *service.AuditService
+	Wishlist  *service.WishlistService
 	Storage   port.ObjectStorage
 	IDs       port.IDGenerator
 	Logger    port.Logger

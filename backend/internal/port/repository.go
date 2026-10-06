@@ -136,3 +136,10 @@ type AuditRepository interface {
 	Create(ctx context.Context, entry *domain.AuditLog) error
 	List(ctx context.Context, f domain.AuditFilter) (domain.Page[domain.AuditLog], error)
 }
+
+// WishlistRepository persists a user's saved products.
+type WishlistRepository interface {
+	Add(ctx context.Context, userID, productID string) error
+	Remove(ctx context.Context, userID, productID string) error
+	ListByUser(ctx context.Context, userID string) ([]domain.Product, error)
+}
