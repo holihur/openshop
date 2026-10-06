@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
-import type { Category, Order, Product } from "@/lib/types";
+import type { Category, Order, Product, Variant } from "@/lib/types";
 
 export interface ProductInput {
   categoryId?: string;
@@ -73,6 +73,52 @@ export function useUpdateProduct() {
 export function useUploadImage() {
   return useMutation({
     mutationFn: (file: File) => api.upload<{ key: string; url: string }>("/admin/uploads", file),
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export interface VariantInput {
+  sku?: string;
+  name: string;
+  priceCents: number;
+  stock: number;
+  active?: boolean;
+}
+
+export function useVariants(productId: string) {
+  return useQuery({
+    queryKey: ["admin", "variants", productId],
+    queryFn: () => api.get<Variant[]>(`/admin/products/${productId}/variants`),
+    enabled: Boolean(productId),
+  });
+}
+
+function invalidateVariants(queryClient: ReturnType<typeof useQueryClient>, productId: string) {
+  void queryClient.invalidateQueries({ queryKey: ["admin", "variants", productId] });
+  void queryClient.invalidateQueries({ queryKey: ["product", productId] });
+}
+
+export function useCreateVariant(productId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: VariantInput) =>
+      api.post<Variant>(`/admin/products/${productId}/variants`, input),
+    onSuccess: () => {
+      toast.success("Variant added");
+      invalidateVariants(queryClient, productId);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useUpdateVariant(productId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: Partial<VariantInput> }) =>
+      api.patch<Variant>(`/admin/variants/${id}`, input),
+    onSuccess: () => {
+      invalidateVariants(queryClient, productId);
+    },
     onError: (error: Error) => toast.error(error.message),
   });
 }

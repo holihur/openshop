@@ -12,13 +12,15 @@ import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { useAddToCart } from "@/hooks/useCart";
 import { useAuth } from "@/lib/auth";
-import type { Product } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import type { Product, Variant } from "@/lib/types";
 
 export function ProductDetailPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState<string | null>(null);
+  const [variantId, setVariantId] = useState<string>("");
   const { user } = useAuth();
   const addToCart = useAddToCart();
 
@@ -54,7 +56,20 @@ export function ProductDetailPage() {
 
   const gallery = [product.coverImage, ...(product.images ?? [])].filter(Boolean);
   const shown = activeImage ?? gallery[0];
-  const outOfStock = product.stock <= 0;
+
+  const variants = (product.variants ?? []).filter((v) => v.active);
+  const hasVariants = variants.length > 0;
+  const selected: Variant | undefined = hasVariants
+    ? variants.find((v) => v.id === variantId) ?? variants.find((v) => v.stock > 0) ?? variants[0]
+    : undefined;
+
+  const effectivePrice = selected
+    ? selected.priceCents > 0
+      ? selected.priceCents
+      : product.priceCents
+    : product.priceCents;
+  const effectiveStock = selected ? selected.stock : product.stock;
+  const outOfStock = effectiveStock <= 0;
 
   return (
     <div className="space-y-8">
@@ -96,12 +111,12 @@ export function ProductDetailPage() {
             <h1 className="text-3xl font-bold">{product.title}</h1>
             <div className="mt-2 flex items-center gap-3">
               <span className="text-2xl font-semibold">
-                {formatMoney(product.priceCents, product.currency)}
+                {formatMoney(effectivePrice, product.currency)}
               </span>
               {outOfStock ? (
                 <Badge variant="secondary">Out of stock</Badge>
               ) : (
-                <Badge variant="success">{product.stock} in stock</Badge>
+                <Badge variant="success">{effectiveStock} in stock</Badge>
               )}
             </div>
             {product.reviewCount ? (
@@ -115,6 +130,42 @@ export function ProductDetailPage() {
           <Separator />
 
           <p className="text-muted-foreground whitespace-pre-line">{product.description}</p>
+
+          {hasVariants && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Options</p>
+              <div className="flex flex-wrap gap-2">
+                {variants.map((v) => {
+                  const isSelected = selected?.id === v.id;
+                  const disabled = v.stock <= 0;
+                  return (
+                    <button
+                      key={v.id}
+                      disabled={disabled}
+                      onClick={() => {
+                        setVariantId(v.id);
+                        setQuantity(1);
+                      }}
+                      className={cn(
+                        "rounded-md border px-3 py-2 text-sm transition-colors",
+                        isSelected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "hover:bg-accent",
+                        disabled && "cursor-not-allowed opacity-40 line-through",
+                      )}
+                    >
+                      {v.name}
+                      {v.priceCents > 0 && v.priceCents !== product.priceCents && (
+                        <span className="ml-2 text-xs opacity-80">
+                          {formatMoney(v.priceCents, product.currency)}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-4">
             <div className="flex items-center rounded-md border">
@@ -130,7 +181,7 @@ export function ProductDetailPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                disabled={quantity >= product.stock}
+                disabled={quantity >= effectiveStock}
                 onClick={() => setQuantity((q) => q + 1)}
               >
                 <Plus className="size-4" />
@@ -146,7 +197,11 @@ export function ProductDetailPage() {
                   navigate("/login", { state: { from: `/products/${product.id}` } });
                   return;
                 }
-                addToCart.mutate({ productId: product.id, quantity });
+                addToCart.mutate({
+                  productId: product.id,
+                  variantId: selected?.id,
+                  quantity,
+                });
               }}
             >
               <ShoppingCart className="size-4" />

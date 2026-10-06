@@ -116,6 +116,9 @@ export function CartPage() {
                 <Link to={`/products/${item.productId}`} className="font-medium hover:underline">
                   {item.title}
                 </Link>
+                {item.variantName && (
+                  <p className="text-muted-foreground text-xs">{item.variantName}</p>
+                )}
                 <p className="text-muted-foreground text-sm">
                   {formatMoney(item.priceCents, item.currency)}
                 </p>
@@ -127,7 +130,7 @@ export function CartPage() {
                   className="size-8"
                   disabled={item.quantity <= 1 || updateItem.isPending}
                   onClick={() =>
-                    updateItem.mutate({ productId: item.productId, quantity: item.quantity - 1 })
+                    updateItem.mutate({ productId: item.productId, variantId: item.variantId, quantity: item.quantity - 1 })
                   }
                 >
                   <Minus className="size-3" />
@@ -139,7 +142,7 @@ export function CartPage() {
                   className="size-8"
                   disabled={updateItem.isPending}
                   onClick={() =>
-                    updateItem.mutate({ productId: item.productId, quantity: item.quantity + 1 })
+                    updateItem.mutate({ productId: item.productId, variantId: item.variantId, quantity: item.quantity + 1 })
                   }
                 >
                   <Plus className="size-3" />
@@ -149,7 +152,7 @@ export function CartPage() {
                 variant="ghost"
                 size="icon"
                 disabled={removeItem.isPending}
-                onClick={() => removeItem.mutate({ productId: item.productId })}
+                onClick={() => removeItem.mutate({ productId: item.productId, variantId: item.variantId })}
               >
                 <Trash2 className="size-4" />
               </Button>

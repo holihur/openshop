@@ -32,23 +32,34 @@ function useCartMutation<TArgs>(
   });
 }
 
+interface LineRef {
+  productId: string;
+  variantId?: string;
+}
+
 export function useAddToCart() {
   return useCartMutation(
-    ({ productId, quantity }: { productId: string; quantity?: number }) =>
-      api.post<Cart>("/cart/items", { productId, quantity: quantity ?? 1 }),
+    ({ productId, variantId, quantity }: LineRef & { quantity?: number }) =>
+      api.post<Cart>("/cart/items", {
+        productId,
+        variantId: variantId ?? "",
+        quantity: quantity ?? 1,
+      }),
     "Added to cart",
   );
 }
 
 export function useUpdateCartItem() {
-  return useCartMutation(({ productId, quantity }: { productId: string; quantity: number }) =>
-    api.patch<Cart>(`/cart/items/${productId}`, { quantity }),
+  return useCartMutation(({ productId, variantId, quantity }: LineRef & { quantity: number }) =>
+    api.patch<Cart>(`/cart/items/${productId}`, { variantId: variantId ?? "", quantity }),
   );
 }
 
 export function useRemoveCartItem() {
-  return useCartMutation(({ productId }: { productId: string }) =>
-    api.del<Cart>(`/cart/items/${productId}`),
+  return useCartMutation(({ productId, variantId }: LineRef) =>
+    api.del<Cart>(
+      `/cart/items/${productId}${variantId ? `?variantId=${encodeURIComponent(variantId)}` : ""}`,
+    ),
   );
 }
 

@@ -119,6 +119,9 @@ export function OrderDetailPage() {
                   >
                     {item.title}
                   </Link>
+                  {item.variantName && (
+                    <p className="text-muted-foreground text-xs">{item.variantName}</p>
+                  )}
                   <p className="text-muted-foreground text-sm">
                     {formatMoney(item.priceCents, order.currency)} × {item.quantity}
                   </p>

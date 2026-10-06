@@ -14,6 +14,17 @@ export interface Category {
   sort: number;
 }
 
+export interface Variant {
+  id: string;
+  sku: string;
+  name: string;
+  priceCents: number;
+  stock: number;
+  attributes?: Record<string, string>;
+  sort: number;
+  active: boolean;
+}
+
 export interface Product {
   id: string;
   categoryId: string;
@@ -26,12 +37,15 @@ export interface Product {
   images: string[];
   status: "draft" | "published" | "archived";
   stock: number;
+  variants?: Variant[];
   rating?: number;
   reviewCount?: number;
 }
 
 export interface CartItem {
   productId: string;
+  variantId?: string;
+  variantName?: string;
   title: string;
   coverImage: string;
   priceCents: number;
@@ -48,6 +62,9 @@ export interface Cart {
 export interface OrderItem {
   id: string;
   productId: string;
+  variantId?: string;
+  variantName?: string;
+  sku?: string;
   title: string;
   priceCents: number;
   quantity: number;

@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ProductForm } from "@/components/admin/product-form";
+import { VariantsEditor } from "@/components/admin/variants-editor";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { useAdminOrders, useAdminProducts } from "@/hooks/useAdmin";
 import { api } from "@/lib/api";
@@ -77,7 +78,12 @@ function AdminProducts() {
         )}
       </div>
 
-      {showForm && <ProductForm product={editing ?? undefined} onDone={closeForm} />}
+      {showForm && (
+        <div className="space-y-4">
+          <ProductForm product={editing ?? undefined} onDone={closeForm} />
+          {editing && <VariantsEditor productId={editing.id} />}
+        </div>
+      )}
 
       <Card className="py-0">
         <CardContent className="px-0">

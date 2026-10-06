@@ -111,6 +111,7 @@ running (see [Testing](#testing)).
 | `UserRepository`, `ProductRepository`, `OrderRepository`, `PaymentRepository`, `CategoryRepository` | GORM + PostgreSQL | in-memory fakes (tests) |
 | `CartRepository` | Redis | in-memory fake (tests) |
 | `CouponRepository`, `ReviewRepository` | GORM + PostgreSQL | in-memory fakes (tests) |
+| `VariantRepository` | GORM + PostgreSQL (SKU inventory) | in-memory fake (tests) |
 | `Cache` | Redis | in-memory fake (tests) |
 | `Locker` | Redis (`SET NX` + Lua release) | in-memory fake (tests) |
 | `EventBus` | NATS JetStream | in-memory fake (tests) |
@@ -148,7 +149,7 @@ openshop/
 │   │   ├── worker/         # event consumers, order sweeper, outbox relay
 │   │   ├── config/         # 12-factor env configuration
 │   │   └── bootstrap/      # composition root
-│   └── migrations/         # *.sql (0001 core, 0002 outbox, 0003 coupons, 0004 reviews, 0005 search)
+│   └── migrations/         # *.sql (core, outbox, coupons, reviews, search, tracing, variants)
 ├── frontend/
 │   └── src/
 │       ├── components/ui/  # shadcn/ui primitives
@@ -312,6 +313,9 @@ retries safe.
 | `POST` | `/admin/orders/:id/refund` | Refund a paid order (restores stock) |
 | `GET` | `/admin/coupons` | List coupons |
 | `POST` | `/admin/coupons` | Create a coupon |
+| `GET` | `/admin/products/:id/variants` | List a product's variants |
+| `POST` | `/admin/products/:id/variants` | Create a variant (SKU) |
+| `PATCH` | `/admin/variants/:id` | Update a variant |
 
 ### Ops
 
@@ -480,3 +484,8 @@ kubectl -n openshop scale deploy/openshop-backend --replicas=6
 - **Indexed search with a fallback.** Products carry a generated `tsvector`
   column with a GIN index; queries also fall back to a substring match so CJK
   and partial words still work.
+- **One checkout path for simple and variant products.** When a product has
+  variants, inventory and price live on the variant; otherwise on the product.
+  Checkout resolves the purchasable unit, so both share the same atomic
+  reservation, cancellation and refund logic. Cart lines are keyed by
+  `(product, variant)`.
