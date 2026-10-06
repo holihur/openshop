@@ -51,7 +51,8 @@ func main() {
 		}
 		if err := users.Create(ctx, &domain.User{
 			ID: ids.NewID(), Email: adminEmail, PasswordHash: hash, Name: "OpenShop Admin",
-			Role: domain.RoleAdmin, Status: domain.UserActive, CreatedAt: now, UpdatedAt: now,
+			Role: domain.RoleAdmin, Status: domain.UserActive,
+			EmailVerified: true, EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now,
 		}); err != nil {
 			fatal("create admin", err)
 		}

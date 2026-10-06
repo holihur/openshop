@@ -19,15 +19,17 @@ const (
 // User is the account aggregate root. It never stores a raw password, only a
 // hash produced by the PasswordHasher port.
 type User struct {
-	ID           string
-	Email        string
-	Phone        string
-	PasswordHash string
-	Name         string
-	Role         UserRole
-	Status       UserStatus
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID              string
+	Email           string
+	Phone           string
+	PasswordHash    string
+	Name            string
+	Role            UserRole
+	Status          UserStatus
+	EmailVerified   bool
+	EmailVerifiedAt *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 func (u *User) IsAdmin() bool { return u.Role == RoleAdmin }

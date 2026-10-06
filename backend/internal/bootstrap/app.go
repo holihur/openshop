@@ -120,6 +120,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	// --- services ---
 	authSvc := service.NewAuthService(users, hasher, tokens, cache, ids, clock, mailer, service.AuthConfig{
 		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL, ResetBaseURL: cfg.App.PasswordResetURL,
+		VerifyBaseURL: cfg.App.VerifyEmailURL, RequireEmailVerification: cfg.App.RequireEmailVerification,
 	})
 	catalogSvc := service.NewCatalogService(categories, products, variantRepo, cache, ids, clock, cfg.App.Currency)
 	cartSvc := service.NewCartService(cartRepo, products, variantRepo)

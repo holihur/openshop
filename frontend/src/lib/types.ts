@@ -4,6 +4,7 @@ export interface User {
   phone: string;
   name: string;
   role: "customer" | "admin";
+  emailVerified: boolean;
 }
 
 export interface Category {

@@ -109,15 +109,17 @@ func (m *jsonMap) Scan(src any) error {
 }
 
 type userModel struct {
-	ID           string    `gorm:"type:uuid;primaryKey"`
-	Email        string    `gorm:"size:255;uniqueIndex;not null"`
-	Phone        string    `gorm:"size:32;index"`
-	PasswordHash string    `gorm:"size:255;not null"`
-	Name         string    `gorm:"size:128"`
-	Role         string    `gorm:"size:32;index;not null;default:customer"`
-	Status       string    `gorm:"size:32;not null;default:active"`
-	CreatedAt    time.Time `gorm:"not null"`
-	UpdatedAt    time.Time `gorm:"not null"`
+	ID              string `gorm:"type:uuid;primaryKey"`
+	Email           string `gorm:"size:255;uniqueIndex;not null"`
+	Phone           string `gorm:"size:32;index"`
+	PasswordHash    string `gorm:"size:255;not null"`
+	Name            string `gorm:"size:128"`
+	Role            string `gorm:"size:32;index;not null;default:customer"`
+	Status          string `gorm:"size:32;not null;default:active"`
+	EmailVerified   bool   `gorm:"not null;default:false"`
+	EmailVerifiedAt *time.Time
+	CreatedAt       time.Time `gorm:"not null"`
+	UpdatedAt       time.Time `gorm:"not null"`
 }
 
 func (userModel) TableName() string { return "users" }
@@ -308,6 +310,7 @@ func toUser(m *userModel) *domain.User {
 	return &domain.User{
 		ID: m.ID, Email: m.Email, Phone: m.Phone, PasswordHash: m.PasswordHash,
 		Name: m.Name, Role: domain.UserRole(m.Role), Status: domain.UserStatus(m.Status),
+		EmailVerified: m.EmailVerified, EmailVerifiedAt: m.EmailVerifiedAt,
 		CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
 }
@@ -316,6 +319,7 @@ func fromUser(u *domain.User) *userModel {
 	return &userModel{
 		ID: u.ID, Email: u.Email, Phone: u.Phone, PasswordHash: u.PasswordHash,
 		Name: u.Name, Role: string(u.Role), Status: string(u.Status),
+		EmailVerified: u.EmailVerified, EmailVerifiedAt: u.EmailVerifiedAt,
 		CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt,
 	}
 }

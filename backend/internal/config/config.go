@@ -27,13 +27,15 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Name             string
-	Env              string
-	InstanceID       string
-	LogLevel         string
-	Currency         string
-	OrderTTL         time.Duration
-	PasswordResetURL string
+	Name                     string
+	Env                      string
+	InstanceID               string
+	LogLevel                 string
+	Currency                 string
+	OrderTTL                 time.Duration
+	PasswordResetURL         string
+	VerifyEmailURL           string
+	RequireEmailVerification bool
 	// TaxRateBps is the tax rate in basis points (600 = 6%).
 	TaxRateBps int
 }
@@ -128,14 +130,16 @@ type WorkerConfig struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		App: AppConfig{
-			Name:             env("APP_NAME", "openshop"),
-			Env:              env("APP_ENV", "development"),
-			InstanceID:       env("INSTANCE_ID", hostname()),
-			LogLevel:         env("LOG_LEVEL", "info"),
-			Currency:         env("APP_CURRENCY", "CNY"),
-			OrderTTL:         envDuration("ORDER_TTL", 30*time.Minute),
-			PasswordResetURL: env("PASSWORD_RESET_URL", "http://localhost:5173/reset-password"),
-			TaxRateBps:       envInt("TAX_RATE_BPS", 0),
+			Name:                     env("APP_NAME", "openshop"),
+			Env:                      env("APP_ENV", "development"),
+			InstanceID:               env("INSTANCE_ID", hostname()),
+			LogLevel:                 env("LOG_LEVEL", "info"),
+			Currency:                 env("APP_CURRENCY", "CNY"),
+			OrderTTL:                 envDuration("ORDER_TTL", 30*time.Minute),
+			PasswordResetURL:         env("PASSWORD_RESET_URL", "http://localhost:5173/reset-password"),
+			VerifyEmailURL:           env("EMAIL_VERIFY_URL", "http://localhost:5173/verify-email"),
+			RequireEmailVerification: envBool("REQUIRE_EMAIL_VERIFICATION", false),
+			TaxRateBps:               envInt("TAX_RATE_BPS", 0),
 		},
 		HTTP: HTTPConfig{
 			Addr:            env("HTTP_ADDR", ":8080"),

@@ -13,6 +13,7 @@ import { LoginPage } from "@/pages/Login";
 import { RegisterPage } from "@/pages/Register";
 import { ForgotPasswordPage } from "@/pages/ForgotPassword";
 import { ResetPasswordPage } from "@/pages/ResetPassword";
+import { VerifyEmailPage } from "@/pages/VerifyEmail";
 import { PaymentResultPage } from "@/pages/PaymentResult";
 import { AddressesPage } from "@/pages/Addresses";
 import { AdminPage } from "@/pages/admin/AdminPage";
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="register" element={<RegisterPage />} />
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
         <Route path="reset-password" element={<ResetPasswordPage />} />
+        <Route path="verify-email" element={<VerifyEmailPage />} />
         <Route path="payment/result" element={<PaymentResultPage />} />
 
         <Route element={<ProtectedRoute />}>

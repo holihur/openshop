@@ -24,7 +24,7 @@ func (r *UserRepository) Create(ctx context.Context, u *domain.User) error {
 func (r *UserRepository) Update(ctx context.Context, u *domain.User) error {
 	m := fromUser(u)
 	res := r.db.session(ctx).Model(&userModel{}).Where("id = ?", u.ID).
-		Select("email", "phone", "password_hash", "name", "role", "status", "updated_at").
+		Select("email", "phone", "password_hash", "name", "role", "status", "email_verified", "email_verified_at", "updated_at").
 		Updates(m)
 	if res.Error != nil {
 		return translate(res.Error)

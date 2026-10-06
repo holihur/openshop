@@ -82,6 +82,7 @@ func NewRouter(
 		api.POST("/auth/refresh", h.Refresh)
 		api.POST("/auth/password/forgot", h.ForgotPassword)
 		api.POST("/auth/password/reset", h.ResetPassword)
+		api.POST("/auth/email/verify", h.VerifyEmail)
 
 		// Provider callbacks are public and authenticated by signature.
 		api.POST("/webhooks/payments/:provider", h.PaymentWebhook)
@@ -93,6 +94,7 @@ func NewRouter(
 			authed.POST("/auth/logout", h.Logout)
 			authed.GET("/auth/me", h.Me)
 			authed.POST("/auth/password/change", h.ChangePassword)
+			authed.POST("/auth/email/resend", h.ResendVerification)
 
 			authed.GET("/cart", h.GetCart)
 			authed.POST("/cart/items", h.AddCartItem)

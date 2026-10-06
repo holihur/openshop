@@ -75,6 +75,8 @@ func classify(err error) (int, string, string) {
 		return http.StatusUnauthorized, "unauthorized", "authentication required"
 	case errors.Is(err, domain.ErrForbidden):
 		return http.StatusForbidden, "forbidden", "permission denied"
+	case errors.Is(err, domain.ErrEmailNotVerified):
+		return http.StatusForbidden, "email_not_verified", "please verify your email first"
 	case errors.Is(err, domain.ErrInsufficientStock):
 		return http.StatusConflict, "insufficient_stock", "insufficient stock"
 	case errors.Is(err, domain.ErrLockUnavailable):
@@ -105,6 +107,8 @@ func statusFor(code string) int {
 	case "unauthorized":
 		return http.StatusUnauthorized
 	case "forbidden":
+		return http.StatusForbidden
+	case "email_not_verified":
 		return http.StatusForbidden
 	case "insufficient_stock":
 		return http.StatusConflict

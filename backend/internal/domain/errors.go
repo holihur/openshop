@@ -22,6 +22,7 @@ var (
 	ErrCartEmpty           = errors.New("cart is empty")
 	ErrTokenInvalid        = errors.New("invalid token")
 	ErrTokenExpired        = errors.New("token expired")
+	ErrEmailNotVerified    = errors.New("email not verified")
 )
 
 // Error is a domain error carrying a stable machine-readable code alongside a

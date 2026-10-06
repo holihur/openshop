@@ -42,12 +42,17 @@ type changePasswordRequest struct {
 	NewPassword     string `json:"newPassword" binding:"required,min=8"`
 }
 
+type verifyEmailRequest struct {
+	Token string `json:"token" binding:"required"`
+}
+
 type userView struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-	Phone string `json:"phone"`
-	Name  string `json:"name"`
-	Role  string `json:"role"`
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	Phone         string `json:"phone"`
+	Name          string `json:"name"`
+	Role          string `json:"role"`
+	EmailVerified bool   `json:"emailVerified"`
 }
 
 type authView struct {
@@ -121,7 +126,29 @@ func (h *Handler) Me(c *gin.Context) {
 	}
 	response.OK(c, userView{
 		ID: user.ID, Email: user.Email, Phone: user.Phone, Name: user.Name, Role: string(user.Role),
+		EmailVerified: user.EmailVerified,
 	})
+}
+
+func (h *Handler) VerifyEmail(c *gin.Context) {
+	var req verifyEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, wrapBind(err))
+		return
+	}
+	if err := h.Auth.VerifyEmail(c.Request.Context(), req.Token); err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{"verified": true})
+}
+
+func (h *Handler) ResendVerification(c *gin.Context) {
+	if err := h.Auth.ResendVerification(c.Request.Context(), middleware.UserID(c)); err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{"sent": true})
 }
 
 // ForgotPassword always returns success so accounts cannot be enumerated.
@@ -168,7 +195,7 @@ func toAuthView(res *service.AuthResult) authView {
 	return authView{
 		User: userView{
 			ID: res.User.ID, Email: res.User.Email, Phone: res.User.Phone,
-			Name: res.User.Name, Role: string(res.User.Role),
+			Name: res.User.Name, Role: string(res.User.Role), EmailVerified: res.User.EmailVerified,
 		},
 		AccessToken:  res.AccessToken,
 		RefreshToken: res.RefreshToken,

@@ -18,9 +18,11 @@ const (
 	familyKeyPrefix       = "auth:family:"
 	userFamiliesKeyPrefix = "auth:user_families:"
 	resetKeyPrefix        = "auth:reset:"
+	verifyKeyPrefix       = "auth:verify:"
 	denyListKeyPrefix     = "auth:denylist:"
 	refreshTokenBytes     = 32
 	resetTokenBytes       = 32
+	verifyTokenBytes      = 32
 )
 
 // refreshRecord is the server-side state for an issued refresh token. The
@@ -34,16 +36,18 @@ type refreshRecord struct {
 
 // AuthService implements registration, login, token refresh and logout.
 type AuthService struct {
-	users        port.UserRepository
-	hasher       port.PasswordHasher
-	tokens       port.TokenIssuer
-	cache        port.Cache
-	ids          port.IDGenerator
-	clock        port.Clock
-	mailer       port.Mailer
-	accessTTL    time.Duration
-	refreshTTL   time.Duration
-	resetBaseURL string
+	users                    port.UserRepository
+	hasher                   port.PasswordHasher
+	tokens                   port.TokenIssuer
+	cache                    port.Cache
+	ids                      port.IDGenerator
+	clock                    port.Clock
+	mailer                   port.Mailer
+	accessTTL                time.Duration
+	refreshTTL               time.Duration
+	resetBaseURL             string
+	verifyBaseURL            string
+	requireEmailVerification bool
 }
 
 type AuthConfig struct {
@@ -51,6 +55,10 @@ type AuthConfig struct {
 	RefreshTTL time.Duration
 	// ResetBaseURL is the frontend URL a password-reset email links to.
 	ResetBaseURL string
+	// VerifyBaseURL is the frontend URL an email-verification link points at.
+	VerifyBaseURL string
+	// RequireEmailVerification blocks login until the email is verified.
+	RequireEmailVerification bool
 }
 
 func NewAuthService(
@@ -66,6 +74,7 @@ func NewAuthService(
 	return &AuthService{
 		users: users, hasher: hasher, tokens: tokens, cache: cache, ids: ids, clock: clock, mailer: mailer,
 		accessTTL: cfg.AccessTTL, refreshTTL: cfg.RefreshTTL, resetBaseURL: cfg.ResetBaseURL,
+		verifyBaseURL: cfg.VerifyBaseURL, requireEmailVerification: cfg.RequireEmailVerification,
 	}
 }
 
@@ -132,6 +141,7 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*AuthResu
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, err
 	}
+	_ = s.SendVerification(ctx, user)
 	return s.issue(ctx, user, "")
 }
 
@@ -155,6 +165,9 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (*AuthResult, er
 	}
 	if !s.hasher.Compare(user.PasswordHash, in.Password) {
 		return nil, domain.ErrUnauthorized
+	}
+	if s.requireEmailVerification && !user.EmailVerified {
+		return nil, domain.ErrEmailNotVerified
 	}
 	return s.issue(ctx, user, "")
 }
@@ -321,6 +334,66 @@ func (s *AuthService) removeFromFamily(ctx context.Context, family, token string
 		}
 	}
 	s.saveFamily(ctx, family, out)
+}
+
+// SendVerification emails a single-use link that marks the account's email as
+// verified. It is best-effort: a mail failure never blocks registration.
+func (s *AuthService) SendVerification(ctx context.Context, user *domain.User) error {
+	if user.Email == "" {
+		return nil
+	}
+	token, err := randomToken(verifyTokenBytes)
+	if err != nil {
+		return err
+	}
+	if err := s.cache.Set(ctx, verifyKeyPrefix+token, user.ID, 24*time.Hour); err != nil {
+		return err
+	}
+	if s.mailer != nil {
+		link := s.verifyBaseURL + "?token=" + token
+		_ = s.mailer.Send(ctx, port.Email{
+			To:      user.Email,
+			Subject: "Verify your OpenShop email",
+			HTML:    `<p>Confirm your email address to finish setting up your account.</p><p><a href="` + link + `">` + link + `</a></p>`,
+		})
+	}
+	return nil
+}
+
+// VerifyEmail consumes a verification token.
+func (s *AuthService) VerifyEmail(ctx context.Context, token string) error {
+	userID, err := s.cache.Get(ctx, verifyKeyPrefix+token)
+	if err != nil {
+		if errors.Is(err, port.ErrCacheMiss) {
+			return domain.ErrTokenInvalid
+		}
+		return err
+	}
+	user, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	now := s.clock.Now()
+	user.EmailVerified = true
+	user.EmailVerifiedAt = &now
+	user.UpdatedAt = now
+	if err := s.users.Update(ctx, user); err != nil {
+		return err
+	}
+	_ = s.cache.Delete(ctx, verifyKeyPrefix+token)
+	return nil
+}
+
+// ResendVerification re-sends the verification email for the current user.
+func (s *AuthService) ResendVerification(ctx context.Context, userID string) error {
+	user, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user.EmailVerified {
+		return nil
+	}
+	return s.SendVerification(ctx, user)
 }
 
 // revokeFamily deletes every refresh token belonging to a compromised session.
