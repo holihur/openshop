@@ -75,6 +75,58 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/AuthResult" }
         "401": { $ref: "#/components/responses/Error" }
+  /auth/password/forgot:
+    post:
+      tags: [Auth]
+      summary: Request a password reset email
+      description: Always returns success so accounts cannot be enumerated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "200": { description: Accepted }
+  /auth/password/reset:
+    post:
+      tags: [Auth]
+      summary: Reset a password with a single-use token
+      description: Revokes every existing session for the account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, newPassword]
+              properties:
+                token: { type: string }
+                newPassword: { type: string, minLength: 8 }
+      responses:
+        "200": { description: Reset }
+        "401": { $ref: "#/components/responses/Error" }
+  /auth/password/change:
+    post:
+      tags: [Auth]
+      summary: Change your password
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 8 }
+      responses:
+        "200": { description: Changed }
+        "401": { $ref: "#/components/responses/Error" }
   /auth/logout:
     post:
       tags: [Auth]

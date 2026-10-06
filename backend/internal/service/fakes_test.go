@@ -730,3 +730,24 @@ type fakeTokens struct{}
 
 func (fakeTokens) Issue(c port.TokenClaims) (string, error) { return "token:" + c.Subject, nil }
 func (fakeTokens) Verify(string) (*port.TokenClaims, error) { return nil, errors.New("not used") }
+
+type fakeMailer struct {
+	mu   sync.Mutex
+	sent []port.Email
+}
+
+func (m *fakeMailer) Send(_ context.Context, msg port.Email) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sent = append(m.sent, msg)
+	return nil
+}
+
+func (m *fakeMailer) last() (port.Email, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(m.sent) == 0 {
+		return port.Email{}, false
+	}
+	return m.sent[len(m.sent)-1], true
+}

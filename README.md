@@ -258,6 +258,9 @@ retries safe.
 | `POST` | `/auth/register` | — | Create an account |
 | `POST` | `/auth/login` | — | Sign in (email or phone) |
 | `POST` | `/auth/refresh` | — | Rotate the refresh token |
+| `POST` | `/auth/password/forgot` | — | Email a reset link (no enumeration) |
+| `POST` | `/auth/password/reset` | — | Reset with a single-use token (revokes sessions) |
+| `POST` | `/auth/password/change` | ✔ | Change password (revokes sessions) |
 | `POST` | `/auth/logout` | ✔ | Revoke the current tokens |
 | `GET` | `/auth/me` | ✔ | Current profile |
 

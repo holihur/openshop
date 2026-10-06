@@ -13,11 +13,14 @@ import (
 )
 
 const (
-	refreshKeyPrefix  = "auth:refresh:"
-	usedKeyPrefix     = "auth:used:"
-	familyKeyPrefix   = "auth:family:"
-	denyListKeyPrefix = "auth:denylist:"
-	refreshTokenBytes = 32
+	refreshKeyPrefix      = "auth:refresh:"
+	usedKeyPrefix         = "auth:used:"
+	familyKeyPrefix       = "auth:family:"
+	userFamiliesKeyPrefix = "auth:user_families:"
+	resetKeyPrefix        = "auth:reset:"
+	denyListKeyPrefix     = "auth:denylist:"
+	refreshTokenBytes     = 32
+	resetTokenBytes       = 32
 )
 
 // refreshRecord is the server-side state for an issued refresh token. The
@@ -31,19 +34,23 @@ type refreshRecord struct {
 
 // AuthService implements registration, login, token refresh and logout.
 type AuthService struct {
-	users      port.UserRepository
-	hasher     port.PasswordHasher
-	tokens     port.TokenIssuer
-	cache      port.Cache
-	ids        port.IDGenerator
-	clock      port.Clock
-	accessTTL  time.Duration
-	refreshTTL time.Duration
+	users        port.UserRepository
+	hasher       port.PasswordHasher
+	tokens       port.TokenIssuer
+	cache        port.Cache
+	ids          port.IDGenerator
+	clock        port.Clock
+	mailer       port.Mailer
+	accessTTL    time.Duration
+	refreshTTL   time.Duration
+	resetBaseURL string
 }
 
 type AuthConfig struct {
 	AccessTTL  time.Duration
 	RefreshTTL time.Duration
+	// ResetBaseURL is the frontend URL a password-reset email links to.
+	ResetBaseURL string
 }
 
 func NewAuthService(
@@ -53,11 +60,12 @@ func NewAuthService(
 	cache port.Cache,
 	ids port.IDGenerator,
 	clock port.Clock,
+	mailer port.Mailer,
 	cfg AuthConfig,
 ) *AuthService {
 	return &AuthService{
-		users: users, hasher: hasher, tokens: tokens, cache: cache, ids: ids, clock: clock,
-		accessTTL: cfg.AccessTTL, refreshTTL: cfg.RefreshTTL,
+		users: users, hasher: hasher, tokens: tokens, cache: cache, ids: ids, clock: clock, mailer: mailer,
+		accessTTL: cfg.AccessTTL, refreshTTL: cfg.RefreshTTL, resetBaseURL: cfg.ResetBaseURL,
 	}
 }
 
@@ -265,6 +273,7 @@ func (s *AuthService) issue(ctx context.Context, user *domain.User, family strin
 		return nil, err
 	}
 	s.addToFamily(ctx, family, refresh)
+	s.addUserFamily(ctx, user.ID, family)
 
 	return &AuthResult{
 		User:         user,
@@ -320,4 +329,118 @@ func (s *AuthService) revokeFamily(ctx context.Context, family string) {
 		_ = s.cache.Delete(ctx, refreshKeyPrefix+token)
 	}
 	_ = s.cache.Delete(ctx, familyKeyPrefix+family)
+}
+
+func (s *AuthService) userFamilies(ctx context.Context, userID string) []string {
+	var families []string
+	if err := s.cache.GetJSON(ctx, userFamiliesKeyPrefix+userID, &families); err != nil {
+		return nil
+	}
+	return families
+}
+
+func (s *AuthService) addUserFamily(ctx context.Context, userID, family string) {
+	families := s.userFamilies(ctx, userID)
+	for _, f := range families {
+		if f == family {
+			return
+		}
+	}
+	families = append(families, family)
+	_ = s.cache.SetJSON(ctx, userFamiliesKeyPrefix+userID, families, s.refreshTTL)
+}
+
+// revokeAllSessions invalidates every refresh token of a user. It is called
+// after a password change or reset, so a compromised session cannot outlive the
+// credential change.
+func (s *AuthService) revokeAllSessions(ctx context.Context, userID string) {
+	for _, family := range s.userFamilies(ctx, userID) {
+		s.revokeFamily(ctx, family)
+	}
+	_ = s.cache.Delete(ctx, userFamiliesKeyPrefix+userID)
+}
+
+// RequestPasswordReset emails a single-use reset link. It always succeeds from
+// the caller's perspective so accounts cannot be enumerated.
+func (s *AuthService) RequestPasswordReset(ctx context.Context, email string) error {
+	user, err := s.users.FindByEmail(ctx, normalizeEmail(email))
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	token, err := randomToken(resetTokenBytes)
+	if err != nil {
+		return err
+	}
+	if err := s.cache.Set(ctx, resetKeyPrefix+token, user.ID, 30*time.Minute); err != nil {
+		return err
+	}
+	if s.mailer != nil {
+		link := s.resetBaseURL + "?token=" + token
+		_ = s.mailer.Send(ctx, port.Email{
+			To:      user.Email,
+			Subject: "Reset your OpenShop password",
+			HTML:    `<p>Use the link below to reset your password. It expires in 30 minutes.</p><p><a href="` + link + `">` + link + `</a></p>`,
+		})
+	}
+	return nil
+}
+
+// ResetPassword consumes a reset token and sets a new password, revoking every
+// existing session.
+func (s *AuthService) ResetPassword(ctx context.Context, token, newPassword string) error {
+	if len(newPassword) < 8 {
+		return fmt.Errorf("%w: password must be at least 8 characters", domain.ErrInvalidArgument)
+	}
+	userID, err := s.cache.Get(ctx, resetKeyPrefix+token)
+	if err != nil {
+		if errors.Is(err, port.ErrCacheMiss) {
+			return domain.ErrTokenInvalid
+		}
+		return err
+	}
+	user, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	hash, err := s.hasher.Hash(newPassword)
+	if err != nil {
+		return err
+	}
+	user.PasswordHash = hash
+	user.UpdatedAt = s.clock.Now()
+	if err := s.users.Update(ctx, user); err != nil {
+		return err
+	}
+	_ = s.cache.Delete(ctx, resetKeyPrefix+token)
+	s.revokeAllSessions(ctx, userID)
+	return nil
+}
+
+// ChangePassword verifies the current password and sets a new one, revoking all
+// sessions so the user signs in again everywhere.
+func (s *AuthService) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	if len(newPassword) < 8 {
+		return fmt.Errorf("%w: password must be at least 8 characters", domain.ErrInvalidArgument)
+	}
+	user, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !s.hasher.Compare(user.PasswordHash, currentPassword) {
+		return domain.ErrUnauthorized
+	}
+	hash, err := s.hasher.Hash(newPassword)
+	if err != nil {
+		return err
+	}
+	user.PasswordHash = hash
+	user.UpdatedAt = s.clock.Now()
+	if err := s.users.Update(ctx, user); err != nil {
+		return err
+	}
+	s.revokeAllSessions(ctx, userID)
+	return nil
 }

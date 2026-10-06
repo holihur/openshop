@@ -27,12 +27,13 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Name       string
-	Env        string
-	InstanceID string
-	LogLevel   string
-	Currency   string
-	OrderTTL   time.Duration
+	Name             string
+	Env              string
+	InstanceID       string
+	LogLevel         string
+	Currency         string
+	OrderTTL         time.Duration
+	PasswordResetURL string
 }
 
 type HTTPConfig struct {
@@ -125,12 +126,13 @@ type WorkerConfig struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		App: AppConfig{
-			Name:       env("APP_NAME", "openshop"),
-			Env:        env("APP_ENV", "development"),
-			InstanceID: env("INSTANCE_ID", hostname()),
-			LogLevel:   env("LOG_LEVEL", "info"),
-			Currency:   env("APP_CURRENCY", "CNY"),
-			OrderTTL:   envDuration("ORDER_TTL", 30*time.Minute),
+			Name:             env("APP_NAME", "openshop"),
+			Env:              env("APP_ENV", "development"),
+			InstanceID:       env("INSTANCE_ID", hostname()),
+			LogLevel:         env("LOG_LEVEL", "info"),
+			Currency:         env("APP_CURRENCY", "CNY"),
+			OrderTTL:         envDuration("ORDER_TTL", 30*time.Minute),
+			PasswordResetURL: env("PASSWORD_RESET_URL", "http://localhost:5173/reset-password"),
 		},
 		HTTP: HTTPConfig{
 			Addr:            env("HTTP_ADDR", ":8080"),

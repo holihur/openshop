@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,8 +14,8 @@ func newAuthFixture() (*AuthService, *fakeCache, *fakeUserRepo) {
 	users := newFakeUserRepo()
 	cache := newFakeCache()
 	svc := NewAuthService(users, fakeHasher{}, fakeTokens{}, cache, &seqIDs{},
-		fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
-		AuthConfig{AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour},
+		fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)}, &fakeMailer{},
+		AuthConfig{AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour, ResetBaseURL: "http://test/reset"},
 	)
 	return svc, cache, users
 }
@@ -70,6 +71,84 @@ func TestRefreshRotatesToken(t *testing.T) {
 		t.Fatalf("reused refresh err = %v, want ErrUnauthorized", err)
 	}
 	_ = cache
+}
+
+func newAuthFixtureWithMailer() (*AuthService, *fakeMailer, *fakeCache) {
+	users := newFakeUserRepo()
+	cache := newFakeCache()
+	mailer := &fakeMailer{}
+	svc := NewAuthService(users, fakeHasher{}, fakeTokens{}, cache, &seqIDs{},
+		fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)}, mailer,
+		AuthConfig{AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour, ResetBaseURL: "http://test/reset"},
+	)
+	return svc, mailer, cache
+}
+
+func extractResetToken(html string) string {
+	const marker = "token="
+	i := strings.Index(html, marker)
+	if i < 0 {
+		return ""
+	}
+	rest := html[i+len(marker):]
+	if j := strings.IndexAny(rest, "\"&<"); j >= 0 {
+		return rest[:j]
+	}
+	return rest
+}
+
+func TestPasswordResetFlow(t *testing.T) {
+	svc, mailer, _ := newAuthFixtureWithMailer()
+	ctx := context.Background()
+
+	registered, err := svc.Register(ctx, RegisterInput{Email: "a@b.com", Password: "oldpassword"})
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	if err := svc.RequestPasswordReset(ctx, "a@b.com"); err != nil {
+		t.Fatalf("request reset: %v", err)
+	}
+	msg, ok := mailer.last()
+	if !ok {
+		t.Fatal("no reset email sent")
+	}
+	token := extractResetToken(msg.HTML)
+	if token == "" {
+		t.Fatal("no token in reset email")
+	}
+
+	if err := svc.ResetPassword(ctx, token, "newpassword"); err != nil {
+		t.Fatalf("reset: %v", err)
+	}
+
+	// Old password no longer works; new one does.
+	if _, err := svc.Login(ctx, LoginInput{Identifier: "a@b.com", Password: "oldpassword"}); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("old password still valid: %v", err)
+	}
+	if _, err := svc.Login(ctx, LoginInput{Identifier: "a@b.com", Password: "newpassword"}); err != nil {
+		t.Fatalf("new password rejected: %v", err)
+	}
+
+	// Existing sessions are revoked by the reset.
+	if _, err := svc.Refresh(ctx, registered.RefreshToken); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("session survived reset: %v", err)
+	}
+
+	// The reset token is single-use.
+	if err := svc.ResetPassword(ctx, token, "anotherpassword"); !errors.Is(err, domain.ErrTokenInvalid) {
+		t.Fatalf("reset token reused: %v", err)
+	}
+}
+
+func TestRequestPasswordResetIsSilentForUnknownEmail(t *testing.T) {
+	svc, mailer, _ := newAuthFixtureWithMailer()
+	if err := svc.RequestPasswordReset(context.Background(), "nobody@example.com"); err != nil {
+		t.Fatalf("unknown email should not error: %v", err)
+	}
+	if _, ok := mailer.last(); ok {
+		t.Fatal("no email should be sent for an unknown address")
+	}
 }
 
 func TestRefreshReuseRevokesWholeFamily(t *testing.T) {

@@ -28,6 +28,20 @@ type logoutRequest struct {
 	RefreshToken string `json:"refreshToken"`
 }
 
+type forgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+type resetPasswordRequest struct {
+	Token       string `json:"token" binding:"required"`
+	NewPassword string `json:"newPassword" binding:"required,min=8"`
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword" binding:"required"`
+	NewPassword     string `json:"newPassword" binding:"required,min=8"`
+}
+
 type userView struct {
 	ID    string `json:"id"`
 	Email string `json:"email"`
@@ -108,6 +122,46 @@ func (h *Handler) Me(c *gin.Context) {
 	response.OK(c, userView{
 		ID: user.ID, Email: user.Email, Phone: user.Phone, Name: user.Name, Role: string(user.Role),
 	})
+}
+
+// ForgotPassword always returns success so accounts cannot be enumerated.
+func (h *Handler) ForgotPassword(c *gin.Context) {
+	var req forgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, wrapBind(err))
+		return
+	}
+	if err := h.Auth.RequestPasswordReset(c.Request.Context(), req.Email); err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{"sent": true})
+}
+
+func (h *Handler) ResetPassword(c *gin.Context) {
+	var req resetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, wrapBind(err))
+		return
+	}
+	if err := h.Auth.ResetPassword(c.Request.Context(), req.Token, req.NewPassword); err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{"reset": true})
+}
+
+func (h *Handler) ChangePassword(c *gin.Context) {
+	var req changePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, wrapBind(err))
+		return
+	}
+	if err := h.Auth.ChangePassword(c.Request.Context(), middleware.UserID(c), req.CurrentPassword, req.NewPassword); err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{"changed": true})
 }
 
 func toAuthView(res *service.AuthResult) authView {

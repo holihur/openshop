@@ -116,8 +116,8 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	outbox := postgres.NewOutboxRepository(db)
 
 	// --- services ---
-	authSvc := service.NewAuthService(users, hasher, tokens, cache, ids, clock, service.AuthConfig{
-		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL,
+	authSvc := service.NewAuthService(users, hasher, tokens, cache, ids, clock, mailer, service.AuthConfig{
+		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL, ResetBaseURL: cfg.App.PasswordResetURL,
 	})
 	catalogSvc := service.NewCatalogService(categories, products, variantRepo, cache, ids, clock, cfg.App.Currency)
 	cartSvc := service.NewCartService(cartRepo, products, variantRepo)

@@ -11,6 +11,8 @@ import { OrdersPage } from "@/pages/Orders";
 import { OrderDetailPage } from "@/pages/OrderDetail";
 import { LoginPage } from "@/pages/Login";
 import { RegisterPage } from "@/pages/Register";
+import { ForgotPasswordPage } from "@/pages/ForgotPassword";
+import { ResetPasswordPage } from "@/pages/ResetPassword";
 import { PaymentResultPage } from "@/pages/PaymentResult";
 import { AddressesPage } from "@/pages/Addresses";
 import { AdminPage } from "@/pages/admin/AdminPage";
@@ -25,6 +27,8 @@ export default function App() {
         <Route path="products/:id" element={<ProductDetailPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
+        <Route path="forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="reset-password" element={<ResetPasswordPage />} />
         <Route path="payment/result" element={<PaymentResultPage />} />
 
         <Route element={<ProtectedRoute />}>
