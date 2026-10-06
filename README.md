@@ -10,6 +10,23 @@ business logic never depends on a concrete database, cache, broker, payment
 gateway, object store or mail provider. Adapters are wired once, in the
 composition root (`internal/bootstrap`).
 
+## What's included
+
+**Storefront** — catalog with categories, product variants/SKUs, image gallery,
+full-text search, reviews with ratings, cart, coupons, shipping methods and tax,
+saved addresses, checkout, order tracking and self-service cancellation.
+
+**Operations** — merchant dashboard (revenue, order counts), product/variant
+management with image upload, order fulfilment (ship with tracking, complete,
+refund), coupon and shipping-method management, review moderation.
+
+**Platform** — JWT auth with refresh rotation, theft detection and password
+reset; payments behind a provider port (sandbox included); transactional outbox
+for reliable events; idempotent checkout; distributed locks; NATS queue-group
+consumers; Redis cache/locks/carts; Prometheus metrics; OpenTelemetry tracing
+across the async boundary; versioned migrations; Docker Compose, Kubernetes
+manifests, CI, a smoke test and a k6 load test.
+
 ---
 
 ## Table of contents

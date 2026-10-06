@@ -74,6 +74,9 @@ services:
       REDIS_ADDR: redis:6379
       NATS_URL: nats://nats:4222
       JWT_SECRET: change-me-in-production-please
+      APP_CURRENCY: CNY
+      TAX_RATE_BPS: "600"
+      PASSWORD_RESET_URL: http://localhost:5173/reset-password
       STORAGE_DRIVER: local
       STORAGE_LOCAL_DIR: /app/data/uploads
       STORAGE_PUBLIC_URL: http://localhost:8080/uploads
