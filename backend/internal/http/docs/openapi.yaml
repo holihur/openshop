@@ -1345,6 +1345,7 @@ components:
         rating: { type: integer, minimum: 1, maximum: 5 }
         title: { type: string }
         body: { type: string }
+        verifiedPurchase: { type: boolean, description: "True when the reviewer has a paid order for the product" }
         createdAt: { type: string, format: date-time }
     Coupon:
       type: object

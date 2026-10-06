@@ -59,6 +59,9 @@ type OrderRepository interface {
 	// AnonymizeByUser detaches a user's orders from their identity (GDPR erasure)
 	// while keeping the financial record.
 	AnonymizeByUser(ctx context.Context, userID string) error
+	// HasPurchasedProduct reports whether a user has a paid order containing the
+	// product, used to mark reviews as verified purchases.
+	HasPurchasedProduct(ctx context.Context, userID, productID string) (bool, error)
 }
 
 // PaymentRepository persists payment attempts.

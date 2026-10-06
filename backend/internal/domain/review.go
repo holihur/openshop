@@ -4,14 +4,15 @@ import "time"
 
 // Review is a product rating left by a user. A user may review a product once.
 type Review struct {
-	ID        string
-	ProductID string
-	UserID    string
-	Rating    int // 1..5
-	Title     string
-	Body      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID               string
+	ProductID        string
+	UserID           string
+	Rating           int // 1..5
+	Title            string
+	Body             string
+	VerifiedPurchase bool
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // ReviewSummary is the aggregate shown on the product page.

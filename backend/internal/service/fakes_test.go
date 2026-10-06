@@ -235,6 +235,25 @@ func (r *fakeOrderRepo) AnonymizeByUser(_ context.Context, userID string) error 
 	return nil
 }
 
+func (r *fakeOrderRepo) HasPurchasedProduct(_ context.Context, userID, productID string) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, o := range r.data {
+		if o.UserID != userID {
+			continue
+		}
+		switch o.Status {
+		case domain.OrderPaid, domain.OrderShipped, domain.OrderCompleted:
+			for _, it := range o.Items {
+				if it.ProductID == productID {
+					return true, nil
+				}
+			}
+		}
+	}
+	return false, nil
+}
+
 func (r *fakeOrderRepo) FindByID(_ context.Context, id string) (*domain.Order, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

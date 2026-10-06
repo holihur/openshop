@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Star } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -111,6 +112,11 @@ export function ReviewsSection({ productId }: { productId: string }) {
                 <div className="flex items-center gap-3">
                   <Stars value={review.rating} />
                   {review.title && <span className="font-medium">{review.title}</span>}
+                  {review.verifiedPurchase && (
+                    <Badge variant="secondary" className="text-xs">
+                      Verified purchase
+                    </Badge>
+                  )}
                   <span className="text-muted-foreground ml-auto text-xs">
                     {formatDate(review.createdAt)}
                   </span>

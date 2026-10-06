@@ -96,6 +96,23 @@ func (r *OrderRepository) AnonymizeByUser(ctx context.Context, userID string) er
 		}).Error)
 }
 
+// HasPurchasedProduct reports whether a user has a paid order containing the
+// product. Used to mark reviews as verified purchases.
+func (r *OrderRepository) HasPurchasedProduct(ctx context.Context, userID, productID string) (bool, error) {
+	var count int64
+	err := r.db.session(ctx).Model(&orderItemModel{}).
+		Joins("JOIN orders ON orders.id = order_items.order_id").
+		Where("orders.user_id = ? AND order_items.product_id = ? AND orders.status IN ?",
+			userID, productID, []string{
+				string(domain.OrderPaid), string(domain.OrderShipped), string(domain.OrderCompleted),
+			}).
+		Count(&count).Error
+	if err != nil {
+		return false, translate(err)
+	}
+	return count > 0, nil
+}
+
 func (r *OrderRepository) List(ctx context.Context, f domain.OrderFilter) (domain.Page[domain.Order], error) {
 	page, size := normalizePage(f.Page, f.PageSize, 10)
 

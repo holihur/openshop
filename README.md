@@ -311,7 +311,7 @@ retries safe.
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
 | `GET` | `/products/:id/reviews` | — | List a product's reviews |
-| `POST` | `/products/:id/reviews` | ✔ | Create a review (one per user) |
+| `POST` | `/products/:id/reviews` | ✔ | Create a review (one per user; marked verified after a paid order) |
 | `PATCH` | `/reviews/:id` | ✔ | Update your review |
 | `DELETE` | `/reviews/:id` | ✔ | Delete a review (owner or admin) |
 | `POST` | `/coupons/preview` | ✔ | Validate a coupon and preview the discount |

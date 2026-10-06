@@ -249,14 +249,15 @@ type couponRedemptionModel struct {
 func (couponRedemptionModel) TableName() string { return "coupon_redemptions" }
 
 type reviewModel struct {
-	ID        string    `gorm:"type:uuid;primaryKey"`
-	ProductID string    `gorm:"type:uuid;index;not null"`
-	UserID    string    `gorm:"type:uuid;index;not null"`
-	Rating    int16     `gorm:"not null"`
-	Title     string    `gorm:"size:160;not null;default:''"`
-	Body      string    `gorm:"type:text;not null;default:''"`
-	CreatedAt time.Time `gorm:"not null"`
-	UpdatedAt time.Time `gorm:"not null"`
+	ID               string    `gorm:"type:uuid;primaryKey"`
+	ProductID        string    `gorm:"type:uuid;index;not null"`
+	UserID           string    `gorm:"type:uuid;index;not null"`
+	Rating           int16     `gorm:"not null"`
+	Title            string    `gorm:"size:160;not null;default:''"`
+	Body             string    `gorm:"type:text;not null;default:''"`
+	VerifiedPurchase bool      `gorm:"not null;default:false"`
+	CreatedAt        time.Time `gorm:"not null"`
+	UpdatedAt        time.Time `gorm:"not null"`
 }
 
 func (reviewModel) TableName() string { return "reviews" }
@@ -497,14 +498,14 @@ func fromCoupon(c *domain.Coupon) *couponModel {
 func toReview(m *reviewModel) *domain.Review {
 	return &domain.Review{
 		ID: m.ID, ProductID: m.ProductID, UserID: m.UserID, Rating: int(m.Rating),
-		Title: m.Title, Body: m.Body, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
+		Title: m.Title, Body: m.Body, VerifiedPurchase: m.VerifiedPurchase, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
 }
 
 func fromReview(r *domain.Review) *reviewModel {
 	return &reviewModel{
 		ID: r.ID, ProductID: r.ProductID, UserID: r.UserID, Rating: int16(r.Rating),
-		Title: r.Title, Body: r.Body, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+		Title: r.Title, Body: r.Body, VerifiedPurchase: r.VerifiedPurchase, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}
 }
 

@@ -10,13 +10,14 @@ import (
 )
 
 type reviewView struct {
-	ID        string `json:"id"`
-	ProductID string `json:"productId"`
-	UserID    string `json:"userId"`
-	Rating    int    `json:"rating"`
-	Title     string `json:"title"`
-	Body      string `json:"body"`
-	CreatedAt string `json:"createdAt"`
+	ID               string `json:"id"`
+	ProductID        string `json:"productId"`
+	UserID           string `json:"userId"`
+	Rating           int    `json:"rating"`
+	Title            string `json:"title"`
+	Body             string `json:"body"`
+	VerifiedPurchase bool   `json:"verifiedPurchase"`
+	CreatedAt        string `json:"createdAt"`
 }
 
 type addReviewRequest struct {
@@ -105,6 +106,7 @@ func (h *Handler) DeleteReview(c *gin.Context) {
 func toReviewView(r domain.Review) reviewView {
 	return reviewView{
 		ID: r.ID, ProductID: r.ProductID, UserID: r.UserID, Rating: r.Rating,
-		Title: r.Title, Body: r.Body, CreatedAt: r.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		Title: r.Title, Body: r.Body, VerifiedPurchase: r.VerifiedPurchase,
+		CreatedAt: r.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}
 }

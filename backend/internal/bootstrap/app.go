@@ -130,7 +130,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	catalogSvc := service.NewCatalogService(categories, products, variantRepo, cache, ids, clock, cfg.App.Currency)
 	cartSvc := service.NewCartService(cartRepo, products, variantRepo)
 	couponSvc := service.NewCouponService(couponRepo, ids, clock)
-	reviewSvc := service.NewReviewService(reviewRepo, products, cache, ids, clock)
+	reviewSvc := service.NewReviewService(reviewRepo, products, orders, cache, ids, clock)
 	addressSvc := service.NewAddressService(addressRepo, ids, clock)
 	analyticsSvc := service.NewAnalyticsService(analyticsRepo, cache, cfg.App.Currency, cfg.App.LowStockThreshold)
 	shippingSvc := service.NewShippingService(shippingRepo, zoneRepo, ids, clock)

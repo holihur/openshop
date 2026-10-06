@@ -15,6 +15,7 @@ const reviewSummaryKeyPrefix = "review:summary:"
 type ReviewService struct {
 	reviews  port.ReviewRepository
 	products port.ProductRepository
+	orders   port.OrderRepository
 	cache    port.Cache
 	ids      port.IDGenerator
 	clock    port.Clock
@@ -23,11 +24,12 @@ type ReviewService struct {
 func NewReviewService(
 	reviews port.ReviewRepository,
 	products port.ProductRepository,
+	orders port.OrderRepository,
 	cache port.Cache,
 	ids port.IDGenerator,
 	clock port.Clock,
 ) *ReviewService {
-	return &ReviewService{reviews: reviews, products: products, cache: cache, ids: ids, clock: clock}
+	return &ReviewService{reviews: reviews, products: products, orders: orders, cache: cache, ids: ids, clock: clock}
 }
 
 type AddReviewInput struct {
@@ -56,6 +58,11 @@ func (s *ReviewService) Add(ctx context.Context, in AddReviewInput) (*domain.Rev
 		ID: s.ids.NewID(), ProductID: in.ProductID, UserID: in.UserID,
 		Rating: in.Rating, Title: in.Title, Body: in.Body,
 		CreatedAt: now, UpdatedAt: now,
+	}
+	if s.orders != nil {
+		if verified, err := s.orders.HasPurchasedProduct(ctx, in.UserID, in.ProductID); err == nil {
+			review.VerifiedPurchase = verified
+		}
 	}
 	if err := s.reviews.Create(ctx, review); err != nil {
 		return nil, err

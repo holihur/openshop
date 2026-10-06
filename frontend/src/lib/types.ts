@@ -125,6 +125,7 @@ export interface Review {
   rating: number;
   title: string;
   body: string;
+  verifiedPurchase: boolean;
   createdAt: string;
 }
 
