@@ -217,6 +217,8 @@ docker compose up --scale backend=3
 cd backend
 cp .env.example .env
 go run ./cmd/migrate -dir migrations
+# Roll back the last N migrations (paired *.down.sql files live in migrations/down/):
+# go run ./cmd/migrate -dir migrations -down 1
 go run ./cmd/seed
 go run ./cmd/server
 
@@ -234,6 +236,7 @@ Demo credentials created by the seed: `admin@openshop.local` / `admin12345`.
 make help        # list everything
 make infra       # start postgres/redis/nats via docker
 make migrate     # apply migrations
+make migrate-down N=1   # revert the last migration
 make seed        # insert demo data
 make run         # run the API
 make test        # go test ./... -race
@@ -539,7 +542,8 @@ Honest gaps a buyer should know about:
 - **UUID primary keys.** Any replica can generate ids without a central
   sequence, which removes a scaling bottleneck and simplifies merges.
 - **Versioned migrations with an advisory lock.** `make migrate` is safe to run
-  from every replica at deploy time.
+  from every replica at deploy time; each migration has a paired
+  `migrations/down/*.down.sql` so `make migrate-down N=1` reverts the last N.
 - **Sandbox payments.** The `mock` provider implements an extra
   `SandboxProvider` port so the full checkout can be exercised locally; real
   providers simply don't implement it, and `POST /payments/simulate` rejects

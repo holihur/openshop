@@ -21,6 +21,7 @@ import (
 
 func main() {
 	dir := flag.String("dir", "migrations", "directory containing .sql migrations")
+	down := flag.Int("down", 0, "revert the last N applied migrations instead of applying")
 	flag.Parse()
 
 	_ = godotenv.Load(".env", "../.env")
@@ -48,6 +49,15 @@ func main() {
 	}
 	defer db.Close()
 
+	if *down > 0 {
+		n, err := db.Rollback(ctx, migrations, *down)
+		if err != nil {
+			fatal("rollback", err)
+		}
+		fmt.Printf("reverted %d migration(s) successfully\n", n)
+		return
+	}
+
 	if err := db.Migrate(ctx, migrations); err != nil {
 		fatal("migrate", err)
 	}
@@ -73,10 +83,16 @@ func loadMigrations(dir string) ([]postgres.Migration, error) {
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, postgres.Migration{
-			Version: strings.TrimSuffix(name, ".sql"),
-			SQL:     string(body),
-		})
+		version := strings.TrimSuffix(name, ".sql")
+		m := postgres.Migration{Version: version, SQL: string(body)}
+		// Down migrations live beside the up files in a `down/` directory,
+		// named <version>.down.sql.
+		if downSQL, err := os.ReadFile(filepath.Join(dir, "down", version+".down.sql")); err == nil {
+			m.DownSQL = string(downSQL)
+		} else if !os.IsNotExist(err) {
+			return nil, err
+		}
+		out = append(out, m)
 	}
 	return out, nil
 }

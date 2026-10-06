@@ -47,6 +47,10 @@ run: ## Run the API locally (expects postgres/redis/nats)
 migrate: ## Apply database migrations
 	cd $(BACKEND) && go run ./cmd/migrate -dir migrations
 
+.PHONY: migrate-down
+migrate-down: ## Revert the last N migrations (N=1 by default)
+	cd $(BACKEND) && go run ./cmd/migrate -dir migrations -down $(or $(N),1)
+
 .PHONY: seed
 seed: ## Insert demo data
 	cd $(BACKEND) && go run ./cmd/seed
