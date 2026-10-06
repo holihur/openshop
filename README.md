@@ -534,6 +534,9 @@ Honest gaps a buyer should know about:
   suite.
 - **Email/SMS default to log drivers.** Real delivery needs SMTP/SMS
   credentials; the sandbox payment provider must be replaced for real charges.
+- **Invoice PDFs use built-in fonts.** The dependency-free renderer uses
+  Helvetica/WinAnsi, so non-Latin glyphs (for example CJK) are sanitised;
+  shipping an embedded Unicode font would fix this.
 
 ## Design decisions
 
