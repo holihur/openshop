@@ -1,0 +1,43 @@
+package domain
+
+import "errors"
+
+// Sentinel errors shared across layers. Handlers translate these into HTTP
+// status codes, adapters may wrap them. Keeping them in the domain keeps the
+// business rules independent from any transport or storage concern.
+var (
+	ErrNotFound          = errors.New("resource not found")
+	ErrConflict          = errors.New("resource conflict")
+	ErrInvalidArgument   = errors.New("invalid argument")
+	ErrUnauthorized      = errors.New("unauthorized")
+	ErrForbidden         = errors.New("forbidden")
+	ErrInsufficientStock = errors.New("insufficient stock")
+	ErrLockUnavailable   = errors.New("resource is busy, retry later")
+	ErrPaymentFailed     = errors.New("payment failed")
+	ErrOrderNotPayable   = errors.New("order is not payable")
+	ErrCartEmpty         = errors.New("cart is empty")
+	ErrTokenInvalid      = errors.New("invalid token")
+	ErrTokenExpired      = errors.New("token expired")
+)
+
+// Error is a domain error carrying a stable machine-readable code alongside a
+// human readable message. Adapters and the transport layer can inspect Code.
+type Error struct {
+	Code    string
+	Message string
+	Err     error
+}
+
+func (e *Error) Error() string {
+	if e.Err != nil {
+		return e.Message + ": " + e.Err.Error()
+	}
+	return e.Message
+}
+
+func (e *Error) Unwrap() error { return e.Err }
+
+// NewError builds a domain error.
+func NewError(code, message string, err error) *Error {
+	return &Error{Code: code, Message: message, Err: err}
+}

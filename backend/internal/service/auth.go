@@ -1,0 +1,231 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/holihur/openshop/internal/domain"
+	"github.com/holihur/openshop/internal/port"
+)
+
+const (
+	refreshKeyPrefix  = "auth:refresh:"
+	denyListKeyPrefix = "auth:denylist:"
+	refreshTokenBytes = 32
+)
+
+// AuthService implements registration, login, token refresh and logout.
+type AuthService struct {
+	users      port.UserRepository
+	hasher     port.PasswordHasher
+	tokens     port.TokenIssuer
+	cache      port.Cache
+	ids        port.IDGenerator
+	clock      port.Clock
+	accessTTL  time.Duration
+	refreshTTL time.Duration
+}
+
+type AuthConfig struct {
+	AccessTTL  time.Duration
+	RefreshTTL time.Duration
+}
+
+func NewAuthService(
+	users port.UserRepository,
+	hasher port.PasswordHasher,
+	tokens port.TokenIssuer,
+	cache port.Cache,
+	ids port.IDGenerator,
+	clock port.Clock,
+	cfg AuthConfig,
+) *AuthService {
+	return &AuthService{
+		users: users, hasher: hasher, tokens: tokens, cache: cache, ids: ids, clock: clock,
+		accessTTL: cfg.AccessTTL, refreshTTL: cfg.RefreshTTL,
+	}
+}
+
+type RegisterInput struct {
+	Email    string
+	Phone    string
+	Password string
+	Name     string
+}
+
+type LoginInput struct {
+	// Identifier is an email or phone number.
+	Identifier string
+	Password   string
+}
+
+type AuthResult struct {
+	User         *domain.User
+	AccessToken  string
+	RefreshToken string
+	ExpiresIn    int64
+}
+
+func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*AuthResult, error) {
+	email := normalizeEmail(in.Email)
+	if email == "" && in.Phone == "" {
+		return nil, fmt.Errorf("%w: email or phone is required", domain.ErrInvalidArgument)
+	}
+	if len(in.Password) < 8 {
+		return nil, fmt.Errorf("%w: password must be at least 8 characters", domain.ErrInvalidArgument)
+	}
+
+	if email != "" {
+		if _, err := s.users.FindByEmail(ctx, email); err == nil {
+			return nil, fmt.Errorf("%w: email already registered", domain.ErrConflict)
+		} else if !errors.Is(err, domain.ErrNotFound) {
+			return nil, err
+		}
+	}
+	if in.Phone != "" {
+		if _, err := s.users.FindByPhone(ctx, in.Phone); err == nil {
+			return nil, fmt.Errorf("%w: phone already registered", domain.ErrConflict)
+		} else if !errors.Is(err, domain.ErrNotFound) {
+			return nil, err
+		}
+	}
+
+	hash, err := s.hasher.Hash(in.Password)
+	if err != nil {
+		return nil, err
+	}
+	now := s.clock.Now()
+	user := &domain.User{
+		ID:           s.ids.NewID(),
+		Email:        email,
+		Phone:        in.Phone,
+		PasswordHash: hash,
+		Name:         in.Name,
+		Role:         domain.RoleCustomer,
+		Status:       domain.UserActive,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	if err := s.users.Create(ctx, user); err != nil {
+		return nil, err
+	}
+	return s.issue(ctx, user)
+}
+
+func (s *AuthService) Login(ctx context.Context, in LoginInput) (*AuthResult, error) {
+	id := in.Identifier
+	var user *domain.User
+	var err error
+	if strings.Contains(id, "@") {
+		user, err = s.users.FindByEmail(ctx, normalizeEmail(id))
+	} else {
+		user, err = s.users.FindByPhone(ctx, id)
+	}
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.ErrUnauthorized
+		}
+		return nil, err
+	}
+	if !user.CanLogin() {
+		return nil, fmt.Errorf("%w: account is not active", domain.ErrForbidden)
+	}
+	if !s.hasher.Compare(user.PasswordHash, in.Password) {
+		return nil, domain.ErrUnauthorized
+	}
+	return s.issue(ctx, user)
+}
+
+// Refresh rotates a refresh token: the presented token is invalidated and a
+// fresh pair is issued. Because state lives in Redis, any instance can serve
+// the call.
+func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthResult, error) {
+	if refreshToken == "" {
+		return nil, domain.ErrUnauthorized
+	}
+	key := refreshKeyPrefix + refreshToken
+	userID, err := s.cache.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, port.ErrCacheMiss) {
+			return nil, domain.ErrUnauthorized
+		}
+		return nil, err
+	}
+	_ = s.cache.Delete(ctx, key)
+
+	user, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !user.CanLogin() {
+		return nil, domain.ErrForbidden
+	}
+	return s.issue(ctx, user)
+}
+
+// Logout revokes the current access token (deny-list) and its refresh token.
+func (s *AuthService) Logout(ctx context.Context, claims *port.TokenClaims, refreshToken string) error {
+	if claims != nil && claims.ID != "" {
+		ttl := ttlFrom(s.clock.Now(), claims.Expires)
+		if ttl > 0 {
+			if err := s.cache.Set(ctx, denyListKeyPrefix+claims.ID, "1", ttl); err != nil {
+				return err
+			}
+		}
+	}
+	if refreshToken != "" {
+		if err := s.cache.Delete(ctx, refreshKeyPrefix+refreshToken); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// IsRevoked reports whether an access-token jti has been deny-listed.
+func (s *AuthService) IsRevoked(ctx context.Context, jti string) (bool, error) {
+	if jti == "" {
+		return false, nil
+	}
+	_, err := s.cache.Get(ctx, denyListKeyPrefix+jti)
+	if errors.Is(err, port.ErrCacheMiss) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *AuthService) Me(ctx context.Context, userID string) (*domain.User, error) {
+	return s.users.FindByID(ctx, userID)
+}
+
+func (s *AuthService) issue(ctx context.Context, user *domain.User) (*AuthResult, error) {
+	now := s.clock.Now()
+	access, err := s.tokens.Issue(port.TokenClaims{
+		Subject:  user.ID,
+		Role:     user.Role,
+		IssuedAt: now,
+		Expires:  now.Add(s.accessTTL),
+		ID:       s.ids.NewID(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	refresh, err := randomToken(refreshTokenBytes)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.cache.Set(ctx, refreshKeyPrefix+refresh, user.ID, s.refreshTTL); err != nil {
+		return nil, err
+	}
+	return &AuthResult{
+		User:         user,
+		AccessToken:  access,
+		RefreshToken: refresh,
+		ExpiresIn:    int64(s.accessTTL.Seconds()),
+	}, nil
+}

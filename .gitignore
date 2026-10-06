@@ -1,0 +1,25 @@
+# Build artifacts
+/backend/server
+/backend/migrate
+/backend/seed
+/backend/data/
+/backend/.env
+
+# Go
+*.test
+*.out
+
+# Node
+node_modules/
+/frontend/dist/
+/frontend/.vite/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Local dev tooling
+/bin/
+/.dev/
