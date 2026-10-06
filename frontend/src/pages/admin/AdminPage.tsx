@@ -24,12 +24,15 @@ import { Pagination } from "@/components/pagination";
 import { useAdminCoupons, useAdminOrders, useAdminProducts, useAdminReviews, useAuditLogs, useCreateCoupon, useCurrencies, useDashboard, useDeleteReviewAdmin, useSetCurrencyRate, useUpdateCoupon } from "@/hooks/useAdmin";
 import {
   useAdminShippingMethods,
+  useAdminShippingZones,
   useCreateShippingMethod,
+  useCreateShippingZone,
+  useSetShippingRate,
   useUpdateShippingMethod,
 } from "@/hooks/useShipping";
 import { api } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
-import type { AuditLog, Coupon, ExchangeRate, Order, Product, Review, ShippingMethod } from "@/lib/types";
+import type { AuditLog, Coupon, ExchangeRate, Order, Product, Review, ShippingMethod, ShippingZone } from "@/lib/types";
 
 type Tab = "dashboard" | "products" | "orders" | "coupons" | "reviews" | "shipping" | "audit" | "currency";
 
@@ -62,7 +65,12 @@ export function AdminPage() {
       {tab === "orders" && <AdminOrders />}
       {tab === "coupons" && <AdminCoupons />}
       {tab === "reviews" && <AdminReviews />}
-      {tab === "shipping" && <AdminShipping />}
+      {tab === "shipping" && (
+        <div className="space-y-4">
+          <AdminShipping />
+          <AdminZones />
+        </div>
+      )}
       {tab === "audit" && <AdminAudit />}
       {tab === "currency" && <AdminCurrency />}
     </div>
@@ -205,6 +213,137 @@ function AdminAudit() {
             ))}
           </TableBody>
         </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AdminZones() {
+  const { data: zones } = useAdminShippingZones();
+  const { data: methods } = useAdminShippingMethods();
+  const createZone = useCreateShippingZone();
+  const setRate = useSetShippingRate();
+
+  const [name, setName] = useState("");
+  const [provinces, setProvinces] = useState("");
+  const [zoneId, setZoneId] = useState("");
+  const [methodId, setMethodId] = useState("");
+  const [flat, setFlat] = useState("0");
+  const [perKg, setPerKg] = useState("0");
+
+  function onCreate(e: FormEvent) {
+    e.preventDefault();
+    createZone.mutate(
+      {
+        name,
+        provinces: provinces.split(",").map((p) => p.trim()).filter(Boolean),
+        active: true,
+      },
+      { onSuccess: () => { setName(""); setProvinces(""); } },
+    );
+  }
+
+  function onSetRate(e: FormEvent) {
+    e.preventDefault();
+    if (!zoneId || !methodId) return;
+    setRate.mutate({
+      zoneId,
+      methodId,
+      input: {
+        flatRateCents: Math.round(Number.parseFloat(flat || "0") * 100),
+        freeThresholdCents: 0,
+        perKgCents: Math.round(Number.parseFloat(perKg || "0") * 100),
+      },
+    });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Shipping zones & rates</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <form onSubmit={onCreate} className="grid gap-3 sm:grid-cols-4">
+          <div className="space-y-1 sm:col-span-2">
+            <Label htmlFor="z-name">Zone name</Label>
+            <Input id="z-name" value={name} onChange={(e) => setName(e.target.value)} required />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label htmlFor="z-prov">Provinces (comma-separated)</Label>
+            <Input id="z-prov" value={provinces} onChange={(e) => setProvinces(e.target.value)} placeholder="Beijing, Tianjin" />
+          </div>
+          <div className="sm:col-span-4">
+            <Button type="submit" size="sm" disabled={createZone.isPending}>
+              <Plus className="size-4" />
+              Add zone
+            </Button>
+          </div>
+        </form>
+
+        {zones && zones.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Zone</TableHead>
+                <TableHead>Provinces</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {zones.map((z: ShippingZone) => (
+                <TableRow key={z.id}>
+                  <TableCell className="font-medium">{z.name}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {z.provinces.length > 0 ? z.provinces.join(", ") : "All regions"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+
+        <form onSubmit={onSetRate} className="grid gap-3 sm:grid-cols-4">
+          <div className="space-y-1">
+            <Label>Zone</Label>
+            <select
+              value={zoneId}
+              onChange={(e) => setZoneId(e.target.value)}
+              className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+              required
+            >
+              <option value="">Select…</option>
+              {zones?.map((z: ShippingZone) => (
+                <option key={z.id} value={z.id}>{z.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label>Method</Label>
+            <select
+              value={methodId}
+              onChange={(e) => setMethodId(e.target.value)}
+              className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+              required
+            >
+              <option value="">Select…</option>
+              {methods?.map((m: ShippingMethod) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="z-flat">Flat rate (CNY)</Label>
+            <Input id="z-flat" type="number" step="0.01" min="0" value={flat} onChange={(e) => setFlat(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="z-perkg">Per kg (CNY)</Label>
+            <Input id="z-perkg" type="number" step="0.01" min="0" value={perKg} onChange={(e) => setPerKg(e.target.value)} />
+          </div>
+          <div className="sm:col-span-4">
+            <Button type="submit" size="sm" disabled={setRate.isPending}>
+              Save rate
+            </Button>
+          </div>
+        </form>
       </CardContent>
     </Card>
   );

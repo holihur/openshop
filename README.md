@@ -362,6 +362,10 @@ retries safe.
 | `GET` | `/admin/shipping-methods` | List shipping methods |
 | `POST` | `/admin/shipping-methods` | Create a shipping method |
 | `PATCH` | `/admin/shipping-methods/:id` | Update a shipping method |
+| `GET` | `/admin/shipping-zones` | List shipping zones |
+| `POST` | `/admin/shipping-zones` | Create a shipping zone |
+| `PATCH` | `/admin/shipping-zones/:id` | Update a shipping zone |
+| `PUT` | `/admin/shipping-zones/:zoneId/rates/:methodId` | Set a zone rate (flat + per-kg) |
 | `GET` | `/admin/coupons` | List coupons |
 | `POST` | `/admin/coupons` | Create a coupon |
 | `GET` | `/admin/products/:id/variants` | List a product's variants |
@@ -563,9 +567,10 @@ Honest gaps a buyer should know about:
 - **Explicit fulfilment state machine.** `pending_payment → paid → shipped →
   completed`, with `cancelled`/`refunded` as terminal branches. Every transition
   is idempotent, lock-protected and emits an event.
-- **Money is computed server-side.** Shipping (flat rate with a free threshold)
-  and tax (configurable basis-point rate) are calculated at checkout on the
-  discounted subtotal; the client only previews them.
+- **Money is computed server-side.** Shipping (flat rate with a free threshold,
+  plus optional per-zone rates and per-kilogram weight surcharges) and tax
+  (configurable basis-point rate) are calculated at checkout on the discounted
+  subtotal; the client only previews them.
 - **Guest checkout shares one cart path.** The cart owner is a *subject* — a
   user id or an `X-Guest-Id` — and guest orders are authorised by an unguessable
   access token, so guests reuse the same inventory, coupon and payment logic.

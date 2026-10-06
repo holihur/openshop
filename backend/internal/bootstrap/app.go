@@ -115,6 +115,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	addressRepo := postgres.NewAddressRepository(db)
 	analyticsRepo := postgres.NewAnalyticsRepository(db)
 	shippingRepo := postgres.NewShippingMethodRepository(db)
+	zoneRepo := postgres.NewShippingZoneRepository(db)
 	auditRepo := postgres.NewAuditRepository(db)
 	wishlistRepo := postgres.NewWishlistRepository(db)
 	currencyRepo := postgres.NewCurrencyRepository(db)
@@ -131,11 +132,11 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	reviewSvc := service.NewReviewService(reviewRepo, products, cache, ids, clock)
 	addressSvc := service.NewAddressService(addressRepo, ids, clock)
 	analyticsSvc := service.NewAnalyticsService(analyticsRepo, cache, cfg.App.Currency, cfg.App.LowStockThreshold)
-	shippingSvc := service.NewShippingService(shippingRepo, ids, clock)
+	shippingSvc := service.NewShippingService(shippingRepo, zoneRepo, ids, clock)
 	auditSvc := service.NewAuditService(auditRepo, ids, clock, log)
 	wishlistSvc := service.NewWishlistService(wishlistRepo, products)
 	currencySvc := service.NewCurrencyService(currencyRepo, cfg.App.Currency, cache)
-	orderSvc := service.NewOrderService(orders, products, couponRepo, variantRepo, addressRepo, shippingRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, cfg.App.TaxRateBps, cfg.App.OrderTTL, cfg.App.Currency)
+	orderSvc := service.NewOrderService(orders, products, couponRepo, variantRepo, addressRepo, shippingRepo, zoneRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, cfg.App.TaxRateBps, cfg.App.OrderTTL, cfg.App.Currency)
 	paymentSvc := service.NewPaymentService(paymentRepo, orders, payments, orderSvc, ids, clock, log, promMetrics)
 
 	// --- HTTP surface ---

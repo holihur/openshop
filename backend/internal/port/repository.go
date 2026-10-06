@@ -138,6 +138,18 @@ type ShippingMethodRepository interface {
 	Default(ctx context.Context) (*domain.ShippingMethod, error)
 }
 
+// ShippingZoneRepository persists zones and their per-method rates.
+type ShippingZoneRepository interface {
+	Create(ctx context.Context, z *domain.ShippingZone) error
+	Update(ctx context.Context, z *domain.ShippingZone) error
+	List(ctx context.Context, activeOnly bool) ([]domain.ShippingZone, error)
+	FindByID(ctx context.Context, id string) (*domain.ShippingZone, error)
+	// FindByProvince returns the first active zone covering a province.
+	FindByProvince(ctx context.Context, province string) (*domain.ShippingZone, error)
+	UpsertRate(ctx context.Context, r *domain.ShippingRate) error
+	FindRate(ctx context.Context, zoneID, methodID string) (*domain.ShippingRate, error)
+}
+
 // AuditRepository persists the append-only audit trail.
 type AuditRepository interface {
 	Create(ctx context.Context, entry *domain.AuditLog) error

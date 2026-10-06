@@ -12,13 +12,14 @@ type Variant struct {
 	SKU       string
 	Name      string
 	// PriceCents is the variant price; 0 means inherit the product price.
-	PriceCents int64
-	Stock      int
-	Attributes map[string]string
-	Sort       int
-	Active     bool
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	PriceCents  int64
+	Stock       int
+	WeightGrams int
+	Attributes  map[string]string
+	Sort        int
+	Active      bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // EffectivePrice returns the variant price, falling back to the product price.

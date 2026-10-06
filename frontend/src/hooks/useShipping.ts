@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
-import type { ShippingMethod } from "@/lib/types";
+import type { ShippingMethod, ShippingZone } from "@/lib/types";
 
 export function useShippingMethods() {
   return useQuery({
@@ -51,6 +51,38 @@ export function useUpdateShippingMethod() {
       void queryClient.invalidateQueries({ queryKey: ["admin", "shipping-methods"] });
       void queryClient.invalidateQueries({ queryKey: ["shipping-methods"] });
     },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useAdminShippingZones() {
+  return useQuery({
+    queryKey: ["admin", "shipping-zones"],
+    queryFn: () => api.get<ShippingZone[]>("/admin/shipping-zones"),
+  });
+}
+
+export function useCreateShippingZone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string; provinces: string[]; active?: boolean; sort?: number }) =>
+      api.post<ShippingZone>("/admin/shipping-zones", input),
+    onSuccess: () => {
+      toast.success("Zone created");
+      void queryClient.invalidateQueries({ queryKey: ["admin", "shipping-zones"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useSetShippingRate() {
+  return useMutation({
+    mutationFn: ({ zoneId, methodId, input }: {
+      zoneId: string;
+      methodId: string;
+      input: { flatRateCents: number; freeThresholdCents: number; perKgCents: number };
+    }) => api.put(`/admin/shipping-zones/${zoneId}/rates/${methodId}`, input),
+    onSuccess: () => toast.success("Rate saved"),
     onError: (error: Error) => toast.error(error.message),
   });
 }

@@ -29,11 +29,13 @@ type Product struct {
 	// PriceCents stores the price in the minor currency unit to avoid floating
 	// point money. Currency is an ISO-4217 code.
 	PriceCents int64
-	Currency   string
-	CoverImage string
-	Images     []string
-	Status     ProductStatus
-	Stock      int
+	// WeightGrams is used for weight-based shipping; 0 means unset.
+	WeightGrams int
+	Currency    string
+	CoverImage  string
+	Images      []string
+	Status      ProductStatus
+	Stock       int
 	// Variants are loaded on demand and persisted in their own table. A product
 	// with no variants keeps its inventory on the product row.
 	Variants  []Variant

@@ -15,6 +15,7 @@ export interface ProductInput {
   images?: string[];
   status?: string;
   stock: number;
+  weightGrams?: number;
 }
 
 export function useCategories() {
@@ -179,6 +180,7 @@ export interface VariantInput {
   name: string;
   priceCents: number;
   stock: number;
+  weightGrams?: number;
   active?: boolean;
 }
 

@@ -27,12 +27,33 @@ type DB struct {
 // txKey is the context key used to propagate a transaction to repositories.
 type txKey struct{}
 
+// withStatementCacheDisabled appends pgx parameters that turn off the prepared
+// statement cache and describe each statement without caching. This avoids
+// "cached plan must not change result type" errors, which GORM's SELECT * can
+// raise after a migration alters a table, while keeping type-aware parameter
+// encoding (unlike the simple protocol, which would encode []byte as bytea and
+// break jsonb columns).
+func withStatementCacheDisabled(dsn string) string {
+	if strings.Contains(dsn, "default_query_exec_mode") {
+		return dsn
+	}
+	const params = "statement_cache_capacity=0&default_query_exec_mode=describe_exec"
+	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
+		sep := "?"
+		if strings.Contains(dsn, "?") {
+			sep = "&"
+		}
+		return dsn + sep + params
+	}
+	return strings.TrimSpace(dsn) + " " + strings.ReplaceAll(params, "&", " ")
+}
+
 // Open connects to PostgreSQL and configures the pool. The pool settings are
 // per-replica; PostgreSQL itself is the shared source of truth, so adding
 // replicas scales read throughput.
 func Open(cfg config.PostgresConfig, log applog.Logger) (*DB, error) {
 	gormLog := logger.Default.LogMode(logger.Warn)
-	db, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(withStatementCacheDisabled(cfg.DSN)), &gorm.Config{
 		Logger:                 gormLog,
 		SkipDefaultTransaction: true,
 		NowFunc:                func() time.Time { return time.Now().UTC() },
@@ -80,7 +101,7 @@ func (d *DB) AutoMigrate() error {
 	if err := d.gorm.AutoMigrate(
 		&userModel{}, &categoryModel{}, &productModel{},
 		&orderModel{}, &orderItemModel{}, &paymentModel{}, &outboxModel{},
-		&couponModel{}, &couponRedemptionModel{}, &reviewModel{}, &variantModel{}, &addressModel{}, &shippingMethodModel{}, &auditModel{}, &wishlistModel{},
+		&couponModel{}, &couponRedemptionModel{}, &reviewModel{}, &variantModel{}, &addressModel{}, &shippingMethodModel{}, &auditModel{}, &wishlistModel{}, &shippingZoneModel{}, &shippingRateModel{},
 	); err != nil {
 		return err
 	}

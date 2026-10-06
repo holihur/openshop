@@ -14,6 +14,7 @@ interface FormState {
   description: string;
   price: string; // in major units, converted to cents on submit
   stock: string;
+  weight: string; // grams
   status: string;
   categoryId: string;
   coverImage: string;
@@ -25,6 +26,7 @@ function initialState(product?: Product): FormState {
     description: product?.description ?? "",
     price: product ? (product.priceCents / 100).toFixed(2) : "",
     stock: product ? String(product.stock) : "0",
+    weight: product ? String(product.weightGrams ?? 0) : "0",
     status: product?.status ?? "draft",
     categoryId: product?.categoryId ?? "",
     coverImage: product?.coverImage ?? "",
@@ -55,6 +57,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
       description: form.description,
       priceCents,
       stock: Number.parseInt(form.stock || "0", 10),
+      weightGrams: Number.parseInt(form.weight || "0", 10),
       status: form.status,
       categoryId: form.categoryId || undefined,
       coverImage: form.coverImage,
@@ -117,6 +120,17 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
               value={form.stock}
               onChange={(e) => set({ stock: e.target.value })}
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="weight">Weight (grams)</Label>
+            <Input
+              id="weight"
+              type="number"
+              min="0"
+              value={form.weight}
+              onChange={(e) => set({ weight: e.target.value })}
             />
           </div>
 

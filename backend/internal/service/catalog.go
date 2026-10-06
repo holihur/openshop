@@ -92,6 +92,7 @@ type CreateProductInput struct {
 	Images      []string
 	Status      domain.ProductStatus
 	Stock       int
+	WeightGrams int
 }
 
 func (s *CatalogService) CreateProduct(ctx context.Context, in CreateProductInput) (*domain.Product, error) {
@@ -118,7 +119,8 @@ func (s *CatalogService) CreateProduct(ctx context.Context, in CreateProductInpu
 		ID: s.ids.NewID(), CategoryID: in.CategoryID, Title: in.Title, Slug: slug,
 		Description: in.Description, PriceCents: in.PriceCents, Currency: currency,
 		CoverImage: in.CoverImage, Images: in.Images, Status: status, Stock: in.Stock,
-		CreatedAt: now, UpdatedAt: now,
+		WeightGrams: in.WeightGrams,
+		CreatedAt:   now, UpdatedAt: now,
 	}
 	if err := s.products.Create(ctx, p); err != nil {
 		return nil, err
@@ -135,6 +137,7 @@ type UpdateProductInput struct {
 	Status      *domain.ProductStatus
 	Stock       *int
 	CategoryID  *string
+	WeightGrams *int
 }
 
 func (s *CatalogService) UpdateProduct(ctx context.Context, id string, in UpdateProductInput) (*domain.Product, error) {
@@ -165,6 +168,9 @@ func (s *CatalogService) UpdateProduct(ctx context.Context, id string, in Update
 	}
 	if in.CategoryID != nil {
 		p.CategoryID = *in.CategoryID
+	}
+	if in.WeightGrams != nil {
+		p.WeightGrams = *in.WeightGrams
 	}
 	p.UpdatedAt = s.clock.Now()
 	if err := s.products.Update(ctx, p); err != nil {
@@ -219,14 +225,15 @@ func (s *CatalogService) InvalidateProductCache(ctx context.Context, ids ...stri
 }
 
 type CreateVariantInput struct {
-	ProductID  string
-	SKU        string
-	Name       string
-	PriceCents int64
-	Stock      int
-	Attributes map[string]string
-	Sort       int
-	Active     bool
+	ProductID   string
+	SKU         string
+	Name        string
+	PriceCents  int64
+	Stock       int
+	WeightGrams int
+	Attributes  map[string]string
+	Sort        int
+	Active      bool
 }
 
 func (s *CatalogService) CreateVariant(ctx context.Context, in CreateVariantInput) (*domain.Variant, error) {
@@ -247,7 +254,8 @@ func (s *CatalogService) CreateVariant(ctx context.Context, in CreateVariantInpu
 	v := &domain.Variant{
 		ID: s.ids.NewID(), ProductID: in.ProductID, SKU: sku, Name: in.Name,
 		PriceCents: in.PriceCents, Stock: in.Stock, Attributes: in.Attributes,
-		Sort: in.Sort, Active: in.Active, CreatedAt: now, UpdatedAt: now,
+		WeightGrams: in.WeightGrams,
+		Sort:        in.Sort, Active: in.Active, CreatedAt: now, UpdatedAt: now,
 	}
 	if err := s.variants.Create(ctx, v); err != nil {
 		return nil, err
@@ -257,13 +265,14 @@ func (s *CatalogService) CreateVariant(ctx context.Context, in CreateVariantInpu
 }
 
 type UpdateVariantInput struct {
-	SKU        *string
-	Name       *string
-	PriceCents *int64
-	Stock      *int
-	Attributes map[string]string
-	Sort       *int
-	Active     *bool
+	SKU         *string
+	Name        *string
+	PriceCents  *int64
+	Stock       *int
+	WeightGrams *int
+	Attributes  map[string]string
+	Sort        *int
+	Active      *bool
 }
 
 func (s *CatalogService) UpdateVariant(ctx context.Context, id string, in UpdateVariantInput) (*domain.Variant, error) {
@@ -282,6 +291,9 @@ func (s *CatalogService) UpdateVariant(ctx context.Context, id string, in Update
 	}
 	if in.Stock != nil {
 		v.Stock = *in.Stock
+	}
+	if in.WeightGrams != nil {
+		v.WeightGrams = *in.WeightGrams
 	}
 	if in.Attributes != nil {
 		v.Attributes = in.Attributes

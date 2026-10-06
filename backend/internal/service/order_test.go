@@ -16,6 +16,7 @@ type orderFixture struct {
 	variants  *fakeVariantRepo
 	addresses *fakeAddressRepo
 	shipping  *fakeShippingRepo
+	zones     *fakeZoneRepo
 	carts     *fakeCartRepo
 	orders    *fakeOrderRepo
 	coupons   *fakeCouponRepo
@@ -30,19 +31,20 @@ func newOrderFixtureTax(taxBps int) *orderFixture {
 	variants := newFakeVariantRepo()
 	addresses := newFakeAddressRepo()
 	shipping := newFakeShippingRepo()
+	zones := newFakeZoneRepo()
 	carts := newFakeCartRepo()
 	orders := newFakeOrderRepo()
 	coupons := newFakeCouponRepo()
 	outbox := newFakeOutbox()
 	locker := newFakeLocker()
 	svc := NewOrderService(
-		orders, products, coupons, variants, addresses, shipping, nil, carts, locker, fakeTx{}, outbox,
+		orders, products, coupons, variants, addresses, shipping, zones, nil, carts, locker, fakeTx{}, outbox,
 		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
 		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, taxBps, 30*time.Minute, "CNY",
 	)
 	return &orderFixture{
 		svc: svc, products: products, variants: variants, addresses: addresses, shipping: shipping,
-		carts: carts, orders: orders, coupons: coupons, outbox: outbox, locker: locker,
+		zones: zones, carts: carts, orders: orders, coupons: coupons, outbox: outbox, locker: locker,
 	}
 }
 
@@ -51,6 +53,32 @@ func seedProduct(f *orderFixture, id string, stock int, price int64) {
 		ID: id, Title: "Item " + id, PriceCents: price, Currency: "CNY",
 		Status: domain.ProductPublished, Stock: stock,
 	})
+}
+
+func TestShippingZoneAndWeight(t *testing.T) {
+	f := newOrderFixture()
+	f.products.put(&domain.Product{
+		ID: "p1", Title: "Heavy", PriceCents: 10000, Currency: "CNY",
+		Status: domain.ProductPublished, Stock: 5, WeightGrams: 1500,
+	})
+	f.shipping.put(&domain.ShippingMethod{ID: "m1", Name: "Standard", FlatRateCents: 1000, Active: true})
+	f.zones.zones["z1"] = &domain.ShippingZone{ID: "z1", Name: "North", Provinces: []string{"Beijing"}, Active: true}
+	f.zones.rates[rateKey("z1", "m1")] = &domain.ShippingRate{
+		ZoneID: "z1", MethodID: "m1", FlatRateCents: 500, PerKgCents: 200,
+	}
+	f.addresses.put(&domain.Address{ID: "a1", UserID: "u1", Recipient: "Alice", Province: "Beijing", Line1: "1 St"})
+
+	cart := &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 1}}}
+	_ = f.carts.Save(context.Background(), cart)
+
+	order, err := f.svc.Checkout(context.Background(), CheckoutInput{UserID: "u1", AddressID: "a1"})
+	if err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+	// 500 flat + 200 * ceil(1500/1000)=400 -> 900.
+	if order.ShippingCents != 900 {
+		t.Fatalf("shipping = %d, want 900 (zone rate + weight)", order.ShippingCents)
+	}
 }
 
 func TestCheckoutReservesStockAndClearsCart(t *testing.T) {
@@ -452,13 +480,14 @@ func TestCheckoutConvertsCurrency(t *testing.T) {
 	variants := newFakeVariantRepo()
 	addresses := newFakeAddressRepo()
 	shipping := newFakeShippingRepo()
+	zones := newFakeZoneRepo()
 	carts := newFakeCartRepo()
 	orders := newFakeOrderRepo()
 	coupons := newFakeCouponRepo()
 	outbox := newFakeOutbox()
 	locker := newFakeLocker()
 	svc := NewOrderService(
-		orders, products, coupons, variants, addresses, shipping, fakeRates{rate: 7_000_000},
+		orders, products, coupons, variants, addresses, shipping, zones, fakeRates{rate: 7_000_000},
 		carts, locker, fakeTx{}, outbox,
 		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
 		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, 0, 30*time.Minute, "CNY",

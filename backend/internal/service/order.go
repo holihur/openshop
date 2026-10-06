@@ -30,6 +30,7 @@ type OrderService struct {
 	variants     port.VariantRepository
 	addresses    port.AddressRepository
 	shipping     port.ShippingMethodRepository
+	zones        port.ShippingZoneRepository
 	rates        port.ExchangeRates
 	carts        port.CartRepository
 	locker       port.Locker
@@ -53,6 +54,7 @@ func NewOrderService(
 	variants port.VariantRepository,
 	addresses port.AddressRepository,
 	shipping port.ShippingMethodRepository,
+	zones port.ShippingZoneRepository,
 	rates port.ExchangeRates,
 	carts port.CartRepository,
 	locker port.Locker,
@@ -76,7 +78,7 @@ func NewOrderService(
 	}
 	return &OrderService{
 		orders: orders, products: products, coupons: coupons, variants: variants, addresses: addresses,
-		shipping: shipping, rates: rates, carts: carts, locker: locker, tx: tx,
+		shipping: shipping, zones: zones, rates: rates, carts: carts, locker: locker, tx: tx,
 		outbox: outbox, ids: ids, clock: clock, logger: logger, productCache: productCache,
 		metrics: metrics, tracer: tracer, taxRateBps: taxRateBps, ttl: ttl, currency: currency,
 	}
@@ -195,6 +197,7 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 
 	err = s.tx.WithinTx(ctx, func(txCtx context.Context) error {
 		var total int64
+		var weightGrams int64
 		items := make([]domain.OrderItem, 0, len(cart.Items))
 		for _, ci := range cart.Items {
 			// Re-read the product so pricing and stock are authoritative at the
@@ -208,6 +211,7 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 			}
 
 			price := p.PriceCents
+			itemWeight := p.WeightGrams
 			item := domain.OrderItem{
 				ID: s.ids.NewID(), OrderID: order.ID, ProductID: p.ID, Title: p.Title,
 				Quantity: ci.Quantity,
@@ -224,6 +228,9 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 					return err
 				}
 				price = v.EffectivePrice(p.PriceCents)
+				if v.WeightGrams > 0 {
+					itemWeight = v.WeightGrams
+				}
 				item.VariantID = v.ID
 				item.VariantName = v.Name
 				item.SKU = v.SKU
@@ -235,6 +242,7 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 			item.PriceCents = domain.Convert(price, rate)
 			item.Subtotal = item.PriceCents * int64(ci.Quantity)
 			total += item.Subtotal
+			weightGrams += int64(itemWeight) * int64(ci.Quantity)
 			items = append(items, item)
 		}
 		if total <= 0 {
@@ -257,12 +265,7 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 		if method != nil {
 			order.ShippingMethodID = method.ID
 			order.ShippingMethodName = method.Name
-			threshold := domain.Convert(method.FreeThresholdCents, rate)
-			if method.FreeThresholdCents > 0 && order.SubtotalCents >= threshold {
-				order.ShippingCents = 0
-			} else {
-				order.ShippingCents = domain.Convert(method.FlatRateCents, rate)
-			}
+			order.ShippingCents = s.shippingCost(txCtx, method, shipping, order.SubtotalCents, weightGrams, rate)
 		}
 
 		// Tax applies to the discounted subtotal plus shipping.
@@ -527,6 +530,23 @@ func (s *OrderService) MarkCompleted(ctx context.Context, orderID string) (*doma
 		return nil, err
 	}
 	return out, nil
+}
+
+// shippingCost resolves a zone rate for the destination (falling back to the
+// method default) and converts it to the settlement currency.
+func (s *OrderService) shippingCost(ctx context.Context, method *domain.ShippingMethod, addr *domain.Address, subtotal, weightGrams, rate int64) int64 {
+	if addr != nil && addr.Province != "" && s.zones != nil {
+		if zone, err := s.zones.FindByProvince(ctx, addr.Province); err == nil {
+			if zoneRate, err := s.zones.FindRate(ctx, zone.ID, method.ID); err == nil {
+				return domain.Convert(zoneRate.Cost(subtotal, weightGrams), rate)
+			}
+		}
+	}
+	threshold := domain.Convert(method.FreeThresholdCents, rate)
+	if method.FreeThresholdCents > 0 && subtotal >= threshold {
+		return 0
+	}
+	return domain.Convert(method.FlatRateCents, rate)
 }
 
 // resolveShipping returns the requested shipping method, or the store default

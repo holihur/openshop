@@ -29,20 +29,22 @@ type productView struct {
 	Images      []string      `json:"images"`
 	Status      string        `json:"status"`
 	Stock       int           `json:"stock"`
+	WeightGrams int           `json:"weightGrams"`
 	Variants    []variantView `json:"variants,omitempty"`
 	Rating      float64       `json:"rating,omitempty"`
 	ReviewCount int64         `json:"reviewCount,omitempty"`
 }
 
 type variantView struct {
-	ID         string            `json:"id"`
-	SKU        string            `json:"sku"`
-	Name       string            `json:"name"`
-	PriceCents int64             `json:"priceCents"`
-	Stock      int               `json:"stock"`
-	Attributes map[string]string `json:"attributes,omitempty"`
-	Sort       int               `json:"sort"`
-	Active     bool              `json:"active"`
+	ID          string            `json:"id"`
+	SKU         string            `json:"sku"`
+	Name        string            `json:"name"`
+	PriceCents  int64             `json:"priceCents"`
+	Stock       int               `json:"stock"`
+	WeightGrams int               `json:"weightGrams"`
+	Attributes  map[string]string `json:"attributes,omitempty"`
+	Sort        int               `json:"sort"`
+	Active      bool              `json:"active"`
 }
 
 type createCategoryRequest struct {
@@ -63,6 +65,7 @@ type createProductRequest struct {
 	Images      []string `json:"images"`
 	Status      string   `json:"status"`
 	Stock       int      `json:"stock" binding:"gte=0"`
+	WeightGrams int      `json:"weightGrams" binding:"gte=0"`
 }
 
 type updateProductRequest struct {
@@ -74,6 +77,7 @@ type updateProductRequest struct {
 	Status      *string  `json:"status"`
 	Stock       *int     `json:"stock"`
 	CategoryID  *string  `json:"categoryId"`
+	WeightGrams *int     `json:"weightGrams"`
 }
 
 func (h *Handler) ListCategories(c *gin.Context) {
@@ -159,7 +163,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		CategoryID: req.CategoryID, Title: req.Title, Slug: req.Slug,
 		Description: req.Description, PriceCents: req.PriceCents, Currency: req.Currency,
 		CoverImage: req.CoverImage, Images: req.Images,
-		Status: domain.ProductStatus(req.Status), Stock: req.Stock,
+		Status: domain.ProductStatus(req.Status), Stock: req.Stock, WeightGrams: req.WeightGrams,
 	})
 	if err != nil {
 		response.Fail(c, err)
@@ -178,6 +182,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	in := service.UpdateProductInput{
 		Title: req.Title, Description: req.Description, PriceCents: req.PriceCents,
 		CoverImage: req.CoverImage, Images: req.Images, Stock: req.Stock, CategoryID: req.CategoryID,
+		WeightGrams: req.WeightGrams,
 	}
 	if req.Status != nil {
 		st := domain.ProductStatus(*req.Status)
@@ -205,6 +210,7 @@ func toProductView(p domain.Product) productView {
 		ID: p.ID, CategoryID: p.CategoryID, Title: p.Title, Slug: p.Slug,
 		Description: p.Description, PriceCents: p.PriceCents, Currency: p.Currency,
 		CoverImage: p.CoverImage, Images: images, Status: string(p.Status), Stock: p.Stock,
+		WeightGrams: p.WeightGrams,
 	}
 	if len(p.Variants) > 0 {
 		view.Variants = make([]variantView, 0, len(p.Variants))
@@ -212,6 +218,7 @@ func toProductView(p domain.Product) productView {
 			view.Variants = append(view.Variants, variantView{
 				ID: v.ID, SKU: v.SKU, Name: v.Name, PriceCents: v.PriceCents,
 				Stock: v.Stock, Attributes: v.Attributes, Sort: v.Sort, Active: v.Active,
+				WeightGrams: v.WeightGrams,
 			})
 		}
 	}
@@ -227,23 +234,25 @@ func toProductViews(items []domain.Product) []productView {
 }
 
 type createVariantRequest struct {
-	SKU        string            `json:"sku"`
-	Name       string            `json:"name" binding:"required"`
-	PriceCents int64             `json:"priceCents" binding:"gte=0"`
-	Stock      int               `json:"stock" binding:"gte=0"`
-	Attributes map[string]string `json:"attributes"`
-	Sort       int               `json:"sort"`
-	Active     *bool             `json:"active"`
+	SKU         string            `json:"sku"`
+	Name        string            `json:"name" binding:"required"`
+	PriceCents  int64             `json:"priceCents" binding:"gte=0"`
+	Stock       int               `json:"stock" binding:"gte=0"`
+	WeightGrams int               `json:"weightGrams" binding:"gte=0"`
+	Attributes  map[string]string `json:"attributes"`
+	Sort        int               `json:"sort"`
+	Active      *bool             `json:"active"`
 }
 
 type updateVariantRequest struct {
-	SKU        *string           `json:"sku"`
-	Name       *string           `json:"name"`
-	PriceCents *int64            `json:"priceCents"`
-	Stock      *int              `json:"stock"`
-	Attributes map[string]string `json:"attributes"`
-	Sort       *int              `json:"sort"`
-	Active     *bool             `json:"active"`
+	SKU         *string           `json:"sku"`
+	Name        *string           `json:"name"`
+	PriceCents  *int64            `json:"priceCents"`
+	Stock       *int              `json:"stock"`
+	WeightGrams *int              `json:"weightGrams"`
+	Attributes  map[string]string `json:"attributes"`
+	Sort        *int              `json:"sort"`
+	Active      *bool             `json:"active"`
 }
 
 func (h *Handler) ListVariants(c *gin.Context) {
@@ -274,7 +283,7 @@ func (h *Handler) CreateVariant(c *gin.Context) {
 	}
 	v, err := h.Catalog.CreateVariant(c.Request.Context(), service.CreateVariantInput{
 		ProductID: c.Param("id"), SKU: req.SKU, Name: req.Name, PriceCents: req.PriceCents,
-		Stock: req.Stock, Attributes: req.Attributes, Sort: req.Sort, Active: active,
+		Stock: req.Stock, WeightGrams: req.WeightGrams, Attributes: req.Attributes, Sort: req.Sort, Active: active,
 	})
 	if err != nil {
 		response.Fail(c, err)
@@ -295,7 +304,7 @@ func (h *Handler) UpdateVariant(c *gin.Context) {
 	}
 	v, err := h.Catalog.UpdateVariant(c.Request.Context(), c.Param("id"), service.UpdateVariantInput{
 		SKU: req.SKU, Name: req.Name, PriceCents: req.PriceCents, Stock: req.Stock,
-		Attributes: req.Attributes, Sort: req.Sort, Active: req.Active,
+		WeightGrams: req.WeightGrams, Attributes: req.Attributes, Sort: req.Sort, Active: req.Active,
 	})
 	if err != nil {
 		response.Fail(c, err)

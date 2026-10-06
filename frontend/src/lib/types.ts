@@ -21,6 +21,7 @@ export interface Variant {
   name: string;
   priceCents: number;
   stock: number;
+  weightGrams: number;
   attributes?: Record<string, string>;
   sort: number;
   active: boolean;
@@ -38,6 +39,7 @@ export interface Product {
   images: string[];
   status: "draft" | "published" | "archived";
   stock: number;
+  weightGrams: number;
   variants?: Variant[];
   rating?: number;
   reviewCount?: number;
@@ -152,6 +154,14 @@ export interface ShippingMethod {
   name: string;
   flatRateCents: number;
   freeThresholdCents: number;
+  active: boolean;
+  sort: number;
+}
+
+export interface ShippingZone {
+  id: string;
+  name: string;
+  provinces: string[];
   active: boolean;
   sort: number;
 }

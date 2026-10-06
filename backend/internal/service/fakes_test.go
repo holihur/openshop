@@ -630,6 +630,83 @@ func (r *fakeShippingRepo) Default(_ context.Context) (*domain.ShippingMethod, e
 	return nil, domain.ErrNotFound
 }
 
+type fakeZoneRepo struct {
+	mu    sync.Mutex
+	zones map[string]*domain.ShippingZone
+	rates map[string]*domain.ShippingRate
+}
+
+func newFakeZoneRepo() *fakeZoneRepo {
+	return &fakeZoneRepo{zones: map[string]*domain.ShippingZone{}, rates: map[string]*domain.ShippingRate{}}
+}
+
+func rateKey(zoneID, methodID string) string { return zoneID + "|" + methodID }
+
+func (r *fakeZoneRepo) Create(_ context.Context, z *domain.ShippingZone) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cp := *z
+	r.zones[z.ID] = &cp
+	return nil
+}
+
+func (r *fakeZoneRepo) Update(_ context.Context, z *domain.ShippingZone) error {
+	return r.Create(context.Background(), z)
+}
+
+func (r *fakeZoneRepo) List(_ context.Context, activeOnly bool) ([]domain.ShippingZone, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := []domain.ShippingZone{}
+	for _, z := range r.zones {
+		if activeOnly && !z.Active {
+			continue
+		}
+		out = append(out, *z)
+	}
+	return out, nil
+}
+
+func (r *fakeZoneRepo) FindByID(_ context.Context, id string) (*domain.ShippingZone, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if z, ok := r.zones[id]; ok {
+		cp := *z
+		return &cp, nil
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (r *fakeZoneRepo) FindByProvince(_ context.Context, province string) (*domain.ShippingZone, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, z := range r.zones {
+		if z.Active && z.Matches(province) {
+			cp := *z
+			return &cp, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (r *fakeZoneRepo) UpsertRate(_ context.Context, rate *domain.ShippingRate) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cp := *rate
+	r.rates[rateKey(rate.ZoneID, rate.MethodID)] = &cp
+	return nil
+}
+
+func (r *fakeZoneRepo) FindRate(_ context.Context, zoneID, methodID string) (*domain.ShippingRate, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if rate, ok := r.rates[rateKey(zoneID, methodID)]; ok {
+		cp := *rate
+		return &cp, nil
+	}
+	return nil, domain.ErrNotFound
+}
+
 type fakeCache struct {
 	mu   sync.Mutex
 	data map[string]string

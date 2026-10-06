@@ -28,6 +28,7 @@ export function VariantsEditor({ productId }: { productId: string }) {
   const [sku, setSku] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("0");
+  const [weight, setWeight] = useState("0");
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -37,6 +38,7 @@ export function VariantsEditor({ productId }: { productId: string }) {
         sku: sku || undefined,
         priceCents: Math.round(Number.parseFloat(price || "0") * 100),
         stock: Number.parseInt(stock || "0", 10),
+        weightGrams: Number.parseInt(weight || "0", 10),
         active: true,
       },
       {
@@ -45,6 +47,7 @@ export function VariantsEditor({ productId }: { productId: string }) {
           setSku("");
           setPrice("");
           setStock("0");
+          setWeight("0");
         },
       },
     );
@@ -91,6 +94,16 @@ export function VariantsEditor({ productId }: { productId: string }) {
               min="0"
               value={stock}
               onChange={(e) => setStock(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="v-weight">Weight (g)</Label>
+            <Input
+              id="v-weight"
+              type="number"
+              min="0"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
             />
           </div>
           <div className="sm:col-span-5">
