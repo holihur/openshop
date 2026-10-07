@@ -68,8 +68,10 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		CategoryID: c.Query("categoryId"),
 		Keyword:    c.Query("keyword"),
 		Sort:       c.Query("sort"),
+		Cursor:     c.Query("cursor"),
 	}
 	filter.Page, filter.PageSize = ParsePage(c, 20)
+	_, filter.CursorMode = c.GetQuery("cursor")
 
 	if middleware.IsAdmin(c) {
 		// Admins may filter by any status (including drafts and archives).
@@ -88,7 +90,7 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.Paginated(c, ToProductViews(page.Items), page.Total, page.Page, page.PageSize)
+	response.PaginatedCursor(c, ToProductViews(page.Items), page.Total, page.Page, page.PageSize, page.NextCursor)
 }
 
 func ToCategoryView(cat domain.Category) CategoryView {

@@ -42,13 +42,20 @@ type Meta struct {
 	Total    int64 `json:"total"`
 	Page     int   `json:"page"`
 	PageSize int   `json:"pageSize"`
+	// NextCursor is present for keyset (cursor) listings.
+	NextCursor string `json:"nextCursor,omitempty"`
 }
 
 // Paginated writes a list response with pagination metadata.
 func Paginated(c *gin.Context, items any, total int64, page, pageSize int) {
+	PaginatedCursor(c, items, total, page, pageSize, "")
+}
+
+// PaginatedCursor writes a list response that also carries a keyset cursor.
+func PaginatedCursor(c *gin.Context, items any, total int64, page, pageSize int, nextCursor string) {
 	c.JSON(http.StatusOK, envelope{
 		Data: items,
-		Meta: Meta{Total: total, Page: page, PageSize: pageSize},
+		Meta: Meta{Total: total, Page: page, PageSize: pageSize, NextCursor: nextCursor},
 	})
 }
 

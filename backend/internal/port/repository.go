@@ -88,6 +88,13 @@ type ReturnRepository interface {
 	Update(ctx context.Context, r *domain.ReturnRequest) error
 }
 
+// RetentionRepository prunes append-only tables so they do not grow without
+// limit. Deletes are batched to keep transactions short.
+type RetentionRepository interface {
+	DeletePublishedOutboxBefore(ctx context.Context, before time.Time, limit int) (int64, error)
+	DeleteAuditBefore(ctx context.Context, before time.Time, limit int) (int64, error)
+}
+
 // CouponRepository persists coupons and their redemptions. IncrementUsage is
 // the distributed-safe guard that enforces global usage limits.
 type CouponRepository interface {

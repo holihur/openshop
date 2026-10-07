@@ -56,6 +56,12 @@ type ProductFilter struct {
 	Page       int
 	PageSize   int
 	Sort       string // "newest", "price_asc", "price_desc"
+	// Cursor, when set, switches to keyset pagination (stable and O(1) at any
+	// depth). Page is ignored in that mode.
+	Cursor string
+	// CursorMode requests keyset pagination even on the first page (where Cursor
+	// is empty).
+	CursorMode bool
 }
 
 type Page[T any] struct {
@@ -63,4 +69,6 @@ type Page[T any] struct {
 	Total    int64
 	Page     int
 	PageSize int
+	// NextCursor is set by keyset (cursor) listings; empty for offset listings.
+	NextCursor string
 }

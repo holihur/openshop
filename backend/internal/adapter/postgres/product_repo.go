@@ -81,6 +81,34 @@ func (r *ProductRepository) List(ctx context.Context, f domain.ProductFilter) (d
 		q = q.Where("status = ?", string(*f.Status))
 	}
 
+	// Keyset (cursor) mode: stable and O(1) at any depth. Only the newest
+	// ordering is supported; other sorts fall back to offset paging.
+	if f.CursorMode && (f.Sort == "" || f.Sort == "newest") {
+		if f.Cursor != "" {
+			createdAt, id, err := decodeCursor(f.Cursor)
+			if err != nil {
+				return domain.Page[domain.Product]{}, err
+			}
+			q = q.Where("(created_at, id) < (?, ?)", createdAt, id)
+		}
+		var models []productModel
+		err := q.Order("created_at desc, id desc").Limit(size + 1).Find(&models).Error
+		if err != nil {
+			return domain.Page[domain.Product]{}, translate(err)
+		}
+		var next string
+		if len(models) > size {
+			models = models[:size]
+			last := models[len(models)-1]
+			next = encodeCursor(last.CreatedAt, last.ID)
+		}
+		items := make([]domain.Product, 0, len(models))
+		for i := range models {
+			items = append(items, *toProduct(&models[i]))
+		}
+		return domain.Page[domain.Product]{Items: items, PageSize: size, NextCursor: next}, nil
+	}
+
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		return domain.Page[domain.Product]{}, translate(err)

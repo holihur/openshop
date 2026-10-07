@@ -219,6 +219,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		accountSvc = service.NewAccountService(users, addressRepo, wishlistRepo, reviewRepo, orders, authSvc, log)
 	}
 	returnSvc := service.NewReturnService(returnRepo, orders, ids, clock)
+	retentionRepo := postgres.NewRetentionRepository(db)
 	orderSvc := service.NewOrderService(orders, users, products, couponRepo, variantRepo, addressRepo, shippingRepo, zoneRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, invoice.NewPDFRenderer(), cfg.App.TaxRateBps, cfg.App.OrderTTL, cfg.App.Currency)
 	paymentSvc := service.NewPaymentService(paymentRepo, refundRepo, orders, payments, orderSvc, ids, clock, log, promMetrics)
 
@@ -287,6 +288,17 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 			go func() {
 				defer app.wg.Done()
 				app.runWorker(workerCtx, "outbox-relay", relay.Run)
+			}()
+
+			// Retention keeps the append-only tables bounded; leader-locked so only
+			// one replica prunes at a time.
+			retention := worker.NewRetention(retentionRepo, locker, log,
+				cfg.Worker.RetentionInterval, cfg.Worker.RetentionBatch,
+				cfg.Worker.OutboxRetention, cfg.Worker.AuditRetention)
+			app.wg.Add(1)
+			go func() {
+				defer app.wg.Done()
+				app.runWorker(workerCtx, "retention", retention.Run)
 			}()
 		}
 	}

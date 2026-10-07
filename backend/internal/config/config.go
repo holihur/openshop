@@ -136,6 +136,11 @@ type WorkerConfig struct {
 	OutboxBatch        int
 	// LeaderLock ensures only one instance runs a given scheduled job at a time.
 	LeaderLockTTL time.Duration
+	// Retention prunes published outbox events and audit logs older than these.
+	RetentionInterval time.Duration
+	RetentionBatch    int
+	OutboxRetention   time.Duration
+	AuditRetention    time.Duration
 }
 
 // Load reads configuration from the environment, applying safe development
@@ -232,6 +237,10 @@ func Load() (*Config, error) {
 			OutboxInterval:     envDuration("OUTBOX_INTERVAL", time.Second),
 			OutboxBatch:        envInt("OUTBOX_BATCH", 100),
 			LeaderLockTTL:      envDuration("LEADER_LOCK_TTL", 30*time.Second),
+			RetentionInterval:  envDuration("RETENTION_INTERVAL", time.Hour),
+			RetentionBatch:     envInt("RETENTION_BATCH", 1000),
+			OutboxRetention:    envDuration("OUTBOX_RETENTION", 7*24*time.Hour),
+			AuditRetention:     envDuration("AUDIT_RETENTION", 90*24*time.Hour),
 		},
 	}
 
