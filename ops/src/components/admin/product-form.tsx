@@ -7,6 +7,7 @@ import { Input } from "@lib/components/ui/input";
 import { Label } from "@lib/components/ui/label";
 import { Textarea } from "@lib/components/ui/textarea";
 import { useCategories, useCreateProduct, useUpdateProduct, useUploadImage } from "@lib/hooks/useAdmin";
+import { useI18n } from "@lib/i18n";
 import type { Product } from "@lib/types";
 
 interface FormState {
@@ -34,6 +35,7 @@ function initialState(product?: Product): FormState {
 }
 
 export function ProductForm({ product, onDone }: { product?: Product; onDone: () => void }) {
+  const { t } = useI18n();
   const { data: categories } = useCategories();
   const create = useCreateProduct();
   const update = useUpdateProduct();
@@ -75,12 +77,12 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{product ? "Edit product" : "New product"}</CardTitle>
+        <CardTitle>{product ? t("ops.editProduct") : t("ops.newProduct")}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="title">Title</Label>
+            <Label htmlFor="title">{t("ops.title")}</Label>
             <Input
               id="title"
               value={form.title}
@@ -90,7 +92,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
           </div>
 
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{t("product.description")}</Label>
             <Textarea
               id="description"
               value={form.description}
@@ -99,7 +101,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="price">Price (CNY)</Label>
+            <Label htmlFor="price">{t("ops.priceCny")}</Label>
             <Input
               id="price"
               type="number"
@@ -112,7 +114,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="stock">Stock</Label>
+            <Label htmlFor="stock">{t("ops.stock")}</Label>
             <Input
               id="stock"
               type="number"
@@ -124,7 +126,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="weight">Weight (grams)</Label>
+            <Label htmlFor="weight">{t("ops.weightGrams")}</Label>
             <Input
               id="weight"
               type="number"
@@ -135,28 +137,28 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
+            <Label htmlFor="status">{t("common.status")}</Label>
             <select
               id="status"
               value={form.status}
               onChange={(e) => set({ status: e.target.value })}
               className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
             >
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
+              <option value="draft">{t("ops.draft")}</option>
+              <option value="published">{t("ops.published")}</option>
+              <option value="archived">{t("ops.archived")}</option>
             </select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
+            <Label htmlFor="category">{t("ops.category")}</Label>
             <select
               id="category"
               value={form.categoryId}
               onChange={(e) => set({ categoryId: e.target.value })}
               className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
             >
-              <option value="">Uncategorised</option>
+              <option value="">{t("ops.uncategorised")}</option>
               {categories?.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -166,7 +168,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
           </div>
 
           <div className="space-y-2 sm:col-span-2">
-            <Label>Cover image</Label>
+            <Label>{t("ops.coverImage")}</Label>
             <div className="flex items-center gap-3">
               {form.coverImage && (
                 <img
@@ -177,7 +179,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
               )}
               <label className="border-input hover:bg-accent inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm">
                 <Upload className="size-4" />
-                {upload.isPending ? "Uploading…" : "Upload image"}
+                {upload.isPending ? t("ops.uploading") : t("ops.uploadImage")}
                 <input type="file" accept="image/*" className="hidden" onChange={onFile} />
               </label>
             </div>
@@ -185,10 +187,10 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
 
           <div className="flex gap-2 sm:col-span-2">
             <Button type="submit" disabled={busy}>
-              {busy ? "Saving…" : product ? "Save changes" : "Create product"}
+              {busy ? t("common.saving") : product ? t("ops.saveChanges") : t("ops.createProduct")}
             </Button>
             <Button type="button" variant="outline" onClick={onDone}>
-              Cancel
+              {t("common.cancel")}
             </Button>
           </div>
         </form>

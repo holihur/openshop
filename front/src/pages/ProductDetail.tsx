@@ -12,6 +12,7 @@ import { WishlistButton } from "@lib/components/wishlist-button";
 import { api } from "@lib/api";
 import { useAddToCart } from "@lib/hooks/useCart";
 import { useAuth } from "@lib/auth";
+import { useI18n } from "@lib/i18n";
 import { useSeo } from "@lib/hooks/useSeo";
 import { usePrice } from "@lib/hooks/usePrice";
 import { cn } from "@lib/utils";
@@ -24,6 +25,7 @@ export function ProductDetailPage() {
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [variantId, setVariantId] = useState<string>("");
   const { user } = useAuth();
+  const { t } = useI18n();
   const addToCart = useAddToCart();
   const price = usePrice();
 
@@ -57,7 +59,7 @@ export function ProductDetailPage() {
             },
           },
         }
-      : { title: "Product" },
+      : { title: t("product.seoTitle") },
   );
 
   if (isLoading) {
@@ -76,9 +78,9 @@ export function ProductDetailPage() {
   if (isError || !product) {
     return (
       <div className="py-16 text-center">
-        <p className="text-muted-foreground">Product not found.</p>
+        <p className="text-muted-foreground">{t("product.notFound")}</p>
         <Button variant="link" asChild>
-          <Link to="/products">Back to products</Link>
+          <Link to="/products">{t("product.backToProducts")}</Link>
         </Button>
       </div>
     );
@@ -106,7 +108,7 @@ export function ProductDetailPage() {
       <Button variant="ghost" size="sm" asChild className="-ml-2">
         <Link to="/products">
           <ArrowLeft className="size-4" />
-          Back
+          {t("product.back")}
         </Link>
       </Button>
 
@@ -147,15 +149,17 @@ export function ProductDetailPage() {
                 {price(effectivePrice)}
               </span>
               {outOfStock ? (
-                <Badge variant="secondary">Out of stock</Badge>
+                <Badge variant="secondary">{t("product.outOfStock")}</Badge>
               ) : (
-                <Badge variant="success">{effectiveStock} in stock</Badge>
+                <Badge variant="success">{t("product.inStock", { count: effectiveStock })}</Badge>
               )}
             </div>
             {product.reviewCount ? (
               <p className="text-muted-foreground mt-2 text-sm">
-                ★ {product.rating?.toFixed(1)} · {product.reviewCount} review
-                {product.reviewCount === 1 ? "" : "s"}
+                ★ {product.rating?.toFixed(1)} ·{" "}
+                {product.reviewCount === 1
+                  ? t("product.reviewOne")
+                  : t("product.reviewsCount", { count: product.reviewCount })}
               </p>
             ) : null}
           </div>
@@ -166,7 +170,7 @@ export function ProductDetailPage() {
 
           {hasVariants && (
             <div className="space-y-2">
-              <p className="text-sm font-medium">Options</p>
+              <p className="text-sm font-medium">{t("product.options")}</p>
               <div className="flex flex-wrap gap-2">
                 {variants.map((v) => {
                   const isSelected = selected?.id === v.id;
@@ -236,7 +240,7 @@ export function ProductDetailPage() {
               }}
             >
               <ShoppingCart className="size-4" />
-              {user ? "Add to cart" : "Sign in to buy"}
+              {user ? t("product.addToCart") : t("product.signInToBuy")}
             </Button>
           </div>
         </div>

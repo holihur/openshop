@@ -13,6 +13,7 @@ import (
 
 	"github.com/holihur/openshop/internal/adapter/postgres"
 	"github.com/holihur/openshop/internal/adapter/security"
+	"github.com/holihur/openshop/internal/adapter/storage"
 	"github.com/holihur/openshop/internal/config"
 	"github.com/holihur/openshop/internal/domain"
 )
@@ -33,6 +34,11 @@ func main() {
 		fatal("connect", err)
 	}
 	defer db.Close()
+
+	objectStore, err := storage.New(ctx, cfg.Storage)
+	if err != nil {
+		fatal("storage", err)
+	}
 
 	users := postgres.NewUserRepository(db)
 	categories := postgres.NewCategoryRepository(db)
@@ -113,23 +119,46 @@ func main() {
 		catSlug, title, desc string
 		price                int64
 		stock                int
+		emoji, from, to      string
 	}{
-		{"electronics", "Aurora Wireless Headphones", "Active noise cancelling over-ear headphones.", 89900, 120},
-		{"electronics", "Nimbus Mechanical Keyboard", "75% hot-swappable mechanical keyboard.", 45900, 200},
-		{"home-living", "Terra Ceramic Mug", "Hand-glazed 350ml stoneware mug.", 6900, 500},
-		{"books", "The Pragmatic Coder", "A field guide to shipping reliable software.", 5900, 300},
+		{"electronics", "Aurora Wireless Headphones", "Active noise cancelling over-ear headphones.", 89900, 120, "🎧", "#6366f1", "#8b5cf6"},
+		{"electronics", "Nimbus Mechanical Keyboard", "75% hot-swappable mechanical keyboard.", 45900, 200, "⌨️", "#0ea5e9", "#22d3ee"},
+		{"home-living", "Terra Ceramic Mug", "Hand-glazed 350ml stoneware mug.", 6900, 500, "☕", "#f97316", "#f59e0b"},
+		{"books", "The Pragmatic Coder", "A field guide to shipping reliable software.", 5900, 300, "📘", "#10b981", "#14b8a6"},
+		{"home-living", "Lumen Desk Lamp", "Dimmable warm-LED desk lamp.", 12900, 150, "💡", "#eab308", "#f59e0b"},
+		{"electronics", "Orbit Webcam", "1080p webcam with a privacy shutter.", 32900, 90, "📷", "#ef4444", "#f97316"},
+		{"home-living", "Voyage Backpack", "Water-resistant 22L daypack.", 25900, 80, "🎒", "#14b8a6", "#0ea5e9"},
+		{"books", "Systems Design Notes", "A practical notebook for system design.", 3900, 400, "📓", "#8b5cf6", "#ec4899"},
 	}
 	for i, spec := range productSpecs {
 		slug := fmt.Sprintf("%s-%d", slugify(spec.title), i+1)
-		// Skip products that already exist so re-running the seed is silent.
-		if _, err := products.FindBySlug(ctx, slug); err == nil {
+		// Skip products that already exist so re-running the seed is silent; but
+		// backfill a cover image for products seeded before covers existed.
+		if existing, err := products.FindBySlug(ctx, slug); err == nil {
+			if existing.CoverImage == "" {
+				url, err := uploadCover(ctx, objectStore, slug, spec.title, spec.emoji, spec.from, spec.to)
+				if err != nil {
+					fatal("upload cover", err)
+				}
+				existing.CoverImage = url
+				existing.Images = []string{url}
+				if err := products.Update(ctx, existing); err != nil {
+					fatal("update product", err)
+				}
+				fmt.Println("added cover:", spec.title)
+			}
 			continue
 		} else if !errors.Is(err, domain.ErrNotFound) {
 			fatal("find product", err)
 		}
+		url, err := uploadCover(ctx, objectStore, slug, spec.title, spec.emoji, spec.from, spec.to)
+		if err != nil {
+			fatal("upload cover", err)
+		}
 		p := &domain.Product{
 			ID: ids.NewID(), CategoryID: catIDs[spec.catSlug], Title: spec.title, Slug: slug,
 			Description: spec.desc, PriceCents: spec.price, Currency: cfg.App.Currency,
+			CoverImage: url, Images: []string{url},
 			Status: domain.ProductPublished, Stock: spec.stock, CreatedAt: now, UpdatedAt: now,
 		}
 		if err := products.Create(ctx, p); err != nil {

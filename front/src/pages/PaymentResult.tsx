@@ -6,6 +6,7 @@ import { Button } from "@lib/components/ui/button";
 import { Card, CardContent } from "@lib/components/ui/card";
 import { api } from "@lib/api";
 import { useAuth } from "@lib/auth";
+import { useI18n } from "@lib/i18n";
 
 type State = "loading" | "success" | "error";
 
@@ -15,6 +16,7 @@ type State = "loading" | "success" | "error";
  * so the demo flow completes end to end.
  */
 export function PaymentResultPage() {
+  const { t } = useI18n();
   const [params] = useSearchParams();
   const { user } = useAuth();
   const providerRef = params.get("payment_ref") ?? "";
@@ -25,7 +27,7 @@ export function PaymentResultPage() {
   useEffect(() => {
     if (!providerRef) {
       setState("error");
-      setMessage("Missing payment reference.");
+      setMessage(t("payment.missingRef"));
       return;
     }
     let cancelled = false;
@@ -44,7 +46,7 @@ export function PaymentResultPage() {
     return () => {
       cancelled = true;
     };
-  }, [providerRef, provider, user]);
+  }, [providerRef, provider, user, t]);
 
   return (
     <div className="mx-auto max-w-md py-16">
@@ -53,26 +55,26 @@ export function PaymentResultPage() {
           {state === "loading" && (
             <>
               <Loader2 className="text-muted-foreground size-12 animate-spin" />
-              <h1 className="text-xl font-semibold">Confirming your payment…</h1>
+              <h1 className="text-xl font-semibold">{t("payment.confirming")}</h1>
             </>
           )}
           {state === "success" && (
             <>
               <CheckCircle2 className="size-12 text-emerald-600" />
-              <h1 className="text-xl font-semibold">Payment successful</h1>
-              <p className="text-muted-foreground">Your order has been paid.</p>
+              <h1 className="text-xl font-semibold">{t("payment.success")}</h1>
+              <p className="text-muted-foreground">{t("payment.paid")}</p>
               <Button asChild>
-                <Link to="/orders">View your orders</Link>
+                <Link to="/orders">{t("payment.viewOrders")}</Link>
               </Button>
             </>
           )}
           {state === "error" && (
             <>
               <XCircle className="text-destructive size-12" />
-              <h1 className="text-xl font-semibold">Payment not completed</h1>
+              <h1 className="text-xl font-semibold">{t("payment.notCompleted")}</h1>
               <p className="text-muted-foreground">{message}</p>
               <Button variant="outline" asChild>
-                <Link to="/orders">Back to orders</Link>
+                <Link to="/orders">{t("payment.backToOrders")}</Link>
               </Button>
             </>
           )}

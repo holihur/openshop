@@ -112,7 +112,7 @@ export function Header() {
         <div className="ml-auto flex items-center gap-2">
           {available.length > 1 && (
             <select
-              aria-label="Currency"
+              aria-label={t("common.currency")}
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
               className="border-input bg-background h-8 rounded-md border px-2 text-sm"
@@ -125,11 +125,11 @@ export function Header() {
             </select>
           )}
           <LocaleSwitcher className="hidden sm:inline-flex" />
-          <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
+          <Button variant="ghost" size="icon" onClick={toggle} aria-label={t("common.toggleTheme")}>
             {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </Button>
 
-          <Button variant="ghost" size="icon" asChild aria-label="Cart">
+          <Button variant="ghost" size="icon" asChild aria-label={t("nav.cart")}>
             <Link to="/cart" className="relative">
               <ShoppingCart className="size-4" />
               {cart && cart.totalCount > 0 && (

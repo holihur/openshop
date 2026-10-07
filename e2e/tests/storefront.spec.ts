@@ -38,4 +38,9 @@ test("switching language localises the storefront", async ({ page }) => {
   await expect(page.getByRole("link", { name: "商品", exact: true })).toBeVisible();
   await page.getByTestId("locale-switcher").selectOption("en");
   await expect(page.getByRole("link", { name: "Products", exact: true })).toBeVisible();
+
+  // Deeper pages are localised too.
+  await page.getByTestId("locale-switcher").selectOption("zh");
+  await page.goto("/login");
+  await expect(page.getByText("欢迎回来")).toBeVisible();
 });

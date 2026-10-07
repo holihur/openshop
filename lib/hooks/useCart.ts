@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api } from "@lib/api";
+import { t } from "@lib/i18n";
 import { useAuth } from "@lib/auth";
 import type { Cart } from "@lib/types";
 
@@ -45,7 +46,7 @@ export function useAddToCart() {
         variantId: variantId ?? "",
         quantity: quantity ?? 1,
       }),
-    "Added to cart",
+    t("toast.addedToCart"),
   );
 }
 
@@ -64,5 +65,5 @@ export function useRemoveCartItem() {
 }
 
 export function useClearCart() {
-  return useCartMutation(() => api.del<Cart>("/cart"), "Cart cleared");
+  return useCartMutation(() => api.del<Cart>("/cart"), t("toast.cartCleared"));
 }

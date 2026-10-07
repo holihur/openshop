@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api } from "@lib/api";
+import { t } from "@lib/i18n";
 import type { ShippingMethod, ShippingZone } from "@lib/types";
 
 export function useShippingMethods() {
@@ -34,7 +35,7 @@ export function useCreateShippingMethod() {
     mutationFn: (input: ShippingMethodInput) =>
       api.post<ShippingMethod>("/ops/shipping-methods", input),
     onSuccess: () => {
-      toast.success("Shipping method created");
+      toast.success(t("toast.shippingMethodCreated"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "shipping-methods"] });
       void queryClient.invalidateQueries({ queryKey: ["shipping-methods"] });
     },
@@ -68,7 +69,7 @@ export function useCreateShippingZone() {
     mutationFn: (input: { name: string; provinces: string[]; active?: boolean; sort?: number }) =>
       api.post<ShippingZone>("/ops/shipping-zones", input),
     onSuccess: () => {
-      toast.success("Zone created");
+      toast.success(t("toast.zoneCreated"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "shipping-zones"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -82,7 +83,7 @@ export function useSetShippingRate() {
       methodId: string;
       input: { flatRateCents: number; freeThresholdCents: number; perKgCents: number };
     }) => api.put(`/ops/shipping-zones/${zoneId}/rates/${methodId}`, input),
-    onSuccess: () => toast.success("Rate saved"),
+    onSuccess: () => toast.success(t("toast.rateSaved")),
     onError: (error: Error) => toast.error(error.message),
   });
 }

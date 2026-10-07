@@ -11,9 +11,11 @@ import { Skeleton } from "@lib/components/ui/skeleton";
 import { OrderStatusBadge } from "@lib/components/order-status-badge";
 import { api } from "@lib/api";
 import { formatDate, formatMoney } from "@lib/format";
+import { useI18n } from "@lib/i18n";
 import type { Order, Payment } from "@lib/types";
 
 export function OrderDetailPage() {
+  const { t } = useI18n();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -41,7 +43,7 @@ export function OrderDetailPage() {
   const cancel = useMutation({
     mutationFn: () => api.post<Order>(`/orders/${id}/cancel`),
     onSuccess: () => {
-      toast.success("Order cancelled");
+      toast.success(t("orders.cancelled"));
       void queryClient.invalidateQueries({ queryKey: ["order", id] });
       void queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
@@ -51,7 +53,7 @@ export function OrderDetailPage() {
   const confirmReceipt = useMutation({
     mutationFn: () => api.post<Order>(`/orders/${id}/complete`),
     onSuccess: () => {
-      toast.success("Thanks for confirming delivery");
+      toast.success(t("orders.receiptConfirmed"));
       void queryClient.invalidateQueries({ queryKey: ["order", id] });
       void queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
@@ -65,7 +67,7 @@ export function OrderDetailPage() {
     try {
       await api.download(`/orders/${order.id}/invoice`, `invoice-${order.orderNo}.pdf`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not download invoice");
+      toast.error(error instanceof Error ? error.message : t("orders.invoiceFailed"));
     } finally {
       setDownloading(false);
     }
@@ -83,9 +85,9 @@ export function OrderDetailPage() {
   if (!order) {
     return (
       <div className="py-16 text-center">
-        <p className="text-muted-foreground">Order not found.</p>
+        <p className="text-muted-foreground">{t("orders.notFound")}</p>
         <Button variant="link" asChild>
-          <Link to="/orders">Back to orders</Link>
+          <Link to="/orders">{t("orders.backToOrders")}</Link>
         </Button>
       </div>
     );
@@ -96,7 +98,7 @@ export function OrderDetailPage() {
       <Button variant="ghost" size="sm" asChild className="-ml-2">
         <Link to="/orders">
           <ArrowLeft className="size-4" />
-          Back to orders
+          {t("orders.backToOrders")}
         </Link>
       </Button>
 
@@ -107,8 +109,8 @@ export function OrderDetailPage() {
             <OrderStatusBadge status={order.status} />
           </div>
           <p className="text-muted-foreground mt-1 text-sm">
-            Placed {formatDate(order.createdAt)}
-            {order.paidAt ? ` · Paid ${formatDate(order.paidAt)}` : ""}
+            {t("orders.placedAt", { date: formatDate(order.createdAt) })}
+            {order.paidAt ? ` · ${t("orders.paidAt", { date: formatDate(order.paidAt) })}` : ""}
           </p>
         </div>
 
@@ -120,21 +122,21 @@ export function OrderDetailPage() {
                 disabled={cancel.isPending}
                 onClick={() => cancel.mutate()}
               >
-                Cancel
+                {t("orders.cancel")}
               </Button>
               <Button disabled={payNow.isPending} onClick={() => payNow.mutate()}>
-                {payNow.isPending ? "Redirecting…" : "Pay now"}
+                {payNow.isPending ? t("orders.paying") : t("orders.payNow")}
               </Button>
             </>
           )}
           {order.status === "shipped" && (
             <Button disabled={confirmReceipt.isPending} onClick={() => confirmReceipt.mutate()}>
-              {confirmReceipt.isPending ? "Confirming…" : "Confirm receipt"}
+              {confirmReceipt.isPending ? t("orders.confirming") : t("orders.confirmReceipt")}
             </Button>
           )}
           <Button variant="outline" disabled={downloading} onClick={downloadInvoice}>
             <Download className="size-4" />
-            Invoice
+            {t("orders.invoice")}
           </Button>
         </div>
       </div>
@@ -142,7 +144,7 @@ export function OrderDetailPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <Card>
           <CardHeader>
-            <CardTitle>Items</CardTitle>
+            <CardTitle>{t("orders.items")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {order.items.map((item) => (
@@ -171,35 +173,37 @@ export function OrderDetailPage() {
 
         <Card className="h-fit">
           <CardHeader>
-            <CardTitle>Summary</CardTitle>
+            <CardTitle>{t("orders.summary")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
+              <span className="text-muted-foreground">{t("cart.subtotal")}</span>
               <span>{formatMoney(order.subtotalCents, order.currency)}</span>
             </div>
             {order.discountCents > 0 && (
               <div className="flex justify-between text-sm text-emerald-600">
-                <span>Discount{order.couponCode ? ` (${order.couponCode})` : ""}</span>
+                <span>
+                  {order.couponCode ? t("orders.discountCode", { code: order.couponCode }) : t("cart.discount")}
+                </span>
                 <span>-{formatMoney(order.discountCents, order.currency)}</span>
               </div>
             )}
             {order.shippingCents > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">
-                  Shipping{order.shippingMethod ? ` (${order.shippingMethod})` : ""}
+                  {order.shippingMethod ? t("orders.shippingWithMethod", { method: order.shippingMethod }) : t("cart.shipping")}
                 </span>
                 <span>{formatMoney(order.shippingCents, order.currency)}</span>
               </div>
             )}
             {order.taxCents > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tax</span>
+                <span className="text-muted-foreground">{t("cart.tax")}</span>
                 <span>{formatMoney(order.taxCents, order.currency)}</span>
               </div>
             )}
             <Separator />
             <div className="flex justify-between font-semibold">
-              <span>Total</span>
+              <span>{t("cart.total")}</span>
               <span>{formatMoney(order.totalCents, order.currency)}</span>
             </div>
 
@@ -207,7 +211,7 @@ export function OrderDetailPage() {
               <>
                 <Separator />
                 <div className="space-y-1 text-sm">
-                  <p className="font-medium">Shipping to</p>
+                  <p className="font-medium">{t("orders.shippingTo")}</p>
                   <p>
                     {order.shippingAddress.recipient}
                     {order.shippingAddress.phone ? ` · ${order.shippingAddress.phone}` : ""}
@@ -228,7 +232,7 @@ export function OrderDetailPage() {
             )}
             {order.trackingNo && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tracking</span>
+                <span className="text-muted-foreground">{t("orders.tracking")}</span>
                 <span className="font-mono text-xs">{order.trackingNo}</span>
               </div>
             )}

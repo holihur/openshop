@@ -15,6 +15,7 @@ import {
   useUpdateAddress,
   type AddressInput,
 } from "@lib/hooks/useAddresses";
+import { useI18n } from "@lib/i18n";
 import type { Address } from "@lib/types";
 
 const empty: AddressInput = {
@@ -29,6 +30,7 @@ const empty: AddressInput = {
 };
 
 export function AddressesPage() {
+  const { t } = useI18n();
   const { data, isLoading } = useAddresses();
   const create = useCreateAddress();
   const update = useUpdateAddress();
@@ -69,13 +71,13 @@ export function AddressesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Addresses</h1>
-          <p className="text-muted-foreground">Manage your shipping addresses.</p>
+          <h1 className="text-2xl font-bold">{t("address.title")}</h1>
+          <p className="text-muted-foreground">{t("address.subtitle")}</p>
         </div>
         {!showForm && (
           <Button onClick={openCreate}>
             <Plus className="size-4" />
-            New address
+            {t("address.new")}
           </Button>
         )}
       </div>
@@ -83,12 +85,12 @@ export function AddressesPage() {
       {showForm && (
         <Card>
           <CardHeader>
-            <CardTitle>{editing ? "Edit address" : "New address"}</CardTitle>
+            <CardTitle>{editing ? t("address.edit") : t("address.new")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="recipient">Recipient</Label>
+                <Label htmlFor="recipient">{t("address.recipient")}</Label>
                 <Input
                   id="recipient"
                   value={form.recipient}
@@ -97,7 +99,7 @@ export function AddressesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
+                <Label htmlFor="phone">{t("address.phone")}</Label>
                 <Input
                   id="phone"
                   value={form.phone}
@@ -105,7 +107,7 @@ export function AddressesPage() {
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="line1">Address line</Label>
+                <Label htmlFor="line1">{t("address.line1")}</Label>
                 <Input
                   id="line1"
                   value={form.line1}
@@ -114,7 +116,7 @@ export function AddressesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="province">Province / State</Label>
+                <Label htmlFor="province">{t("address.province")}</Label>
                 <Input
                   id="province"
                   value={form.province}
@@ -122,7 +124,7 @@ export function AddressesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
+                <Label htmlFor="city">{t("address.city")}</Label>
                 <Input
                   id="city"
                   value={form.city}
@@ -130,7 +132,7 @@ export function AddressesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="district">District</Label>
+                <Label htmlFor="district">{t("address.district")}</Label>
                 <Input
                   id="district"
                   value={form.district}
@@ -138,7 +140,7 @@ export function AddressesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="postalCode">Postal code</Label>
+                <Label htmlFor="postalCode">{t("address.postalCode")}</Label>
                 <Input
                   id="postalCode"
                   value={form.postalCode}
@@ -151,14 +153,14 @@ export function AddressesPage() {
                   checked={form.default ?? false}
                   onChange={(e) => setForm({ ...form, default: e.target.checked })}
                 />
-                Set as default address
+                {t("address.setDefaultCheckbox")}
               </label>
               <div className="flex gap-2 sm:col-span-2">
                 <Button type="submit" disabled={busy}>
-                  {busy ? "Saving…" : editing ? "Save changes" : "Add address"}
+                  {busy ? t("common.saving") : editing ? t("address.saveChanges") : t("address.add")}
                 </Button>
                 <Button type="button" variant="outline" onClick={close}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
               </div>
             </form>
@@ -171,7 +173,7 @@ export function AddressesPage() {
       ) : !data || data.length === 0 ? (
         <div className="text-muted-foreground rounded-lg border border-dashed py-16 text-center">
           <MapPin className="mx-auto size-8" />
-          <p className="mt-2">No addresses yet.</p>
+          <p className="mt-2">{t("address.empty")}</p>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -180,7 +182,7 @@ export function AddressesPage() {
               <CardContent className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{a.recipient}</span>
-                  {a.default && <Badge variant="success">Default</Badge>}
+                  {a.default && <Badge variant="success">{t("address.default")}</Badge>}
                 </div>
                 <p className="text-muted-foreground text-sm">{a.phone}</p>
                 <p className="text-sm">
@@ -191,7 +193,7 @@ export function AddressesPage() {
                 <div className="flex gap-1 pt-2">
                   <Button variant="ghost" size="sm" onClick={() => openEdit(a)}>
                     <Pencil className="size-4" />
-                    Edit
+                    {t("common.edit")}
                   </Button>
                   {!a.default && (
                     <Button
@@ -201,7 +203,7 @@ export function AddressesPage() {
                       onClick={() => setDefault.mutate(a.id)}
                     >
                       <Star className="size-4" />
-                      Set default
+                      {t("address.setDefault")}
                     </Button>
                   )}
                   <Button
@@ -211,7 +213,7 @@ export function AddressesPage() {
                     onClick={() => remove.mutate(a.id)}
                   >
                     <Trash2 className="size-4" />
-                    Delete
+                    {t("common.delete")}
                   </Button>
                 </div>
               </CardContent>

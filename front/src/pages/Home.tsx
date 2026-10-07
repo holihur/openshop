@@ -6,14 +6,13 @@ import { Button } from "@lib/components/ui/button";
 import { Badge } from "@lib/components/ui/badge";
 import { ProductGrid } from "@lib/components/product-grid";
 import { api } from "@lib/api";
+import { useI18n } from "@lib/i18n";
 import type { Category, Product } from "@lib/types";
 import { useSeo } from "@lib/hooks/useSeo";
 
 export function HomePage() {
-  useSeo({
-    description:
-      "OpenShop — a horizontally scalable storefront for electronics, home and books.",
-  });
+  const { t } = useI18n();
+  useSeo({ description: t("home.seoDesc") });
   const { data: categories } = useQuery({
     queryKey: ["categories"],
     queryFn: () => api.get<Category[]>("/categories"),
@@ -28,20 +27,18 @@ export function HomePage() {
     <div className="space-y-14">
       <section className="from-primary/10 via-background to-background relative overflow-hidden rounded-2xl border bg-gradient-to-br px-6 py-16 sm:px-12">
         <Badge variant="secondary" className="mb-4">
-          Horizontally scalable commerce
+          {t("home.badge")}
         </Badge>
         <h1 className="max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
-          Everything you need, delivered.
+          {t("home.title")}
         </h1>
         <p className="text-muted-foreground mt-4 max-w-xl">
-          A production-grade storefront built on Go, PostgreSQL, Redis and NATS — designed to
-          scale across many instances with shared state, distributed locks and event-driven
-          workflows.
+          {t("home.subtitle")}
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Button size="lg" asChild>
             <Link to="/products">
-              Browse products
+              {t("home.browse")}
               <ArrowRight className="size-4" />
             </Link>
           </Button>
@@ -49,9 +46,9 @@ export function HomePage() {
 
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
           {[
-            { icon: Zap, title: "Fast checkout", text: "Atomic stock reservation with distributed locks." },
-            { icon: ShieldCheck, title: "Secure by design", text: "JWT auth, bcrypt and provider-verified payments." },
-            { icon: PackageSearch, title: "Event driven", text: "NATS queue groups keep workers exactly-once." },
+            { icon: Zap, title: t("home.fastCheckout"), text: t("home.fastCheckoutText") },
+            { icon: ShieldCheck, title: t("home.secure"), text: t("home.secureText") },
+            { icon: PackageSearch, title: t("home.eventDriven"), text: t("home.eventDrivenText") },
           ].map(({ icon: Icon, title, text }) => (
             <div key={title} className="bg-background/60 rounded-lg border p-4 backdrop-blur">
               <Icon className="size-5" />
@@ -65,7 +62,7 @@ export function HomePage() {
       {categories && categories.length > 0 && (
         <section>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Shop by category</h2>
+            <h2 className="text-xl font-semibold">{t("home.shopByCategory")}</h2>
           </div>
           <div className="flex flex-wrap gap-2">
             {categories.map((category) => (
@@ -79,10 +76,10 @@ export function HomePage() {
 
       <section>
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Featured products</h2>
+          <h2 className="text-xl font-semibold">{t("home.featured")}</h2>
           <Button variant="link" asChild>
             <Link to="/products">
-              View all
+              {t("home.viewAll")}
               <ArrowRight className="size-4" />
             </Link>
           </Button>

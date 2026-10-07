@@ -5,10 +5,12 @@ import { toast } from "sonner";
 import { Button } from "@lib/components/ui/button";
 import { api } from "@lib/api";
 import { useAuth } from "@lib/auth";
+import { useI18n } from "@lib/i18n";
 
 // EmailVerificationBanner nudges unverified users to confirm their address.
 export function EmailVerificationBanner() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -20,9 +22,9 @@ export function EmailVerificationBanner() {
     try {
       await api.post("/auth/email/resend", { email });
       setSent(true);
-      toast.success("Verification email sent");
+      toast.success(t("banner.sentToast"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not send email");
+      toast.error(err instanceof Error ? err.message : t("banner.sendFailed"));
     } finally {
       setBusy(false);
     }
@@ -34,12 +36,12 @@ export function EmailVerificationBanner() {
         <MailWarning className="size-4 shrink-0" />
         <span className="flex-1">
           {sent
-            ? "Verification email sent — check your inbox."
-            : "Please verify your email address to secure your account."}
+            ? t("banner.sent")
+            : t("banner.verifyPrompt")}
         </span>
         {!sent && (
           <Button variant="outline" size="sm" disabled={busy} onClick={resend}>
-            {busy ? "Sending…" : "Resend"}
+            {busy ? t("banner.sending") : t("banner.resend")}
           </Button>
         )}
       </div>

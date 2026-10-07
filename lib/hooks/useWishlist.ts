@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api } from "@lib/api";
+import { t } from "@lib/i18n";
 import { useAuth } from "@lib/auth";
 import type { Product } from "@lib/types";
 
@@ -36,8 +37,8 @@ export function useToggleWishlist() {
       return { saved: true };
     },
     onSuccess: (res) => {
-      if (!user) toast.error("Sign in to save items");
-      else toast.success(res.saved ? "Saved to wishlist" : "Removed from wishlist");
+      if (!user) toast.error(t("toast.signInToSave"));
+      else toast.success(res.saved ? t("toast.savedToWishlist") : t("toast.removedFromWishlist"));
       void queryClient.invalidateQueries({ queryKey: WISHLIST_KEY });
     },
     onError: (error: Error) => toast.error(error.message),

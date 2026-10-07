@@ -16,6 +16,7 @@ cd "$ROOT/backend"
 if [ "$MODE" = "server" ]; then
   export HTTP_ADDR="${HTTP_ADDR:-:18081}"
   export INSTANCE_ID="${INSTANCE_ID:-e2e}"
+  export STORAGE_PUBLIC_URL="${STORAGE_PUBLIC_URL:-http://localhost:18081/uploads}"
   go run ./cmd/migrate -dir migrations
   go run ./cmd/seed
   exec go run ./cmd/server

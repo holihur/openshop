@@ -11,12 +11,13 @@ import { Textarea } from "@lib/components/ui/textarea";
 import { Skeleton } from "@lib/components/ui/skeleton";
 import { useAddReview, useReviews } from "@lib/hooks/useReviews";
 import { useAuth } from "@lib/auth";
+import { useI18n, t as translate } from "@lib/i18n";
 import { formatDate } from "@lib/format";
 import { cn } from "@lib/utils";
 
 function Stars({ value, className }: { value: number; className?: string }) {
   return (
-    <span className={cn("inline-flex", className)} aria-label={`${value} out of 5`}>
+    <span className={cn("inline-flex", className)} aria-label={translate("reviews.ratingAria", { value })}>
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
           key={n}
@@ -32,6 +33,7 @@ function Stars({ value, className }: { value: number; className?: string }) {
 
 export function ReviewsSection({ productId }: { productId: string }) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const { data, isLoading } = useReviews(productId);
   const addReview = useAddReview(productId);
 
@@ -56,20 +58,20 @@ export function ReviewsSection({ productId }: { productId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Customer reviews</CardTitle>
+        <CardTitle>{t("reviews.title")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {user && (
           <form onSubmit={onSubmit} className="space-y-3">
             <div className="space-y-2">
-              <Label>Your rating</Label>
+              <Label>{t("reviews.yourRating")}</Label>
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button
                     key={n}
                     type="button"
                     onClick={() => setRating(n)}
-                    aria-label={`${n} stars`}
+                    aria-label={t("reviews.starsAria", { count: n })}
                   >
                     <Star
                       className={cn(
@@ -84,15 +86,15 @@ export function ReviewsSection({ productId }: { productId: string }) {
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Summary (optional)"
+              placeholder={t("reviews.summaryPlaceholder")}
             />
             <Textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Share your experience…"
+              placeholder={t("reviews.bodyPlaceholder")}
             />
             <Button type="submit" disabled={addReview.isPending}>
-              {addReview.isPending ? "Submitting…" : "Submit review"}
+              {addReview.isPending ? t("reviews.submitting") : t("product.submitReview")}
             </Button>
             <Separator />
           </form>
@@ -104,7 +106,7 @@ export function ReviewsSection({ productId }: { productId: string }) {
             <Skeleton className="h-16 w-full" />
           </div>
         ) : !data || data.items.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No reviews yet.</p>
+          <p className="text-muted-foreground text-sm">{t("product.noReviews")}</p>
         ) : (
           <ul className="space-y-4">
             {data.items.map((review) => (
@@ -114,7 +116,7 @@ export function ReviewsSection({ productId }: { productId: string }) {
                   {review.title && <span className="font-medium">{review.title}</span>}
                   {review.verifiedPurchase && (
                     <Badge variant="secondary" className="text-xs">
-                      Verified purchase
+                      {t("product.verifiedPurchase")}
                     </Badge>
                   )}
                   <span className="text-muted-foreground ml-auto text-xs">

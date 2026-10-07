@@ -15,11 +15,13 @@ import {
   TableRow,
 } from "@lib/components/ui/table";
 import { useCreateVariant, useUpdateVariant, useVariants } from "@lib/hooks/useAdmin";
+import { useI18n } from "@lib/i18n";
 import { formatMoney } from "@lib/format";
 
 // VariantsEditor manages the SKUs of an existing product. It is only rendered
 // once the product has been created, because variants reference a product id.
 export function VariantsEditor({ productId }: { productId: string }) {
+  const { t } = useI18n();
   const { data: variants, isLoading } = useVariants(productId);
   const create = useCreateVariant(productId);
   const update = useUpdateVariant(productId);
@@ -56,12 +58,12 @@ export function VariantsEditor({ productId }: { productId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Variants (SKUs)</CardTitle>
+        <CardTitle>{t("ops.variants")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-5">
           <div className="space-y-1 sm:col-span-2">
-            <Label htmlFor="v-name">Name</Label>
+            <Label htmlFor="v-name">{t("ops.name")}</Label>
             <Input
               id="v-name"
               value={name}
@@ -71,11 +73,11 @@ export function VariantsEditor({ productId }: { productId: string }) {
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="v-sku">SKU</Label>
+            <Label htmlFor="v-sku">{t("ops.sku")}</Label>
             <Input id="v-sku" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="auto" />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="v-price">Price</Label>
+            <Label htmlFor="v-price">{t("ops.price")}</Label>
             <Input
               id="v-price"
               type="number"
@@ -83,11 +85,11 @@ export function VariantsEditor({ productId }: { productId: string }) {
               min="0"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              placeholder="inherit"
+              placeholder={t("ops.inherit")}
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="v-stock">Stock</Label>
+            <Label htmlFor="v-stock">{t("ops.stock")}</Label>
             <Input
               id="v-stock"
               type="number"
@@ -97,7 +99,7 @@ export function VariantsEditor({ productId }: { productId: string }) {
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="v-weight">Weight (g)</Label>
+            <Label htmlFor="v-weight">{t("ops.weightG")}</Label>
             <Input
               id="v-weight"
               type="number"
@@ -109,25 +111,23 @@ export function VariantsEditor({ productId }: { productId: string }) {
           <div className="sm:col-span-5">
             <Button type="submit" size="sm" disabled={create.isPending}>
               <Plus className="size-4" />
-              Add variant
+              {t("ops.addVariant")}
             </Button>
           </div>
         </form>
 
         {isLoading ? null : !variants || variants.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            No variants. This product sells as a single SKU using its own price and stock.
-          </p>
+          <p className="text-muted-foreground text-sm">{t("ops.noVariants")}</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("ops.name")}</TableHead>
+                <TableHead>{t("ops.sku")}</TableHead>
+                <TableHead>{t("ops.price")}</TableHead>
+                <TableHead>{t("ops.stock")}</TableHead>
+                <TableHead>{t("common.status")}</TableHead>
+                <TableHead className="text-right">{t("common.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -136,12 +136,12 @@ export function VariantsEditor({ productId }: { productId: string }) {
                   <TableCell className="font-medium">{v.name}</TableCell>
                   <TableCell className="font-mono text-xs">{v.sku}</TableCell>
                   <TableCell>
-                    {v.priceCents > 0 ? formatMoney(v.priceCents) : <span className="text-muted-foreground">inherit</span>}
+                    {v.priceCents > 0 ? formatMoney(v.priceCents) : <span className="text-muted-foreground">{t("ops.inherit")}</span>}
                   </TableCell>
                   <TableCell>{v.stock}</TableCell>
                   <TableCell>
                     <Badge variant={v.active ? "success" : "secondary"}>
-                      {v.active ? "active" : "archived"}
+                      {v.active ? t("common.active") : t("ops.archived")}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -151,7 +151,7 @@ export function VariantsEditor({ productId }: { productId: string }) {
                       disabled={update.isPending}
                       onClick={() => update.mutate({ id: v.id, input: { active: !v.active } })}
                     >
-                      {v.active ? "Archive" : "Restore"}
+                      {v.active ? t("ops.archive") : t("ops.restore")}
                     </Button>
                   </TableCell>
                 </TableRow>

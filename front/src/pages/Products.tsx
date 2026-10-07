@@ -8,17 +8,13 @@ import { Input } from "@lib/components/ui/input";
 import { ProductGrid } from "@lib/components/product-grid";
 import { Pagination } from "@lib/components/pagination";
 import { api } from "@lib/api";
+import { useI18n } from "@lib/i18n";
 import type { Category, Product } from "@lib/types";
 import { useSeo } from "@lib/hooks/useSeo";
 
-const SORTS = [
-  { value: "newest", label: "Newest" },
-  { value: "price_asc", label: "Price: low to high" },
-  { value: "price_desc", label: "Price: high to low" },
-];
-
 export function ProductsPage() {
-  useSeo({ title: "Products", description: "Browse the full OpenShop catalog." });
+  const { t } = useI18n();
+  useSeo({ title: t("products.title"), description: t("products.seoDesc") });
   const [params, setParams] = useSearchParams();
   const categoryId = params.get("categoryId") ?? "";
   const keyword = params.get("keyword") ?? "";
@@ -27,6 +23,12 @@ export function ProductsPage() {
   const [search, setSearch] = useState(keyword);
 
   useEffect(() => setSearch(keyword), [keyword]);
+
+  const sorts = [
+    { value: "newest", label: t("products.sortNewest") },
+    { value: "price_asc", label: t("products.sortPriceAsc") },
+    { value: "price_desc", label: t("products.sortPriceDesc") },
+  ];
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -61,8 +63,8 @@ export function ProductsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Products</h1>
-        <p className="text-muted-foreground">Browse our catalog.</p>
+        <h1 className="text-2xl font-bold">{t("products.title")}</h1>
+        <p className="text-muted-foreground">{t("products.subtitle")}</p>
       </div>
 
       <form
@@ -77,7 +79,7 @@ export function ProductsPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search products…"
+            placeholder={t("products.searchPlaceholder")}
             className="pl-9"
           />
         </div>
@@ -86,7 +88,7 @@ export function ProductsPage() {
           onChange={(e) => update({ categoryId: e.target.value })}
           className="border-input bg-background h-9 rounded-md border px-3 text-sm"
         >
-          <option value="">All categories</option>
+          <option value="">{t("products.allCategories")}</option>
           {categories?.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -98,19 +100,19 @@ export function ProductsPage() {
           onChange={(e) => update({ sort: e.target.value })}
           className="border-input bg-background h-9 rounded-md border px-3 text-sm"
         >
-          {SORTS.map((s) => (
+          {sorts.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}
             </option>
           ))}
         </select>
-        <Button type="submit">Search</Button>
+        <Button type="submit">{t("common.search")}</Button>
       </form>
 
       <ProductGrid
         products={data?.items}
         loading={isLoading}
-        emptyMessage="No products match your filters."
+        emptyMessage={t("products.empty")}
       />
 
       {data && (

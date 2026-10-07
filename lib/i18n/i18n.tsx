@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { catalogs, supportedLocales, type Locale, type MessageKey } from "./messages";
+import { setCurrentLocale } from "./translate";
 
 const STORAGE_KEY = "openshop.locale";
 
@@ -57,6 +58,7 @@ export function I18nProvider({
 
   useEffect(() => {
     document.documentElement.lang = locale;
+    setCurrentLocale(locale);
     try {
       localStorage.setItem(STORAGE_KEY, locale);
     } catch {

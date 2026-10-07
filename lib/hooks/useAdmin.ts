@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api } from "@lib/api";
+import { t } from "@lib/i18n";
 import type { AuditLog, Category, Coupon, CurrenciesResponse, Dashboard, ExchangeRate, Order, Product, Review, Variant } from "@lib/types";
 
 export interface ProductInput {
@@ -67,7 +68,7 @@ export function useSetCurrencyRate() {
     mutationFn: ({ code, rateMicro }: { code: string; rateMicro: number }) =>
       api.put<ExchangeRate>(`/ops/currencies/${code}`, { rateMicro }),
     onSuccess: () => {
-      toast.success("Exchange rate saved");
+      toast.success(t("toast.exchangeRateSaved"));
       void queryClient.invalidateQueries({ queryKey: ["currencies"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -98,7 +99,7 @@ export function useCreateCoupon() {
   return useMutation({
     mutationFn: (input: CouponInput) => api.post<Coupon>("/ops/coupons", input),
     onSuccess: () => {
-      toast.success("Coupon created");
+      toast.success(t("toast.couponCreated"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "coupons"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -111,7 +112,7 @@ export function useUpdateCoupon() {
     mutationFn: ({ id, input }: { id: string; input: Partial<CouponInput> }) =>
       api.patch<Coupon>(`/ops/coupons/${id}`, input),
     onSuccess: () => {
-      toast.success("Coupon updated");
+      toast.success(t("toast.couponUpdated"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "coupons"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -130,7 +131,7 @@ export function useDeleteReviewAdmin() {
   return useMutation({
     mutationFn: (id: string) => api.del(`/ops/reviews/${id}`),
     onSuccess: () => {
-      toast.success("Review removed");
+      toast.success(t("toast.reviewRemoved"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "reviews"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -148,7 +149,7 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: (input: ProductInput) => api.post<Product>("/ops/products", input),
     onSuccess: () => {
-      toast.success("Product created");
+      toast.success(t("toast.productCreated"));
       invalidateCatalog(queryClient);
     },
     onError: (error: Error) => toast.error(error.message),
@@ -161,7 +162,7 @@ export function useUpdateProduct() {
     mutationFn: ({ id, input }: { id: string; input: Partial<ProductInput> }) =>
       api.patch<Product>(`/ops/products/${id}`, input),
     onSuccess: () => {
-      toast.success("Product updated");
+      toast.success(t("toast.productUpdated"));
       invalidateCatalog(queryClient);
     },
     onError: (error: Error) => toast.error(error.message),
@@ -203,7 +204,7 @@ export function useCreateVariant(productId: string) {
     mutationFn: (input: VariantInput) =>
       api.post<Variant>(`/ops/products/${productId}/variants`, input),
     onSuccess: () => {
-      toast.success("Variant added");
+      toast.success(t("toast.variantAdded"));
       invalidateVariants(queryClient, productId);
     },
     onError: (error: Error) => toast.error(error.message),

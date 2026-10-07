@@ -59,7 +59,13 @@ services:
   seed:
     <<: *backend-image
     command: ["/app/seed"]
-    environment: *db-env
+    environment:
+      <<: *db-env
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_DIR: /app/data/uploads
+      STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:-http://localhost:8080/uploads}
+    volumes:
+      - uploads:/app/data/uploads
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -9,9 +9,11 @@ import { Input } from "@lib/components/ui/input";
 import { Label } from "@lib/components/ui/label";
 import { api } from "@lib/api";
 import { useAuth } from "@lib/auth";
+import { useI18n } from "@lib/i18n";
 
 export function AccountSettingsPage() {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const [current, setCurrent] = useState("");
@@ -23,11 +25,11 @@ export function AccountSettingsPage() {
     setBusy(true);
     try {
       await api.post("/auth/password/change", { currentPassword: current, newPassword: next });
-      toast.success("Password changed. Please sign in again.");
+      toast.success(t("account.passwordChanged"));
       await logout();
       navigate("/login", { replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not change password");
+      toast.error(err instanceof Error ? err.message : t("account.changeFailed"));
     } finally {
       setBusy(false);
     }
@@ -43,39 +45,39 @@ export function AccountSettingsPage() {
       a.download = "openshop-export.json";
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Export downloaded");
+      toast.success(t("account.exported"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Export failed");
+      toast.error(err instanceof Error ? err.message : t("account.exportFailed"));
     }
   }
 
   async function deleteAccount() {
-    if (!window.confirm("Delete your account? This erases your personal data and cannot be undone.")) {
+    if (!window.confirm(t("account.deleteConfirm"))) {
       return;
     }
     try {
       await api.del("/auth/me");
       await logout();
-      toast.success("Your account has been deleted");
+      toast.success(t("account.deleted"));
       navigate("/", { replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Deletion failed");
+      toast.error(err instanceof Error ? err.message : t("account.deletionFailed"));
     }
   }
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold">Account settings</h1>
+      <h1 className="text-2xl font-bold">{t("account.settings")}</h1>
 
       <Card>
         <CardHeader>
-          <CardTitle>Change password</CardTitle>
-          <CardDescription>You will be signed out of all devices.</CardDescription>
+          <CardTitle>{t("account.changePassword")}</CardTitle>
+          <CardDescription>{t("account.changePasswordSubtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={changePassword} className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="current">Current password</Label>
+              <Label htmlFor="current">{t("auth.currentPassword")}</Label>
               <Input
                 id="current"
                 type="password"
@@ -85,7 +87,7 @@ export function AccountSettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="next">New password</Label>
+              <Label htmlFor="next">{t("auth.newPassword")}</Label>
               <Input
                 id="next"
                 type="password"
@@ -98,7 +100,7 @@ export function AccountSettingsPage() {
             <div className="sm:col-span-2">
               <Button type="submit" disabled={busy}>
                 <KeyRound className="size-4" />
-                {busy ? "Saving…" : "Change password"}
+                {busy ? t("common.saving") : t("account.changePassword")}
               </Button>
             </div>
           </form>
@@ -107,29 +109,26 @@ export function AccountSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Your data</CardTitle>
-          <CardDescription>Download a copy of your personal data.</CardDescription>
+          <CardTitle>{t("account.yourData")}</CardTitle>
+          <CardDescription>{t("account.exportSubtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button variant="outline" onClick={exportData}>
             <Download className="size-4" />
-            Export my data
+            {t("account.export")}
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-destructive">Delete account</CardTitle>
-          <CardDescription>
-            Erases your profile, addresses, wishlist and reviews. Order records are kept but
-            anonymised.
-          </CardDescription>
+          <CardTitle className="text-destructive">{t("account.deleteTitle")}</CardTitle>
+          <CardDescription>{t("account.deleteSubtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button variant="destructive" onClick={deleteAccount} disabled={!user}>
             <Trash2 className="size-4" />
-            Delete my account
+            {t("account.delete")}
           </Button>
         </CardContent>
       </Card>

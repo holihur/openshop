@@ -8,12 +8,14 @@ import { Separator } from "@lib/components/ui/separator";
 import { Skeleton } from "@lib/components/ui/skeleton";
 import { OrderStatusBadge } from "@lib/components/order-status-badge";
 import { api } from "@lib/api";
+import { useI18n } from "@lib/i18n";
 import { formatDate, formatMoney } from "@lib/format";
 import type { Order, Payment } from "@lib/types";
 
 // GuestOrderPage lets an anonymous buyer view, pay, cancel or confirm their
 // order using the access token returned at checkout.
 export function GuestOrderPage() {
+  const { t } = useI18n();
   const { token = "" } = useParams();
   const queryClient = useQueryClient();
 
@@ -41,7 +43,7 @@ export function GuestOrderPage() {
   const cancel = useMutation({
     mutationFn: () => api.post<Order>(`/guest/orders/${token}/cancel`),
     onSuccess: () => {
-      toast.success("Order cancelled");
+      toast.success(t("orders.cancelled"));
       void invalidate();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -50,7 +52,7 @@ export function GuestOrderPage() {
   const confirmReceipt = useMutation({
     mutationFn: () => api.post<Order>(`/guest/orders/${token}/complete`),
     onSuccess: () => {
-      toast.success("Thanks for confirming delivery");
+      toast.success(t("orders.receiptConfirmed"));
       void invalidate();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -62,9 +64,9 @@ export function GuestOrderPage() {
   if (!order) {
     return (
       <div className="py-16 text-center">
-        <p className="text-muted-foreground">Order not found.</p>
+        <p className="text-muted-foreground">{t("orders.notFound")}</p>
         <Button variant="link" asChild>
-          <Link to="/">Back to home</Link>
+          <Link to="/">{t("notfound.backHome")}</Link>
         </Button>
       </div>
     );
@@ -78,22 +80,22 @@ export function GuestOrderPage() {
             <h1 className="text-2xl font-bold">{order.orderNo}</h1>
             <OrderStatusBadge status={order.status} />
           </div>
-          <p className="text-muted-foreground mt-1 text-sm">Placed {formatDate(order.createdAt)}</p>
+          <p className="text-muted-foreground mt-1 text-sm">{t("orders.placedAt", { date: formatDate(order.createdAt) })}</p>
         </div>
         <div className="flex gap-2">
           {order.status === "pending_payment" && (
             <>
               <Button variant="outline" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
-                Cancel
+                {t("orders.cancel")}
               </Button>
               <Button disabled={pay.isPending} onClick={() => pay.mutate()}>
-                {pay.isPending ? "Redirecting…" : "Pay now"}
+                {pay.isPending ? t("orders.paying") : t("orders.payNow")}
               </Button>
             </>
           )}
           {order.status === "shipped" && (
             <Button disabled={confirmReceipt.isPending} onClick={() => confirmReceipt.mutate()}>
-              Confirm receipt
+              {t("orders.confirmReceipt")}
             </Button>
           )}
         </div>
@@ -101,7 +103,7 @@ export function GuestOrderPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Items</CardTitle>
+          <CardTitle>{t("orders.items")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {order.items.map((item) => (
@@ -115,28 +117,28 @@ export function GuestOrderPage() {
           ))}
           <Separator />
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal</span>
+            <span className="text-muted-foreground">{t("cart.subtotal")}</span>
             <span>{formatMoney(order.subtotalCents, order.currency)}</span>
           </div>
           {order.shippingCents > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Shipping</span>
+              <span className="text-muted-foreground">{t("cart.shipping")}</span>
               <span>{formatMoney(order.shippingCents, order.currency)}</span>
             </div>
           )}
           {order.taxCents > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax</span>
+              <span className="text-muted-foreground">{t("cart.tax")}</span>
               <span>{formatMoney(order.taxCents, order.currency)}</span>
             </div>
           )}
           <div className="flex justify-between font-semibold">
-            <span>Total</span>
+            <span>{t("cart.total")}</span>
             <span>{formatMoney(order.totalCents, order.currency)}</span>
           </div>
           {order.trackingNo && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tracking</span>
+              <span className="text-muted-foreground">{t("orders.tracking")}</span>
               <span className="font-mono text-xs">{order.trackingNo}</span>
             </div>
           )}

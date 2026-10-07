@@ -8,9 +8,11 @@ import { Skeleton } from "@lib/components/ui/skeleton";
 import { OrderStatusBadge } from "@lib/components/order-status-badge";
 import { api } from "@lib/api";
 import { formatDate, formatMoney } from "@lib/format";
+import { useI18n } from "@lib/i18n";
 import type { Order } from "@lib/types";
 
 export function OrdersPage() {
+  const { t } = useI18n();
   const { data, isLoading } = useQuery({
     queryKey: ["orders"],
     queryFn: () => api.getPage<Order[]>("/orders?pageSize=20"),
@@ -29,9 +31,9 @@ export function OrdersPage() {
     return (
       <div className="py-20 text-center">
         <Package className="text-muted-foreground mx-auto size-10" />
-        <p className="mt-4 text-lg font-medium">No orders yet</p>
+        <p className="mt-4 text-lg font-medium">{t("orders.noOrders")}</p>
         <Button className="mt-6" asChild>
-          <Link to="/products">Start shopping</Link>
+          <Link to="/products">{t("orders.startShopping")}</Link>
         </Button>
       </div>
     );
@@ -39,7 +41,7 @@ export function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Your orders</h1>
+      <h1 className="text-2xl font-bold">{t("orders.yourOrders")}</h1>
       <div className="space-y-3">
         {data.items.map((order) => (
           <Card key={order.id}>
@@ -52,7 +54,7 @@ export function OrdersPage() {
                   <OrderStatusBadge status={order.status} />
                 </div>
                 <p className="text-muted-foreground mt-1 text-sm">
-                  {formatDate(order.createdAt)} · {order.items.length} item(s)
+                  {formatDate(order.createdAt)} · {t("orders.itemCount", { count: order.items.length })}
                 </p>
               </div>
               <div className="flex items-center gap-4">
@@ -60,7 +62,7 @@ export function OrdersPage() {
                   {formatMoney(order.totalCents, order.currency)}
                 </span>
                 <Button variant="outline" size="sm" asChild>
-                  <Link to={`/orders/${order.id}`}>View</Link>
+                  <Link to={`/orders/${order.id}`}>{t("orders.view")}</Link>
                 </Button>
               </div>
             </CardContent>

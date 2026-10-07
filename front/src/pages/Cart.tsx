@@ -16,12 +16,14 @@ import { useCart, useClearCart, useRemoveCartItem, useUpdateCartItem } from "@li
 import { useAddresses } from "@lib/hooks/useAddresses";
 import { useShippingMethods } from "@lib/hooks/useShipping";
 import { useAuth } from "@lib/auth";
+import { useI18n } from "@lib/i18n";
 import type { CouponPreview, Order, Payment } from "@lib/types";
 
 export function CartPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { t } = useI18n();
   const price = usePrice();
   const { currency } = useCurrency();
   const { data: cart, isLoading } = useCart();
@@ -62,7 +64,7 @@ export function CartPage() {
       }),
     onSuccess: (result) => {
       setApplied(result);
-      toast.success(`Coupon ${result.code} applied`);
+      toast.success(t("cart.couponApplied", { code: result.code }));
     },
     onError: (error: Error) => {
       setApplied(null);
@@ -130,10 +132,10 @@ export function CartPage() {
     return (
       <div className="py-20 text-center">
         <ShoppingBag className="text-muted-foreground mx-auto size-10" />
-        <p className="mt-4 text-lg font-medium">Your cart is empty</p>
-        <p className="text-muted-foreground">Add some products to get started.</p>
+        <p className="mt-4 text-lg font-medium">{t("cart.emptyTitle")}</p>
+        <p className="text-muted-foreground">{t("cart.emptyHint")}</p>
         <Button className="mt-6" asChild>
-          <Link to="/products">Browse products</Link>
+          <Link to="/products">{t("cart.browse")}</Link>
         </Button>
       </div>
     );
@@ -142,14 +144,14 @@ export function CartPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Your cart</h1>
+        <h1 className="text-2xl font-bold">{t("cart.yourCart")}</h1>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => clearCart.mutate()}
           disabled={clearCart.isPending}
         >
-          Clear cart
+          {t("cart.clear")}
         </Button>
       </div>
 
@@ -214,51 +216,51 @@ export function CartPage() {
 
         <Card className="h-fit">
           <CardHeader>
-            <CardTitle>Order summary</CardTitle>
+            <CardTitle>{t("cart.orderSummary")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Items</span>
+              <span className="text-muted-foreground">{t("cart.items")}</span>
               <span>{cart.totalCount}</span>
             </div>
 
             {!user && (
               <div className="space-y-2">
-                <span className="text-sm font-medium">Delivery details</span>
+                <span className="text-sm font-medium">{t("cart.deliveryDetails")}</span>
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email for receipt"
+                  placeholder={t("cart.emailForReceipt")}
                   required
                 />
                 <Input
                   value={guestAddress.recipient}
                   onChange={(e) => setGuestAddress({ ...guestAddress, recipient: e.target.value })}
-                  placeholder="Recipient name"
+                  placeholder={t("cart.recipientName")}
                   required
                 />
                 <Input
                   value={guestAddress.phone}
                   onChange={(e) => setGuestAddress({ ...guestAddress, phone: e.target.value })}
-                  placeholder="Phone"
+                  placeholder={t("cart.phone")}
                 />
                 <Input
                   value={guestAddress.line1}
                   onChange={(e) => setGuestAddress({ ...guestAddress, line1: e.target.value })}
-                  placeholder="Address line"
+                  placeholder={t("cart.addressLine")}
                   required
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     value={guestAddress.city}
                     onChange={(e) => setGuestAddress({ ...guestAddress, city: e.target.value })}
-                    placeholder="City"
+                    placeholder={t("cart.city")}
                   />
                   <Input
                     value={guestAddress.postalCode}
                     onChange={(e) => setGuestAddress({ ...guestAddress, postalCode: e.target.value })}
-                    placeholder="Postal code"
+                    placeholder={t("cart.postalCode")}
                   />
                 </div>
               </div>
@@ -267,9 +269,9 @@ export function CartPage() {
             {user && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Shipping address</span>
+                  <span className="text-sm font-medium">{t("orders.shippingAddress")}</span>
                 <Link to="/account/addresses" className="text-muted-foreground text-xs underline">
-                  Manage
+                  {t("cart.manage")}
                 </Link>
               </div>
               {addresses && addresses.length > 0 ? (
@@ -298,9 +300,9 @@ export function CartPage() {
                 </div>
               ) : (
                 <p className="text-muted-foreground text-xs">
-                  No address yet.{" "}
+                  {t("cart.noAddress")}{" "}
                   <Link to="/account/addresses" className="underline">
-                    Add one
+                    {t("cart.addOne")}
                   </Link>
                 </p>
               )}
@@ -308,7 +310,7 @@ export function CartPage() {
             )}
 
             <div className="space-y-2">
-              <span className="text-sm font-medium">Shipping</span>
+              <span className="text-sm font-medium">{t("cart.shipping")}</span>
               {shippingMethods && shippingMethods.length > 0 ? (
                 <div className="space-y-1">
                   {shippingMethods.map((m) => (
@@ -327,14 +329,14 @@ export function CartPage() {
                       </span>
                       <span className="text-muted-foreground">
                         {m.freeThresholdCents > 0 && cart.totalCents >= m.freeThresholdCents
-                          ? "Free"
+                          ? t("cart.free")
                           : price(m.flatRateCents)}
                       </span>
                     </label>
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-xs">No shipping options.</p>
+                <p className="text-muted-foreground text-xs">{t("cart.noShipping")}</p>
               )}
             </div>
 
@@ -350,7 +352,7 @@ export function CartPage() {
                       setApplied(null);
                       setCoupon("");
                     }}
-                    aria-label="Remove coupon"
+                    aria-label={t("cart.removeCoupon")}
                   >
                     <X className="size-4" />
                   </button>
@@ -360,14 +362,14 @@ export function CartPage() {
                   <Input
                     value={coupon}
                     onChange={(e) => setCoupon(e.target.value)}
-                    placeholder="Coupon code"
+                    placeholder={t("cart.couponCode")}
                   />
                   <Button
                     variant="outline"
                     disabled={!coupon || previewCoupon.isPending}
                     onClick={() => previewCoupon.mutate(coupon)}
                   >
-                    Apply
+                    {t("cart.applyCoupon")}
                   </Button>
                 </div>
               )}
@@ -375,22 +377,22 @@ export function CartPage() {
 
             <Separator />
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
+              <span className="text-muted-foreground">{t("cart.subtotal")}</span>
               <span>{price(cart.totalCents)}</span>
             </div>
             {applied && (
               <div className="flex justify-between text-sm text-emerald-600">
-                <span>Discount</span>
+                <span>{t("cart.discount")}</span>
                 <span>-{price(applied.discountCents)}</span>
               </div>
             )}
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Shipping</span>
+              <span className="text-muted-foreground">{t("cart.shipping")}</span>
               <span>{price(shippingCents)}</span>
             </div>
-            <p className="text-muted-foreground text-xs">Taxes are calculated at checkout.</p>
+            <p className="text-muted-foreground text-xs">{t("cart.taxesAtCheckout")}</p>
             <div className="flex justify-between text-base font-semibold">
-              <span>Total</span>
+              <span>{t("cart.total")}</span>
               <span>{price((applied?.totalCents ?? cart.totalCents) + shippingCents)}</span>
             </div>
             <Button
@@ -409,11 +411,9 @@ export function CartPage() {
                 })
               }
             >
-              {checkout.isPending ? "Processing…" : "Checkout"}
+              {checkout.isPending ? t("cart.processing") : t("cart.checkout")}
             </Button>
-            <p className="text-muted-foreground text-center text-xs">
-              Stock is reserved atomically when you check out.
-            </p>
+            <p className="text-muted-foreground text-center text-xs">{t("cart.stockNote")}</p>
           </CardContent>
         </Card>
       </div>

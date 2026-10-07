@@ -5,13 +5,15 @@ import { Button } from "@lib/components/ui/button";
 import { Skeleton } from "@lib/components/ui/skeleton";
 import { ProductGrid } from "@lib/components/product-grid";
 import { useWishlist } from "@lib/hooks/useWishlist";
+import { useI18n } from "@lib/i18n";
 
 export function WishlistPage() {
+  const { t } = useI18n();
   const { data, isLoading } = useWishlist();
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Wishlist</h1>
+      <h1 className="text-2xl font-bold">{t("wishlist.title")}</h1>
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-3">
@@ -22,9 +24,9 @@ export function WishlistPage() {
       ) : !data || data.length === 0 ? (
         <div className="text-muted-foreground rounded-lg border border-dashed py-20 text-center">
           <Heart className="mx-auto size-8" />
-          <p className="mt-2">Your wishlist is empty.</p>
+          <p className="mt-2">{t("wishlist.empty")}</p>
           <Button className="mt-6" asChild>
-            <Link to="/products">Browse products</Link>
+            <Link to="/products">{t("wishlist.browse")}</Link>
           </Button>
         </div>
       ) : (

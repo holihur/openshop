@@ -36,6 +36,7 @@ import { formatDate, formatMoney } from "@lib/format";
 import type { AuditLog, Coupon, ExchangeRate, Order, Product, Review, ShippingMethod, ShippingZone } from "@lib/types";
 
 export function AdminCurrency() {
+  const { t } = useI18n();
   const { data, isLoading } = useCurrencies();
   const saveRate = useSetCurrencyRate();
   const [code, setCode] = useState("");
@@ -56,12 +57,12 @@ export function AdminCurrency() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Set exchange rate</CardTitle>
+          <CardTitle>{t("ops.setExchangeRate")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-4">
             <div className="space-y-1">
-              <Label htmlFor="c-code">Currency</Label>
+              <Label htmlFor="c-code">{t("ops.currency")}</Label>
               <Input
                 id="c-code"
                 value={code}
@@ -72,7 +73,7 @@ export function AdminCurrency() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="c-rate">Units of {data?.base ?? "base"} per 1</Label>
+              <Label htmlFor="c-rate">{t("ops.unitsOfBase", { base: data?.base ?? "base" })}</Label>
               <Input
                 id="c-rate"
                 type="number"
@@ -85,7 +86,7 @@ export function AdminCurrency() {
             </div>
             <div className="flex items-end">
               <Button type="submit" size="sm" disabled={saveRate.isPending}>
-                Save rate
+                {t("ops.saveRate")}
               </Button>
             </div>
           </form>
@@ -102,15 +103,15 @@ export function AdminCurrency() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Currency</TableHead>
-                  <TableHead>Rate (micro)</TableHead>
-                  <TableHead>Rate</TableHead>
-                  <TableHead>Updated</TableHead>
+                  <TableHead>{t("ops.currency")}</TableHead>
+                  <TableHead>{t("ops.rateMicro")}</TableHead>
+                  <TableHead>{t("ops.rate")}</TableHead>
+                  <TableHead>{t("ops.updated")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell className="font-medium">{data?.base} (base)</TableCell>
+                  <TableCell className="font-medium">{data?.base} {t("ops.baseSuffix")}</TableCell>
                   <TableCell>1,000,000</TableCell>
                   <TableCell>1</TableCell>
                   <TableCell className="text-muted-foreground text-sm">—</TableCell>
@@ -135,6 +136,7 @@ export function AdminCurrency() {
 }
 
 export function AdminAudit() {
+  const { t } = useI18n();
   const { data, isLoading } = useAuditLogs();
 
   if (isLoading) {
@@ -147,11 +149,11 @@ export function AdminAudit() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Time</TableHead>
-              <TableHead>Actor</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Resource</TableHead>
-              <TableHead>IP</TableHead>
+              <TableHead>{t("ops.time")}</TableHead>
+              <TableHead>{t("ops.actor")}</TableHead>
+              <TableHead>{t("ops.action")}</TableHead>
+              <TableHead>{t("ops.resource")}</TableHead>
+              <TableHead>{t("ops.ip")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -177,6 +179,7 @@ export function AdminAudit() {
 }
 
 export function AdminZones() {
+  const { t } = useI18n();
   const { data: zones } = useAdminShippingZones();
   const { data: methods } = useAdminShippingMethods();
   const createZone = useCreateShippingZone();
@@ -218,22 +221,22 @@ export function AdminZones() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Shipping zones & rates</CardTitle>
+        <CardTitle>{t("ops.zonesRates")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         <form onSubmit={onCreate} className="grid gap-3 sm:grid-cols-4">
           <div className="space-y-1 sm:col-span-2">
-            <Label htmlFor="z-name">Zone name</Label>
+            <Label htmlFor="z-name">{t("ops.zoneName")}</Label>
             <Input id="z-name" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div className="space-y-1 sm:col-span-2">
-            <Label htmlFor="z-prov">Provinces (comma-separated)</Label>
+            <Label htmlFor="z-prov">{t("ops.provinces")}</Label>
             <Input id="z-prov" value={provinces} onChange={(e) => setProvinces(e.target.value)} placeholder="Beijing, Tianjin" />
           </div>
           <div className="sm:col-span-4">
             <Button type="submit" size="sm" disabled={createZone.isPending}>
               <Plus className="size-4" />
-              Add zone
+              {t("ops.addZone")}
             </Button>
           </div>
         </form>
@@ -242,8 +245,8 @@ export function AdminZones() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Zone</TableHead>
-                <TableHead>Provinces</TableHead>
+                <TableHead>{t("ops.zone")}</TableHead>
+                <TableHead>{t("ops.provincesLabel")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -251,7 +254,7 @@ export function AdminZones() {
                 <TableRow key={z.id}>
                   <TableCell className="font-medium">{z.name}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {z.provinces.length > 0 ? z.provinces.join(", ") : "All regions"}
+                    {z.provinces.length > 0 ? z.provinces.join(", ") : t("ops.allRegions")}
                   </TableCell>
                 </TableRow>
               ))}
@@ -261,44 +264,44 @@ export function AdminZones() {
 
         <form onSubmit={onSetRate} className="grid gap-3 sm:grid-cols-4">
           <div className="space-y-1">
-            <Label>Zone</Label>
+            <Label>{t("ops.zone")}</Label>
             <select
               value={zoneId}
               onChange={(e) => setZoneId(e.target.value)}
               className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
               required
             >
-              <option value="">Select…</option>
+              <option value="">{t("ops.select")}</option>
               {zones?.map((z: ShippingZone) => (
                 <option key={z.id} value={z.id}>{z.name}</option>
               ))}
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Method</Label>
+            <Label>{t("ops.method")}</Label>
             <select
               value={methodId}
               onChange={(e) => setMethodId(e.target.value)}
               className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
               required
             >
-              <option value="">Select…</option>
+              <option value="">{t("ops.select")}</option>
               {methods?.map((m: ShippingMethod) => (
                 <option key={m.id} value={m.id}>{m.name}</option>
               ))}
             </select>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="z-flat">Flat rate (CNY)</Label>
+            <Label htmlFor="z-flat">{t("ops.flatRate")}</Label>
             <Input id="z-flat" type="number" step="0.01" min="0" value={flat} onChange={(e) => setFlat(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="z-perkg">Per kg (CNY)</Label>
+            <Label htmlFor="z-perkg">{t("ops.perKg")}</Label>
             <Input id="z-perkg" type="number" step="0.01" min="0" value={perKg} onChange={(e) => setPerKg(e.target.value)} />
           </div>
           <div className="sm:col-span-4">
             <Button type="submit" size="sm" disabled={setRate.isPending}>
-              Save rate
+              {t("ops.saveRate")}
             </Button>
           </div>
         </form>
@@ -308,6 +311,7 @@ export function AdminZones() {
 }
 
 export function AdminReviews() {
+  const { t } = useI18n();
   const { data, isLoading } = useAdminReviews();
   const remove = useDeleteReviewAdmin();
 
@@ -321,11 +325,11 @@ export function AdminReviews() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Rating</TableHead>
-              <TableHead>Review</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t("ops.rating")}</TableHead>
+              <TableHead>{t("ops.review")}</TableHead>
+              <TableHead>{t("ops.product")}</TableHead>
+              <TableHead>{t("ops.date")}</TableHead>
+              <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -349,7 +353,7 @@ export function AdminReviews() {
                     disabled={remove.isPending}
                     onClick={() => remove.mutate(r.id)}
                   >
-                    Delete
+                    {t("common.delete")}
                   </Button>
                 </TableCell>
               </TableRow>
@@ -362,6 +366,7 @@ export function AdminReviews() {
 }
 
 export function AdminShipping() {
+  const { t } = useI18n();
   const { data, isLoading } = useAdminShippingMethods();
   const create = useCreateShippingMethod();
   const update = useUpdateShippingMethod();
@@ -392,16 +397,16 @@ export function AdminShipping() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>New shipping method</CardTitle>
+          <CardTitle>{t("ops.newShippingMethod")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-4">
             <div className="space-y-1 sm:col-span-2">
-              <Label htmlFor="s-name">Name</Label>
+              <Label htmlFor="s-name">{t("ops.name")}</Label>
               <Input id="s-name" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="s-rate">Flat rate (CNY)</Label>
+              <Label htmlFor="s-rate">{t("ops.flatRate")}</Label>
               <Input
                 id="s-rate"
                 type="number"
@@ -412,7 +417,7 @@ export function AdminShipping() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="s-threshold">Free over (CNY)</Label>
+              <Label htmlFor="s-threshold">{t("ops.freeOver")}</Label>
               <Input
                 id="s-threshold"
                 type="number"
@@ -425,7 +430,7 @@ export function AdminShipping() {
             <div className="sm:col-span-4">
               <Button type="submit" size="sm" disabled={create.isPending}>
                 <Plus className="size-4" />
-                Add method
+                {t("ops.addMethod")}
               </Button>
             </div>
           </form>
@@ -442,11 +447,11 @@ export function AdminShipping() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Flat rate</TableHead>
-                  <TableHead>Free over</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("ops.name")}</TableHead>
+                  <TableHead>{t("ops.flatRateHeader")}</TableHead>
+                  <TableHead>{t("ops.freeOverHeader")}</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -459,7 +464,7 @@ export function AdminShipping() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={m.active ? "success" : "secondary"}>
-                        {m.active ? "active" : "inactive"}
+                        {m.active ? t("common.active") : t("common.inactive")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -480,7 +485,7 @@ export function AdminShipping() {
                           })
                         }
                       >
-                        {m.active ? "Disable" : "Enable"}
+                        {m.active ? t("ops.disable") : t("ops.enable")}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -587,6 +592,7 @@ export function AdminDashboard() {
 }
 
 export function AdminCoupons() {
+  const { t } = useI18n();
   const { data, isLoading } = useAdminCoupons();
   const create = useCreateCoupon();
   const update = useUpdateCoupon();
@@ -623,28 +629,28 @@ export function AdminCoupons() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>New coupon</CardTitle>
+          <CardTitle>{t("ops.newCoupon")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-5">
             <div className="space-y-1 sm:col-span-2">
-              <Label htmlFor="c-code">Code</Label>
+              <Label htmlFor="c-code">{t("ops.code")}</Label>
               <Input id="c-code" value={code} onChange={(e) => setCode(e.target.value)} required />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="c-type">Type</Label>
+              <Label htmlFor="c-type">{t("ops.type")}</Label>
               <select
                 id="c-type"
                 value={discountType}
                 onChange={(e) => setDiscountType(e.target.value as "percent" | "fixed")}
                 className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
               >
-                <option value="percent">Percent (%)</option>
-                <option value="fixed">Fixed (CNY)</option>
+                <option value="percent">{t("ops.percent")}</option>
+                <option value="fixed">{t("ops.fixed")}</option>
               </select>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="c-value">Value</Label>
+              <Label htmlFor="c-value">{t("ops.value")}</Label>
               <Input
                 id="c-value"
                 type="number"
@@ -656,7 +662,7 @@ export function AdminCoupons() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="c-limit">Usage limit</Label>
+              <Label htmlFor="c-limit">{t("ops.usageLimit")}</Label>
               <Input
                 id="c-limit"
                 type="number"
@@ -668,7 +674,7 @@ export function AdminCoupons() {
             <div className="sm:col-span-5">
               <Button type="submit" size="sm" disabled={create.isPending}>
                 <Plus className="size-4" />
-                Create coupon
+                {t("ops.createCoupon")}
               </Button>
             </div>
           </form>
@@ -685,11 +691,11 @@ export function AdminCoupons() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Discount</TableHead>
-                  <TableHead>Used / limit</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("ops.code")}</TableHead>
+                  <TableHead>{t("ops.discount")}</TableHead>
+                  <TableHead>{t("ops.usedLimit")}</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -706,7 +712,7 @@ export function AdminCoupons() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={c.active ? "success" : "secondary"}>
-                        {c.active ? "active" : "inactive"}
+                        {c.active ? t("common.active") : t("common.inactive")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -717,20 +723,20 @@ export function AdminCoupons() {
                           disabled={update.isPending}
                           onClick={() => update.mutate({ id: c.id, input: { active: !c.active } })}
                         >
-                          {c.active ? "Deactivate" : "Activate"}
+                          {c.active ? t("ops.deactivate") : t("ops.activate")}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           disabled={update.isPending}
                           onClick={() => {
-                            const v = window.prompt("Usage limit (0 = unlimited)", String(c.usageLimit));
+                            const v = window.prompt(t("ops.usageLimitPrompt"), String(c.usageLimit));
                             if (v !== null) {
                               update.mutate({ id: c.id, input: { usageLimit: Number.parseInt(v, 10) || 0 } });
                             }
                           }}
                         >
-                          Edit limit
+                          {t("ops.editLimit")}
                         </Button>
                       </div>
                     </TableCell>
@@ -746,6 +752,7 @@ export function AdminCoupons() {
 }
 
 export function AdminProducts() {
+  const { t } = useI18n();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useAdminProducts(page, 50);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -760,11 +767,11 @@ export function AdminProducts() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-muted-foreground text-sm">{data?.total ?? 0} products</p>
+        <p className="text-muted-foreground text-sm">{t("ops.productCount", { count: data?.total ?? 0 })}</p>
         {!showForm && (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="size-4" />
-            New product
+            {t("ops.newProduct")}
           </Button>
         )}
       </div>
@@ -787,11 +794,11 @@ export function AdminProducts() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("ops.title")}</TableHead>
+                  <TableHead>{t("ops.price")}</TableHead>
+                  <TableHead>{t("ops.stock")}</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -815,7 +822,7 @@ export function AdminProducts() {
                         }}
                       >
                         <Pencil className="size-4" />
-                        Edit
+                        {t("common.edit")}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -829,7 +836,7 @@ export function AdminProducts() {
       {data && data.total > data.pageSize && (
         <div className="flex justify-center gap-2">
           <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-            Previous
+            {t("common.previous")}
           </Button>
           <Button
             variant="outline"
@@ -837,7 +844,7 @@ export function AdminProducts() {
             disabled={page * data.pageSize >= data.total}
             onClick={() => setPage((p) => p + 1)}
           >
-            Next
+            {t("common.next")}
           </Button>
         </div>
       )}
@@ -846,6 +853,7 @@ export function AdminProducts() {
 }
 
 export function AdminOrders() {
+  const { t } = useI18n();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useAdminOrders(page, 50);
   const queryClient = useQueryClient();
@@ -854,7 +862,7 @@ export function AdminOrders() {
     mutationFn: (orderId: string) =>
       api.post<Order>(`/ops/orders/${orderId}/refund`, { reason: "admin refund" }),
     onSuccess: () => {
-      toast.success("Order refunded");
+      toast.success(t("ops.orderRefunded"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -864,7 +872,7 @@ export function AdminOrders() {
     mutationFn: ({ id, trackingNo }: { id: string; trackingNo: string }) =>
       api.post<Order>(`/ops/orders/${id}/ship`, { trackingNo }),
     onSuccess: () => {
-      toast.success("Order shipped");
+      toast.success(t("ops.orderShipped"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -873,7 +881,7 @@ export function AdminOrders() {
   const complete = useMutation({
     mutationFn: (id: string) => api.post<Order>(`/ops/orders/${id}/complete`),
     onSuccess: () => {
-      toast.success("Order completed");
+      toast.success(t("ops.orderCompleted"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -894,12 +902,12 @@ export function AdminOrders() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Order</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Items</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Placed</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t("orders.orderNo")}</TableHead>
+              <TableHead>{t("common.status")}</TableHead>
+              <TableHead>{t("ops.items")}</TableHead>
+              <TableHead>{t("orders.total")}</TableHead>
+              <TableHead>{t("orders.placed")}</TableHead>
+              <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -922,12 +930,12 @@ export function AdminOrders() {
                         size="sm"
                         disabled={ship.isPending}
                         onClick={() => {
-                          const trackingNo = window.prompt("Tracking number", "");
+                          const trackingNo = window.prompt(t("ops.trackingPrompt"), "");
                           if (trackingNo !== null) ship.mutate({ id: order.id, trackingNo });
                         }}
                       >
                         <Truck className="size-4" />
-                        Ship
+                        {t("ops.ship")}
                       </Button>
                     )}
                     {order.status === "shipped" && (
@@ -937,7 +945,7 @@ export function AdminOrders() {
                         disabled={complete.isPending}
                         onClick={() => complete.mutate(order.id)}
                       >
-                        Complete
+                        {t("ops.complete")}
                       </Button>
                     )}
                     {["paid", "shipped", "completed"].includes(order.status) && (
@@ -948,7 +956,7 @@ export function AdminOrders() {
                         onClick={() => refund.mutate(order.id)}
                       >
                         <RotateCcw className="size-4" />
-                        Refund
+                        {t("ops.refund")}
                       </Button>
                     )}
                   </div>

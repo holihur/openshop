@@ -38,6 +38,7 @@ test("switching language localises the console", async ({ page }) => {
   await signIn(page);
   await page.getByTestId("locale-switcher").selectOption("zh");
   await expect(page.getByRole("link", { name: "概览" })).toBeVisible();
+  await expect(page.getByText("营收")).toBeVisible();
   await page.getByTestId("locale-switcher").selectOption("en");
   await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
 });
