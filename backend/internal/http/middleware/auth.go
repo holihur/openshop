@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -32,6 +33,12 @@ func Auth(tokens port.TokenIssuer, auth *service.AuthService, pats *service.PATS
 		if pats != nil && strings.HasPrefix(raw, service.PATPrefix) {
 			token, role, err := pats.Authenticate(c.Request.Context(), raw, c.ClientIP(), realm)
 			if err != nil {
+				// A token that is valid but not usable from here is a permission
+				// problem, not an authentication one.
+				if errors.Is(err, domain.ErrForbidden) {
+					forbidden(c, "this token is not allowed from your address")
+					return
+				}
 				unauthorized(c, "invalid or expired access token")
 				return
 			}

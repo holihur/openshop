@@ -30,7 +30,7 @@ type personalAccessTokenModel struct {
 	TokenHash  string `gorm:"size:64;uniqueIndex;not null"`
 	Realm      string `gorm:"size:16;not null;default:'front'"`
 	Scopes     string `gorm:"type:text;not null;default:''"`
-	CIDRs      string `gorm:"type:text;not null;default:''"`
+	CIDRs      string `gorm:"column:cidrs;type:text;not null;default:''"`
 	ExpiresAt  *time.Time
 	LastUsedAt *time.Time
 	RevokedAt  *time.Time
