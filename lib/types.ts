@@ -30,6 +30,9 @@ export interface Site {
   themeColor: string;
   allowRegistration: boolean;
   oidcEnabled: boolean;
+  withdrawalEnabled: boolean;
+  withdrawalMinCents: number;
+  withdrawalInstructions: string;
 }
 
 export interface Category {
@@ -214,6 +217,27 @@ export interface ReferralSummary {
   referrals: number;
   pendingCents: number;
   approvedCents: number;
+}
+
+export type WithdrawalStatus = "requested" | "approved" | "paid" | "rejected" | "cancelled";
+export type WithdrawalMethod = "bank" | "alipay" | "wechat" | "other";
+
+export interface Withdrawal {
+  id: string;
+  userId: string;
+  amountCents: number;
+  currency: string;
+  method: WithdrawalMethod;
+  accountName: string;
+  accountNo: string;
+  note?: string;
+  status: WithdrawalStatus;
+  rejectReason?: string;
+  paidReference?: string;
+  reviewedAt?: string;
+  paidAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type TicketKind = "presale" | "postsale" | "other";

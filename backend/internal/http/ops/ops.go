@@ -134,6 +134,11 @@ func New(
 			admin.POST("/customers/:id/points/adjust", middleware.RequirePermission(domain.PermLoyaltyWrite), fh.AdjustPoints)
 			admin.GET("/commissions", middleware.RequirePermission(domain.PermLoyaltyRead), fh.ListCommissions)
 
+			admin.GET("/withdrawals", middleware.RequirePermission(domain.PermWithdrawalsRead), fh.ListWithdrawals)
+			admin.POST("/withdrawals/:id/approve", middleware.RequirePermission(domain.PermWithdrawalsWrite), fh.ApproveWithdrawal)
+			admin.POST("/withdrawals/:id/reject", middleware.RequirePermission(domain.PermWithdrawalsWrite), fh.RejectWithdrawal)
+			admin.POST("/withdrawals/:id/pay", middleware.RequirePermission(domain.PermWithdrawalsWrite), fh.PayWithdrawal)
+
 			admin.GET("/customers", middleware.RequirePermission(domain.PermCustomersRead), fh.ListCustomers)
 			admin.GET("/customers/:id", middleware.RequirePermission(domain.PermCustomersRead), fh.GetCustomer)
 			admin.PATCH("/customers/:id", middleware.RequirePermission(domain.PermCustomersWrite), fh.UpdateCustomer)

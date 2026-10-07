@@ -11,6 +11,7 @@ import type {
   ReferralSummary,
   Wallet,
   WalletTransaction,
+  Withdrawal,
 } from "@lib/types";
 
 // --- Customer ------------------------------------------------------------
@@ -69,6 +70,84 @@ export function useMyCommissions(page = 1, pageSize = 20) {
     queryKey: ["referrals", "commissions", page, pageSize],
     queryFn: () => api.getPage<Commission[]>(`/referrals/commissions?page=${page}&pageSize=${pageSize}`),
   });
+}
+
+// --- Withdrawals ---------------------------------------------------------
+
+export function useWithdrawals(page = 1, pageSize = 20) {
+  return useQuery({
+    queryKey: ["withdrawals", "mine", page, pageSize],
+    queryFn: () => api.getPage<Withdrawal[]>(`/wallet/withdrawals?page=${page}&pageSize=${pageSize}`),
+  });
+}
+
+export interface WithdrawalInput {
+  amountCents: number;
+  method: string;
+  accountName: string;
+  accountNo: string;
+  note?: string;
+}
+
+export function useRequestWithdrawal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: WithdrawalInput) => api.post<Withdrawal>("/wallet/withdrawals", input),
+    onSuccess: () => {
+      toast.success(t("toast.withdrawalRequested"));
+      void queryClient.invalidateQueries({ queryKey: ["withdrawals"] });
+      void queryClient.invalidateQueries({ queryKey: ["wallet"] });
+    },
+    onError: (error: Error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useCancelWithdrawal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<Withdrawal>(`/wallet/withdrawals/${id}/cancel`),
+    onSuccess: () => {
+      toast.success(t("toast.withdrawalCancelled"));
+      void queryClient.invalidateQueries({ queryKey: ["withdrawals"] });
+      void queryClient.invalidateQueries({ queryKey: ["wallet"] });
+    },
+    onError: (error: Error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useAdminWithdrawals(params: { status?: string; page?: number; pageSize?: number } = {}) {
+  const { status, page = 1, pageSize = 20 } = params;
+  const search = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (status) search.set("status", status);
+  return useQuery({
+    queryKey: ["withdrawals", "admin", status, page, pageSize],
+    queryFn: () => api.getPage<Withdrawal[]>(`/ops/withdrawals?${search.toString()}`),
+  });
+}
+
+function useWithdrawalAction(path: string, successKey: "toast.withdrawalApproved" | "toast.withdrawalRejected" | "toast.withdrawalPaid") {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: string; body?: unknown }) =>
+      api.post<Withdrawal>(`/ops/withdrawals/${input.id}/${path}`, input.body),
+    onSuccess: () => {
+      toast.success(t(successKey));
+      void queryClient.invalidateQueries({ queryKey: ["withdrawals"] });
+    },
+    onError: (error: Error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useApproveWithdrawal() {
+  return useWithdrawalAction("approve", "toast.withdrawalApproved");
+}
+
+export function useRejectWithdrawal() {
+  return useWithdrawalAction("reject", "toast.withdrawalRejected");
+}
+
+export function usePayWithdrawal() {
+  return useWithdrawalAction("pay", "toast.withdrawalPaid");
 }
 
 // --- Ops console ---------------------------------------------------------

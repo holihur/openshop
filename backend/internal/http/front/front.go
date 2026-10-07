@@ -152,6 +152,9 @@ func New(
 			authed.GET("/points/transactions", fh.ListPointsTransactions)
 			authed.GET("/referrals", fh.GetReferralSummary)
 			authed.GET("/referrals/commissions", fh.ListMyCommissions)
+			authed.GET("/wallet/withdrawals", fh.ListMyWithdrawals)
+			authed.POST("/wallet/withdrawals", fh.RequestWithdrawal)
+			authed.POST("/wallet/withdrawals/:id/cancel", fh.CancelWithdrawal)
 
 			authed.POST("/payments", middleware.Idempotency(cache, 24*time.Hour), fh.CreatePayment)
 			authed.POST("/payments/simulate", fh.SimulatePayment)

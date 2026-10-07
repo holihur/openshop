@@ -146,6 +146,14 @@ type CommissionRepository interface {
 	List(ctx context.Context, f domain.CommissionFilter) (domain.Page[domain.Commission], error)
 }
 
+// WithdrawalRepository persists wallet withdrawal requests.
+type WithdrawalRepository interface {
+	Create(ctx context.Context, w *domain.Withdrawal) error
+	FindByID(ctx context.Context, id string) (*domain.Withdrawal, error)
+	Update(ctx context.Context, w *domain.Withdrawal) error
+	List(ctx context.Context, f domain.WithdrawalFilter) (domain.Page[domain.Withdrawal], error)
+}
+
 // RetentionRepository prunes append-only tables so they do not grow without
 // limit. Deletes are batched to keep transactions short.
 type RetentionRepository interface {

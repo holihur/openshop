@@ -22,6 +22,11 @@ type siteView struct {
 	ThemeColor        string               `json:"themeColor"`
 	AllowRegistration bool                 `json:"allowRegistration"`
 	OIDCEnabled       bool                 `json:"oidcEnabled"`
+	// Wallet withdrawal hints let the storefront hide the form and show the
+	// operator's instructions without a second request.
+	WithdrawalEnabled      bool   `json:"withdrawalEnabled"`
+	WithdrawalMinCents     int64  `json:"withdrawalMinCents"`
+	WithdrawalInstructions string `json:"withdrawalInstructions"`
 }
 
 type siteFeatureView struct {
@@ -56,9 +61,12 @@ func (h *Handler) GetSite(c *gin.Context) {
 			{Title: h.Settings.String(ctx, "store.feature2_title"), Text: h.Settings.String(ctx, "store.feature2_text")},
 			{Title: h.Settings.String(ctx, "store.feature3_title"), Text: h.Settings.String(ctx, "store.feature3_text")},
 		},
-		Tagline:           h.Settings.String(ctx, "store.tagline"),
-		ThemeColor:        h.Settings.String(ctx, "store.theme_color"),
-		AllowRegistration: h.Settings.Bool(ctx, "auth.allow_registration"),
-		OIDCEnabled:       h.OIDC != nil && h.OIDC.Enabled(ctx),
+		Tagline:                h.Settings.String(ctx, "store.tagline"),
+		ThemeColor:             h.Settings.String(ctx, "store.theme_color"),
+		AllowRegistration:      h.Settings.Bool(ctx, "auth.allow_registration"),
+		OIDCEnabled:            h.OIDC != nil && h.OIDC.Enabled(ctx),
+		WithdrawalEnabled:      h.Settings.Bool(ctx, "wallet.withdrawal_enabled"),
+		WithdrawalMinCents:     int64(h.Settings.Int(ctx, "wallet.min_withdrawal_cents")),
+		WithdrawalInstructions: h.Settings.String(ctx, "wallet.withdrawal_instructions"),
 	})
 }
