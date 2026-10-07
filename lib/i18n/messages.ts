@@ -128,6 +128,7 @@ export const en = {
 
   // product
   "product.addToCart": "Add to cart",
+  "product.buyNow": "Buy now",
   "product.add": "Add",
   "product.lowStock": "Only {count} left",
   "product.added": "Added to cart",
@@ -282,6 +283,7 @@ export const en = {
   "cart.taxesAtCheckout": "Taxes are calculated at checkout.",
   "cart.processing": "Processing…",
   "cart.stockNote": "Stock is reserved atomically when you check out.",
+  "cart.freeShippingHint": "Add {amount} more for free shipping",
   "cart.couponApplied": "Coupon {code} applied",
 
   // orders (extended)
@@ -649,6 +651,7 @@ export const zh: Record<MessageKey, string> = {
   "account.deleted": "你的账户已注销",
 
   "product.addToCart": "加入购物车",
+  "product.buyNow": "立即购买",
   "product.add": "加入",
   "product.lowStock": "仅剩 {count} 件",
   "product.added": "已加入购物车",
@@ -798,6 +801,7 @@ export const zh: Record<MessageKey, string> = {
   "cart.taxesAtCheckout": "税费在结算时计算。",
   "cart.processing": "处理中…",
   "cart.stockNote": "结算时会原子性地锁定库存。",
+  "cart.freeShippingHint": "再买 {amount} 可享包邮",
   "cart.couponApplied": "优惠券 {code} 已应用",
 
   "orders.yourOrders": "你的订单",

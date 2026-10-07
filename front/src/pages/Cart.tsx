@@ -379,6 +379,15 @@ export function CartPage() {
             </div>
 
             <Separator />
+            {chosenMethod &&
+              chosenMethod.freeThresholdCents > 0 &&
+              cart.totalCents < chosenMethod.freeThresholdCents && (
+                <p className="text-muted-foreground text-xs">
+                  {t("cart.freeShippingHint", {
+                    amount: price(chosenMethod.freeThresholdCents - cart.totalCents),
+                  })}
+                </p>
+              )}
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t("cart.subtotal")}</span>
               <span>{price(cart.totalCents)}</span>
@@ -417,6 +426,11 @@ export function CartPage() {
               {checkout.isPending ? t("cart.processing") : t("cart.checkout")}
             </Button>
             <p className="text-muted-foreground text-center text-xs">{t("cart.stockNote")}</p>
+            <div className="text-center">
+              <Button variant="link" size="sm" asChild>
+                <Link to="/products">{t("cart.continueShopping")}</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

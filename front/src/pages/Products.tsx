@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 import { Button } from "@lib/components/ui/button";
 import { Input } from "@lib/components/ui/input";
@@ -108,6 +108,31 @@ export function ProductsPage() {
         </select>
         <Button type="submit">{t("common.search")}</Button>
       </form>
+
+      {(keyword || categoryId) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {keyword && (
+            <button
+              type="button"
+              onClick={() => update({ keyword: "" })}
+              className="bg-accent text-accent-foreground inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm"
+            >
+              {keyword}
+              <X className="size-3" />
+            </button>
+          )}
+          {categoryId && (
+            <button
+              type="button"
+              onClick={() => update({ categoryId: "" })}
+              className="bg-accent text-accent-foreground inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm"
+            >
+              {categories?.find((c) => c.id === categoryId)?.name ?? t("products.allCategories")}
+              <X className="size-3" />
+            </button>
+          )}
+        </div>
+      )}
 
       {!isLoading && data && (
         <p className="text-muted-foreground text-sm">

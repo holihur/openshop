@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ImageOff, Minus, Plus, ShoppingCart } from "lucide-react";
+import { ImageOff, Minus, Plus, ShoppingCart } from "lucide-react";
 
 import { Button } from "@lib/components/ui/button";
 import { Badge } from "@lib/components/ui/badge";
@@ -20,6 +20,7 @@ import type { Product, Variant } from "@lib/types";
 
 export function ProductDetailPage() {
   const { id = "" } = useParams();
+  const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [variantId, setVariantId] = useState<string>("");
@@ -103,12 +104,17 @@ export function ProductDetailPage() {
 
   return (
     <div className="space-y-8">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link to="/products">
-          <ArrowLeft className="size-4" />
-          {t("product.back")}
+      <nav className="text-muted-foreground flex items-center gap-1.5 text-sm">
+        <Link to="/" className="hover:text-foreground">
+          {t("nav.home")}
         </Link>
-      </Button>
+        <span>/</span>
+        <Link to="/products" className="hover:text-foreground">
+          {t("nav.products")}
+        </Link>
+        <span>/</span>
+        <span className="text-foreground truncate">{product.title}</span>
+      </nav>
 
       <div className="grid gap-8 md:grid-cols-2">
         <div className="space-y-3">
@@ -209,7 +215,7 @@ export function ProductDetailPage() {
             </div>
           )}
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center rounded-md border">
               <Button
                 variant="ghost"
@@ -232,21 +238,36 @@ export function ProductDetailPage() {
               </Button>
             </div>
 
-            <Button
-              className="flex-1"
-              size="lg"
-              disabled={outOfStock || addToCart.isPending}
-              onClick={() =>
-                addToCart.mutate({
-                  productId: product.id,
-                  variantId: selected?.id,
-                  quantity,
-                })
-              }
-            >
-              <ShoppingCart className="size-4" />
-              {t("product.addToCart")}
-            </Button>
+            <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+              <Button
+                className="flex-1"
+                size="lg"
+                disabled={outOfStock || addToCart.isPending}
+                onClick={() =>
+                  addToCart.mutate({
+                    productId: product.id,
+                    variantId: selected?.id,
+                    quantity,
+                  })
+                }
+              >
+                <ShoppingCart className="size-4" />
+                {t("product.addToCart")}
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                disabled={outOfStock || addToCart.isPending}
+                onClick={() =>
+                  addToCart.mutate(
+                    { productId: product.id, variantId: selected?.id, quantity },
+                    { onSuccess: () => navigate("/cart") },
+                  )
+                }
+              >
+                {t("product.buyNow")}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
