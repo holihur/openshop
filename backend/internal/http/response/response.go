@@ -104,6 +104,8 @@ func classify(err error) (int, string, string) {
 		return http.StatusBadGateway, "payment_failed", "payment failed"
 	case errors.Is(err, domain.ErrInvoiceUnavailable):
 		return http.StatusConflict, "invoice_unavailable", "an invoice is only available for paid orders"
+	case errors.Is(err, domain.ErrRegistrationDisabled):
+		return http.StatusForbidden, "registration_disabled", "registration is disabled"
 	default:
 		return http.StatusInternalServerError, "internal_error", "something went wrong"
 	}
@@ -141,6 +143,8 @@ func statusFor(code string) int {
 		return http.StatusBadRequest
 	case "payment_failed":
 		return http.StatusBadGateway
+	case "registration_disabled":
+		return http.StatusForbidden
 	default:
 		return http.StatusInternalServerError
 	}

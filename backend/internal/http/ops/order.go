@@ -69,3 +69,15 @@ func (h *Handler) CompleteOrder(c *gin.Context) {
 	h.RecordAudit(c, "order.complete", "order", order.ID, nil)
 	response.OK(c, handler.ToOrderView(*order))
 }
+
+// ConfirmOrderPayment marks a pending payment (for example an offline/bank
+// transfer) as succeeded and the order as paid (admin only).
+func (h *Handler) ConfirmOrderPayment(c *gin.Context) {
+	order, err := h.Payments.Confirm(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	h.RecordAudit(c, "order.confirm_payment", "order", order.ID, nil)
+	response.OK(c, handler.ToOrderView(*order))
+}

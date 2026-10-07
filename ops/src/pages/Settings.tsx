@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { NavLink, useParams } from "react-router-dom";
 import { RotateCcw, Save } from "lucide-react";
 
 import { Button } from "@lib/components/ui/button";
@@ -21,7 +22,7 @@ export function SettingsPage() {
   const { data, isLoading } = useSettings();
   const save = useUpdateSettings();
   const [draft, setDraft] = useState<Record<string, string>>({});
-  const [activeGroup, setActiveGroup] = useState("");
+  const { group: groupParam } = useParams();
 
   useEffect(() => {
     if (!data) return;
@@ -42,9 +43,8 @@ export function SettingsPage() {
     );
   }, [data]);
 
-  useEffect(() => {
-    if (!activeGroup && groups.length > 0) setActiveGroup(groups[0][0]);
-  }, [groups, activeGroup]);
+  // The active group is a route param, so each section is deep-linkable.
+  const activeGroup = groupParam ?? groups[0]?.[0] ?? "";
 
   if (isLoading) {
     return <Skeleton className="h-64 w-full" />;
@@ -78,9 +78,8 @@ export function SettingsPage() {
           <ul className="flex gap-1 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
             {groups.map(([group, items]) => (
               <li key={group}>
-                <button
-                  type="button"
-                  onClick={() => setActiveGroup(group)}
+                <NavLink
+                  to={`/settings/${group}`}
                   className={cn(
                     "flex w-full items-center justify-between gap-2 whitespace-nowrap rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
                     activeGroup === group
@@ -92,7 +91,7 @@ export function SettingsPage() {
                   {groupChanged(items) && (
                     <span className="bg-primary size-2 rounded-full" aria-hidden />
                   )}
-                </button>
+                </NavLink>
               </li>
             ))}
           </ul>

@@ -240,6 +240,56 @@ func (s *PaymentService) provider(ctx context.Context, name string) (port.Paymen
 	return s.registry.Get(name)
 }
 
+// Methods lists the payment channels a shopper can choose: the registered
+// providers, filtered and ordered by the payment.enabled_providers setting.
+func (s *PaymentService) Methods(ctx context.Context) []string {
+	registered := s.registry.Names()
+	configured := ""
+	if s.settings != nil {
+		configured = strings.TrimSpace(s.settings.String(ctx, "payment.enabled_providers"))
+	}
+	if configured == "" {
+		return registered
+	}
+	known := make(map[string]bool, len(registered))
+	for _, name := range registered {
+		known[name] = true
+	}
+	out := make([]string, 0, len(registered))
+	for _, name := range strings.Split(configured, ",") {
+		name = strings.TrimSpace(name)
+		if name != "" && known[name] {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+// Confirm marks a pending payment (e.g. an offline/bank transfer) as succeeded
+// and the order as paid. It is idempotent.
+func (s *PaymentService) Confirm(ctx context.Context, orderID string) (*domain.Order, error) {
+	order, err := s.orders.FindByID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.PaymentID == "" || order.Status != domain.OrderPendingPayment {
+		return nil, domain.ErrOrderNotPayable
+	}
+	payment, err := s.payments.FindByID(ctx, order.PaymentID)
+	if err != nil {
+		return nil, err
+	}
+	if payment.Status == domain.PaymentSucceeded {
+		return order, nil
+	}
+	payment.Status = domain.PaymentSucceeded
+	payment.UpdatedAt = s.clock.Now()
+	if err := s.payments.Update(ctx, payment); err != nil {
+		return nil, err
+	}
+	return s.orderSvc.MarkPaid(ctx, order.ID, payment.ID)
+}
+
 // Simulate drives a sandbox provider callback for the given payment. It is
 // used by the development storefront so the whole checkout can be completed
 // without a real gateway. It enforces ownership and only works for providers

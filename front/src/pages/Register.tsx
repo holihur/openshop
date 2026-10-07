@@ -7,10 +7,12 @@ import { Input } from "@lib/components/ui/input";
 import { Label } from "@lib/components/ui/label";
 import { useAuth } from "@lib/auth";
 import { useI18n } from "@lib/i18n";
+import { useSite } from "@lib/hooks/useSite";
 
 export function RegisterPage() {
   const { register } = useAuth();
   const { t } = useI18n();
+  const { data: site } = useSite();
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
@@ -18,6 +20,20 @@ export function RegisterPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  if (site && !site.allowRegistration) {
+    return (
+      <div className="mx-auto max-w-md py-16 text-center">
+        <h1 className="text-xl font-semibold">{t("auth.registrationDisabled")}</h1>
+        <p className="text-muted-foreground mt-2 text-sm">
+          {t("auth.registrationDisabledHint")}
+        </p>
+        <Button className="mt-6" asChild>
+          <Link to="/login">{t("auth.signIn")}</Link>
+        </Button>
+      </div>
+    );
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();

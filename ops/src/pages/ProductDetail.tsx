@@ -7,6 +7,7 @@ import { useI18n } from "@lib/i18n";
 import { useAdminProduct } from "@lib/hooks/useAdmin";
 import { ProductForm } from "@/components/admin/product-form";
 import { VariantsEditor } from "@/components/admin/variants-editor";
+import { FaqEditor } from "@/components/admin/faq-editor";
 
 /** A deep-linkable ops product page: edit the product and its variants. */
 export function ProductDetailPage() {
@@ -31,6 +32,7 @@ export function ProductDetailPage() {
       </Button>
       <ProductForm product={product} onDone={() => {}} />
       <VariantsEditor productId={product.id} />
+      <FaqEditor productId={product.id} />
     </div>
   );
 }

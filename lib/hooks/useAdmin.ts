@@ -409,3 +409,43 @@ export function useUpdateCustomer() {
     onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
+
+export interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export function useProductFAQs(productId: string) {
+  return useQuery({
+    queryKey: ["admin", "product-faqs", productId],
+    queryFn: () => api.get<FAQ[]>(`/ops/products/${productId}/faqs`),
+    enabled: Boolean(productId),
+  });
+}
+
+export function useReplaceFAQs(productId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (faqs: { question: string; answer: string }[]) =>
+      api.put<FAQ[]>(`/ops/products/${productId}/faqs`, { faqs }),
+    onSuccess: (faqs) => {
+      toast.success(t("toast.faqsSaved"));
+      queryClient.setQueryData(["admin", "product-faqs", productId], faqs);
+      void queryClient.invalidateQueries({ queryKey: ["admin", "product", productId] });
+    },
+    onError: (error: Error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useConfirmOrderPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<Order>(`/ops/orders/${id}/confirm-payment`),
+    onSuccess: () => {
+      toast.success(t("toast.paymentConfirmed"));
+      invalidateOrder(queryClient);
+    },
+    onError: (error: Error) => toast.error(errorMessage(error)),
+  });
+}

@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -37,10 +38,15 @@ func (m *Mock) Name() string { return "mock" }
 
 func (m *Mock) Charge(_ context.Context, req port.ChargeRequest) (*port.ChargeResult, error) {
 	ref := "mock_" + uuid.NewString()
+	// The caller's return URL wins; the configured one is only a fallback.
+	base := req.ReturnURL
+	if base == "" {
+		base = m.returnURL
+	}
 	return &port.ChargeResult{
 		ProviderRef: ref,
 		Status:      domain.PaymentPending,
-		RedirectURL: fmt.Sprintf("%s?payment_ref=%s&order_no=%s", m.returnURL, ref, req.OrderNo),
+		RedirectURL: fmt.Sprintf("%s?payment_ref=%s&order_no=%s", base, ref, req.OrderNo),
 		Raw: map[string]any{
 			"provider": "mock",
 			"orderNo":  req.OrderNo,
@@ -169,6 +175,15 @@ func (r *Registry) Default() port.PaymentProvider {
 		return p
 	}
 	return nil
+}
+
+func (r *Registry) Names() []string {
+	out := make([]string, 0, len(r.providers))
+	for name := range r.providers {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }
 
 var _ port.PaymentRegistry = (*Registry)(nil)

@@ -98,6 +98,9 @@ type AuthResult struct {
 }
 
 func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*AuthResult, error) {
+	if s.settings != nil && !s.settings.Bool(ctx, "auth.allow_registration") {
+		return nil, domain.ErrRegistrationDisabled
+	}
 	email := normalizeEmail(in.Email)
 	if email == "" && in.Phone == "" {
 		return nil, fmt.Errorf("%w: email or phone is required", domain.ErrInvalidArgument)
@@ -171,6 +174,42 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (*AuthResult, er
 	}
 	if s.settings != nil && s.settings.Bool(ctx, "auth.require_email_verification") && !user.EmailVerified {
 		return nil, domain.ErrEmailNotVerified
+	}
+	return s.issue(ctx, user, "")
+}
+
+// OIDC signs in (or provisions) a customer from a verified external identity.
+func (s *AuthService) OIDC(ctx context.Context, identity *port.Identity) (*AuthResult, error) {
+	email := normalizeEmail(identity.Email)
+	if email == "" {
+		return nil, fmt.Errorf("%w: the identity provider did not return an email", domain.ErrUnauthorized)
+	}
+	user, err := s.users.FindByEmail(ctx, email)
+	if errors.Is(err, domain.ErrNotFound) {
+		if s.settings != nil && !s.settings.Bool(ctx, "auth.allow_registration") {
+			return nil, domain.ErrRegistrationDisabled
+		}
+		now := s.clock.Now()
+		name := strings.TrimSpace(identity.Name)
+		if name == "" {
+			name = email
+		}
+		user = &domain.User{
+			ID: s.ids.NewID(), Email: email, Name: name, Role: domain.RoleCustomer,
+			Status: domain.UserActive, EmailVerified: true, EmailVerifiedAt: &now,
+			CreatedAt: now, UpdatedAt: now,
+		}
+		if err := s.users.Create(ctx, user); err != nil {
+			return nil, err
+		}
+	} else if err != nil {
+		return nil, err
+	}
+	if !s.roleAllowed(user.Role) {
+		return nil, domain.ErrUnauthorized
+	}
+	if !user.CanLogin() {
+		return nil, fmt.Errorf("%w: account is not active", domain.ErrForbidden)
 	}
 	return s.issue(ctx, user, "")
 }

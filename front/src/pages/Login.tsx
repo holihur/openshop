@@ -7,10 +7,12 @@ import { Input } from "@lib/components/ui/input";
 import { Label } from "@lib/components/ui/label";
 import { useAuth } from "@lib/auth";
 import { useI18n } from "@lib/i18n";
+import { useSite } from "@lib/hooks/useSite";
 
 export function LoginPage() {
   const { login } = useAuth();
   const { t } = useI18n();
+  const { data: site } = useSite();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/";
@@ -74,12 +76,27 @@ export function LoginPage() {
               {submitting ? t("auth.signingIn") : t("auth.signIn")}
             </Button>
           </form>
-          <p className="text-muted-foreground mt-4 text-center text-sm">
-            {t("auth.noAccount")}{" "}
-            <Link to="/register" className="text-foreground underline">
-              {t("auth.createOne")}
-            </Link>
-          </p>
+
+          {site?.oidcEnabled && (
+            <>
+              <div className="text-muted-foreground relative my-4 text-center text-xs">
+                <span className="bg-card relative z-10 px-2">{t("auth.or")}</span>
+                <span className="bg-border absolute inset-x-0 top-1/2 h-px" />
+              </div>
+              <Button type="button" variant="outline" className="w-full" asChild>
+                <a href="/api/v1/auth/oidc/start">{t("auth.signInWithSSO")}</a>
+              </Button>
+            </>
+          )}
+
+          {site?.allowRegistration !== false && (
+            <p className="text-muted-foreground mt-4 text-center text-sm">
+              {t("auth.noAccount")}{" "}
+              <Link to="/register" className="text-foreground underline">
+                {t("auth.createOne")}
+              </Link>
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

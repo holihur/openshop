@@ -59,7 +59,9 @@ type Product struct {
 	Stock       int
 	// Variants are loaded on demand and persisted in their own table. A product
 	// with no variants keeps its inventory on the product row.
-	Variants  []Variant
+	Variants []Variant
+	// FAQs are loaded on demand and persisted in their own table.
+	FAQs      []ProductFAQ
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

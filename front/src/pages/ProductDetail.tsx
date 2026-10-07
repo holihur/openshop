@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ImageOff, Minus, Plus, ShoppingCart } from "lucide-react";
+import { ChevronDown, ImageOff, Minus, Plus, ShoppingCart } from "lucide-react";
 
 import { Button } from "@lib/components/ui/button";
 import { Badge } from "@lib/components/ui/badge";
@@ -281,6 +281,23 @@ export function ProductDetailPage() {
           </div>
         </div>
       </div>
+
+      {product.faqs && product.faqs.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">{t("product.faq")}</h2>
+          <div className="divide-y rounded-lg border">
+            {product.faqs.map((faq) => (
+              <details key={faq.id} className="group px-4 py-3">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-medium">
+                  {faq.question}
+                  <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" />
+                </summary>
+                <p className="text-muted-foreground mt-2 text-sm whitespace-pre-line">{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
 
       <ReviewsSection productId={product.id} />
 

@@ -17,6 +17,7 @@ import (
 	"github.com/holihur/openshop/internal/adapter/mail"
 	"github.com/holihur/openshop/internal/adapter/metrics"
 	natsadapter "github.com/holihur/openshop/internal/adapter/nats"
+	"github.com/holihur/openshop/internal/adapter/oidc"
 	"github.com/holihur/openshop/internal/adapter/payment"
 	"github.com/holihur/openshop/internal/adapter/postgres"
 	redisadapter "github.com/holihur/openshop/internal/adapter/redis"
@@ -65,7 +66,10 @@ const (
 // paymentProviders registers the payment adapters. Stripe is only registered
 // when a secret key is configured; the key itself stays in the environment.
 func paymentProviders(cfg *config.Config) []port.PaymentProvider {
-	providers := []port.PaymentProvider{payment.NewMock(cfg.Payment.MockReturnURL, cfg.JWT.Secret)}
+	providers := []port.PaymentProvider{
+		payment.NewMock(cfg.Payment.MockReturnURL, cfg.JWT.Secret),
+		payment.NewOffline(),
+	}
 	if cfg.Payment.StripeSecretKey != "" {
 		providers = append(providers, payment.NewStripe(cfg.Payment.StripeSecretKey, cfg.Payment.StripeWebhookSecret))
 	}
@@ -195,6 +199,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	auditRepo := postgres.NewAuditRepository(db)
 	wishlistRepo := postgres.NewWishlistRepository(db)
 	currencyRepo := postgres.NewCurrencyRepository(db)
+	faqRepo := postgres.NewProductFAQRepository(db)
 	outbox := postgres.NewOutboxRepository(db)
 
 	// Runtime settings: defaults come from the environment, overrides from the
@@ -206,6 +211,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		"checkout.order_ttl_minutes":      strconv.Itoa(int(cfg.App.OrderTTL.Minutes())),
 		"inventory.low_stock_threshold":   strconv.Itoa(cfg.App.LowStockThreshold),
 		"auth.require_email_verification": strconv.FormatBool(cfg.App.RequireEmailVerification),
+		"auth.allow_registration":         strconv.FormatBool(cfg.App.AllowRegistration),
 		"auth.password_reset_url":         cfg.App.PasswordResetURL,
 		"auth.email_verify_url":           cfg.App.VerifyEmailURL,
 		"security.rate_limit_rps":         strconv.Itoa(cfg.HTTP.RateLimitRPS),
@@ -219,13 +225,17 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	})
 	// The mail transport is resolved from settings on every send.
 	mailer := mail.NewDynamic(settingsSvc, cfg.Mail.Pass, log)
+	oidcSvc := service.NewOIDCService(settingsSvc, cfg.OIDC.ClientSecret,
+		func(ctx context.Context, issuer, clientID, clientSecret, redirectURL string, scopes []string) (port.IdentityProvider, error) {
+			return oidc.New(ctx, issuer, clientID, clientSecret, redirectURL, scopes)
+		})
 
 	// --- services ---
 	authSvc := service.NewAuthService(users, hasher, tokens, cache, ids, clock, mailer, service.AuthConfig{
 		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL,
 		AllowedRoles: allowedRoles(surface),
 	}, settingsSvc)
-	catalogSvc := service.NewCatalogService(categories, products, variantRepo, cache, ids, clock, cfg.App.Currency)
+	catalogSvc := service.NewCatalogService(categories, products, variantRepo, faqRepo, cache, ids, clock, cfg.App.Currency)
 	couponSvc := service.NewCouponService(couponRepo, ids, clock)
 	reviewSvc := service.NewReviewService(reviewRepo, products, orders, cache, ids, clock)
 	shippingSvc := service.NewShippingService(shippingRepo, zoneRepo, ids, clock)
@@ -259,7 +269,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Orders: orderSvc, Payments: paymentSvc,
 		Coupons: couponSvc, Reviews: reviewSvc, Shipping: shippingSvc, Audit: auditSvc,
-		Currency: currencySvc, Returns: returnSvc, Settings: settingsSvc, Customers: customerSvc, Storage: objectStore, IDs: ids, Logger: log,
+		Currency: currencySvc, Returns: returnSvc, Settings: settingsSvc, Customers: customerSvc, OIDC: oidcSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
 			{Name: "postgres", Check: db.Ping},

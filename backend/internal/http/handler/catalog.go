@@ -31,8 +31,15 @@ type ProductView struct {
 	Stock       int           `json:"stock"`
 	WeightGrams int           `json:"weightGrams"`
 	Variants    []VariantView `json:"variants,omitempty"`
+	FAQs        []FAQView     `json:"faqs,omitempty"`
 	Rating      float64       `json:"rating,omitempty"`
 	ReviewCount int64         `json:"reviewCount,omitempty"`
+}
+
+type FAQView struct {
+	ID       string `json:"id"`
+	Question string `json:"question"`
+	Answer   string `json:"answer"`
 }
 
 type VariantView struct {
@@ -120,6 +127,12 @@ func ToProductView(p domain.Product) ProductView {
 				Stock: v.Stock, Attributes: v.Attributes, Sort: v.Sort, Active: v.Active,
 				WeightGrams: v.WeightGrams,
 			})
+		}
+	}
+	if len(p.FAQs) > 0 {
+		view.FAQs = make([]FAQView, 0, len(p.FAQs))
+		for _, f := range p.FAQs {
+			view.FAQs = append(view.FAQs, FAQView{ID: f.ID, Question: f.Question, Answer: f.Answer})
 		}
 	}
 	return view

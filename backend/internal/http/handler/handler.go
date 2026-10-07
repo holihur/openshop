@@ -32,7 +32,9 @@ type Handler struct {
 	Returns   *service.ReturnService
 	Settings  *service.SettingsService
 	Customers *service.CustomerService
+	OIDC      *service.OIDCService
 	Storage   port.ObjectStorage
+	Cache     port.Cache
 	IDs       port.IDGenerator
 	Logger    port.Logger
 	Metrics   http.Handler

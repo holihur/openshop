@@ -23,6 +23,7 @@ type CatalogService struct {
 	categories port.CategoryRepository
 	products   port.ProductRepository
 	variants   port.VariantRepository
+	faqs       port.ProductFAQRepository
 	cache      port.Cache
 	ids        port.IDGenerator
 	clock      port.Clock
@@ -33,12 +34,13 @@ func NewCatalogService(
 	categories port.CategoryRepository,
 	products port.ProductRepository,
 	variants port.VariantRepository,
+	faqs port.ProductFAQRepository,
 	cache port.Cache,
 	ids port.IDGenerator,
 	clock port.Clock,
 	currency string,
 ) *CatalogService {
-	return &CatalogService{categories: categories, products: products, variants: variants, cache: cache, ids: ids, clock: clock, currency: currency}
+	return &CatalogService{categories: categories, products: products, variants: variants, faqs: faqs, cache: cache, ids: ids, clock: clock, currency: currency}
 }
 
 type CreateCategoryInput struct {
@@ -245,6 +247,7 @@ func (s *CatalogService) GetProduct(ctx context.Context, id string) (*domain.Pro
 		return nil, err
 	}
 	s.attachVariants(ctx, p)
+	s.attachFAQs(ctx, p)
 	_ = s.cache.SetJSON(ctx, productCacheKey+id, p, catalogTTL)
 	return p, nil
 }
@@ -260,6 +263,51 @@ func (s *CatalogService) attachVariants(ctx context.Context, p *domain.Product) 
 		return
 	}
 	p.Variants = variants
+}
+
+// attachFAQs loads a product's FAQs. Failure is non-fatal.
+func (s *CatalogService) attachFAQs(ctx context.Context, p *domain.Product) {
+	if s.faqs == nil {
+		return
+	}
+	faqs, err := s.faqs.ListByProduct(ctx, p.ID)
+	if err != nil {
+		return
+	}
+	p.FAQs = faqs
+}
+
+// FAQInput is a question/answer pair supplied by an operator.
+type FAQInput struct {
+	Question string
+	Answer   string
+}
+
+// ListFAQs returns a product's FAQs.
+func (s *CatalogService) ListFAQs(ctx context.Context, productID string) ([]domain.ProductFAQ, error) {
+	return s.faqs.ListByProduct(ctx, productID)
+}
+
+// ReplaceFAQs swaps a product's FAQs for the given set. Blank pairs are dropped.
+func (s *CatalogService) ReplaceFAQs(ctx context.Context, productID string, in []FAQInput) ([]domain.ProductFAQ, error) {
+	now := s.clock.Now()
+	faqs := make([]domain.ProductFAQ, 0, len(in))
+	for i, f := range in {
+		q := strings.TrimSpace(f.Question)
+		a := strings.TrimSpace(f.Answer)
+		if q == "" || a == "" {
+			continue
+		}
+		faqs = append(faqs, domain.ProductFAQ{
+			ID: s.ids.NewID(), ProductID: productID, Question: q, Answer: a, Sort: i,
+			CreatedAt: now, UpdatedAt: now,
+		})
+	}
+	if err := s.faqs.Replace(ctx, productID, faqs); err != nil {
+		return nil, err
+	}
+	_ = s.cache.Delete(ctx, productCacheKey+productID)
+	return faqs, nil
 }
 
 func (s *CatalogService) ListProducts(ctx context.Context, f domain.ProductFilter) (domain.Page[domain.Product], error) {

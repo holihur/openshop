@@ -1,10 +1,12 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import {
   BadgePercent,
   BarChart3,
   Boxes,
   ExternalLink,
   LogOut,
+  Menu,
   RotateCcw,
   ScrollText,
   ShoppingCart,
@@ -15,6 +17,7 @@ import {
   Truck,
   Users,
   Wallet,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -49,6 +52,7 @@ export function OpsLayout() {
   const { user, logout } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
+  const [navOpen, setNavOpen] = useState(false);
 
   // Hide sections the caller cannot access. A missing permissions list (older
   // token) is treated permissively; the API enforces access regardless.
@@ -63,25 +67,60 @@ export function OpsLayout() {
   return (
     <div className="bg-background flex min-h-screen flex-col">
       <header className="bg-background/80 sticky top-0 z-20 border-b backdrop-blur">
-        <div className="flex h-14 items-center justify-between px-4">
-          <NavLink to="/" className="flex items-center gap-2 font-semibold">
-            <Store className="size-5" />
-            OpenShop Ops
-          </NavLink>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground hidden sm:inline">{user?.email}</span>
+        <div className="flex h-14 items-center justify-between gap-2 px-4">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground -ml-1 inline-flex size-9 items-center justify-center rounded-md md:hidden"
+              aria-label={navOpen ? t("nav.closeMenu") : t("nav.openMenu")}
+              aria-expanded={navOpen}
+              onClick={() => setNavOpen((o) => !o)}
+            >
+              {navOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+            </button>
+            <NavLink to="/" className="flex items-center gap-2 font-semibold">
+              <Store className="size-5" />
+              OpenShop Ops
+            </NavLink>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground hidden lg:inline">{user?.email}</span>
             <Button variant="outline" size="sm" asChild>
-              <a href={storefrontURL} target="_blank" rel="noreferrer">
+              <a href={storefrontURL} target="_blank" rel="noreferrer" aria-label={t("common.storefront")}>
                 <ExternalLink className="size-4" />
-                {t("common.storefront")}
+                <span className="hidden sm:inline">{t("common.storefront")}</span>
               </a>
             </Button>
-            <Button variant="ghost" size="sm" onClick={onLogout}>
+            <Button variant="ghost" size="sm" onClick={onLogout} aria-label={t("common.signOut")}>
               <LogOut className="size-4" />
-              {t("common.signOut")}
+              <span className="hidden sm:inline">{t("common.signOut")}</span>
             </Button>
           </div>
         </div>
+
+        {navOpen && (
+          <nav className="flex flex-col gap-1 border-t px-4 py-3 md:hidden">
+            {items.map(({ to, label, icon: Icon, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                onClick={() => setNavOpen(false)}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                  )
+                }
+              >
+                <Icon className="size-4" />
+                {t(label)}
+              </NavLink>
+            ))}
+          </nav>
+        )}
       </header>
 
       <div className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-4 py-6">

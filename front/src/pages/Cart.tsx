@@ -15,6 +15,8 @@ import { useCurrency } from "@lib/currency";
 import { useCart, useClearCart, useRemoveCartItem, useUpdateCartItem } from "@lib/hooks/useCart";
 import { useAddresses } from "@lib/hooks/useAddresses";
 import { useShippingMethods } from "@lib/hooks/useShipping";
+import { usePaymentMethods } from "@lib/hooks/usePayment";
+import type { MessageKey } from "@lib/i18n/messages";
 import { useAuth } from "@lib/auth";
 import { useI18n } from "@lib/i18n";
 import type { CouponPreview, Order, Payment } from "@lib/types";
@@ -35,6 +37,7 @@ export function CartPage() {
   const [applied, setApplied] = useState<CouponPreview | null>(null);
   const [addressId, setAddressId] = useState("");
   const [shippingMethodId, setShippingMethodId] = useState("");
+  const [provider, setProvider] = useState("");
   const [email, setEmail] = useState("");
   const [guestAddress, setGuestAddress] = useState({
     recipient: "",
@@ -46,6 +49,8 @@ export function CartPage() {
   });
   const { data: addresses } = useAddresses();
   const { data: shippingMethods } = useShippingMethods();
+  const { data: paymentMethods } = usePaymentMethods();
+  const chosenProvider = provider || paymentMethods?.[0] || "mock";
   const chosenAddress =
     addressId || addresses?.find((a) => a.default)?.id || addresses?.[0]?.id || "";
   const chosenMethod =
@@ -85,7 +90,7 @@ export function CartPage() {
         });
         if (order.accessToken) localStorage.setItem("openshop.guestOrderToken", order.accessToken);
         const payment = await api.post<Payment>(`/guest/orders/${order.accessToken}/pay`, {
-          provider: "mock",
+          provider: chosenProvider,
           returnUrl: `${window.location.origin}/payment/result`,
         });
         return { order, payment };
@@ -100,7 +105,7 @@ export function CartPage() {
       // Then open a payment session with the (sandbox) provider.
       const payment = await api.post<Payment>("/payments", {
         orderId: order.id,
-        provider: "mock",
+        provider: chosenProvider,
         returnUrl: `${window.location.origin}/payment/result`,
       });
       return { order, payment };
@@ -355,6 +360,26 @@ export function CartPage() {
               ) : (
                 <p className="text-muted-foreground text-xs">{t("cart.noShipping")}</p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-sm font-medium">{t("cart.paymentMethod")}</span>
+              <div className="space-y-1">
+                {(paymentMethods ?? ["mock"]).map((name) => (
+                  <label
+                    key={name}
+                    className="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm"
+                  >
+                    <input
+                      type="radio"
+                      name="payment-method"
+                      checked={chosenProvider === name}
+                      onChange={() => setProvider(name)}
+                    />
+                    {t(`payment.method.${name}` as MessageKey)}
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-2">

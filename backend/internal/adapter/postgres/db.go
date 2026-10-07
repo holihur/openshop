@@ -101,7 +101,7 @@ func (d *DB) AutoMigrate() error {
 	if err := d.gorm.AutoMigrate(
 		&userModel{}, &categoryModel{}, &productModel{},
 		&orderModel{}, &orderItemModel{}, &paymentModel{}, &outboxModel{},
-		&couponModel{}, &couponRedemptionModel{}, &reviewModel{}, &variantModel{}, &addressModel{}, &shippingMethodModel{}, &auditModel{}, &wishlistModel{}, &shippingZoneModel{}, &shippingRateModel{}, &refundModel{}, &returnModel{}, &settingModel{},
+		&couponModel{}, &couponRedemptionModel{}, &reviewModel{}, &variantModel{}, &addressModel{}, &shippingMethodModel{}, &auditModel{}, &wishlistModel{}, &shippingZoneModel{}, &shippingRateModel{}, &refundModel{}, &returnModel{}, &settingModel{}, &productFAQModel{},
 	); err != nil {
 		return err
 	}

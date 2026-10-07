@@ -57,6 +57,8 @@ type WebhookEvent struct {
 type PaymentRegistry interface {
 	Get(name string) (PaymentProvider, error)
 	Default() PaymentProvider
+	// Names lists the registered providers, sorted.
+	Names() []string
 }
 
 // SandboxProvider is implemented by test/sandbox gateways that can fabricate a

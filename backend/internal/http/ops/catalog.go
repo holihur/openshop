@@ -222,3 +222,48 @@ func (h *Handler) UpdateVariant(c *gin.Context) {
 		Stock: v.Stock, Attributes: v.Attributes, Sort: v.Sort, Active: v.Active,
 	})
 }
+
+// ListProductFAQs returns a product's FAQs (admin).
+func (h *Handler) ListProductFAQs(c *gin.Context) {
+	faqs, err := h.Catalog.ListFAQs(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	out := make([]handler.FAQView, 0, len(faqs))
+	for _, f := range faqs {
+		out = append(out, handler.FAQView{ID: f.ID, Question: f.Question, Answer: f.Answer})
+	}
+	response.OK(c, out)
+}
+
+type replaceFAQsRequest struct {
+	FAQs []struct {
+		Question string `json:"question"`
+		Answer   string `json:"answer"`
+	} `json:"faqs"`
+}
+
+// ReplaceProductFAQs swaps a product's FAQs for the supplied list (admin).
+func (h *Handler) ReplaceProductFAQs(c *gin.Context) {
+	var req replaceFAQsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, handler.WrapBind(err))
+		return
+	}
+	inputs := make([]service.FAQInput, 0, len(req.FAQs))
+	for _, f := range req.FAQs {
+		inputs = append(inputs, service.FAQInput{Question: f.Question, Answer: f.Answer})
+	}
+	faqs, err := h.Catalog.ReplaceFAQs(c.Request.Context(), c.Param("id"), inputs)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	h.RecordAudit(c, "product.faqs", "product", c.Param("id"), nil)
+	out := make([]handler.FAQView, 0, len(faqs))
+	for _, f := range faqs {
+		out = append(out, handler.FAQView{ID: f.ID, Question: f.Question, Answer: f.Answer})
+	}
+	response.OK(c, out)
+}

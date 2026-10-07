@@ -94,6 +94,7 @@ func New(
 		api.GET("/products/:id", fh.GetProduct)
 		api.GET("/products/:id/reviews", fh.ListReviews)
 		api.GET("/shipping-methods", fh.ListShippingMethods)
+		api.GET("/payment-methods", fh.ListPaymentMethods)
 		api.GET("/currencies", fh.ListCurrencies)
 
 		// Auth.
@@ -104,6 +105,10 @@ func New(
 		api.POST("/auth/password/reset", fh.ResetPassword)
 		api.POST("/auth/email/verify", fh.VerifyEmail)
 		api.POST("/auth/email/resend", fh.ResendVerification)
+
+		// OIDC single sign-on (authorization-code flow).
+		api.GET("/auth/oidc/start", fh.OIDCStart)
+		api.GET("/auth/oidc/callback", fh.OIDCCallback)
 
 		// Provider callbacks are public and authenticated by signature.
 		api.POST("/webhooks/payments/:provider", fh.PaymentWebhook)

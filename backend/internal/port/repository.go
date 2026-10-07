@@ -219,3 +219,10 @@ type CurrencyRepository interface {
 type ExchangeRates interface {
 	Rate(ctx context.Context, from, to string) (int64, error)
 }
+
+// ProductFAQRepository persists per-product FAQs.
+type ProductFAQRepository interface {
+	ListByProduct(ctx context.Context, productID string) ([]domain.ProductFAQ, error)
+	// Replace swaps a product's FAQs for the given set in one transaction.
+	Replace(ctx context.Context, productID string, faqs []domain.ProductFAQ) error
+}

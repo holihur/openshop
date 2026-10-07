@@ -658,3 +658,22 @@ type settingModel struct {
 }
 
 func (settingModel) TableName() string { return "settings" }
+
+type productFAQModel struct {
+	ID        string    `gorm:"type:uuid;primaryKey"`
+	ProductID string    `gorm:"type:uuid;index;not null"`
+	Question  string    `gorm:"type:text;not null"`
+	Answer    string    `gorm:"type:text;not null"`
+	Sort      int       `gorm:"not null;default:0"`
+	CreatedAt time.Time `gorm:"not null"`
+	UpdatedAt time.Time `gorm:"not null"`
+}
+
+func (productFAQModel) TableName() string { return "product_faqs" }
+
+func toProductFAQ(m *productFAQModel) *domain.ProductFAQ {
+	return &domain.ProductFAQ{
+		ID: m.ID, ProductID: m.ProductID, Question: m.Question, Answer: m.Answer,
+		Sort: m.Sort, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
+	}
+}

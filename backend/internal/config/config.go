@@ -20,6 +20,7 @@ type Config struct {
 	NATS     NATSConfig
 	JWT      JWTConfig
 	Payment  PaymentConfig
+	OIDC     OIDCConfig
 	Storage  StorageConfig
 	Mail     MailConfig
 	SMS      SMSConfig
@@ -38,6 +39,8 @@ type AppConfig struct {
 	VerifyEmailURL           string
 	PublicSiteURL            string
 	RequireEmailVerification bool
+	// AllowRegistration enables public sign-up (disabled closes the store).
+	AllowRegistration bool
 	// TaxRateBps is the tax rate in basis points (600 = 6%).
 	TaxRateBps int
 	// LowStockThreshold flags products/variants at or below this stock level.
@@ -99,6 +102,12 @@ type PaymentConfig struct {
 	// environment (never in the settings table).
 	StripeSecretKey     string
 	StripeWebhookSecret string
+}
+
+// OIDCConfig holds the secret half of the OIDC configuration; the rest lives in
+// the settings table so operators can change it without a restart.
+type OIDCConfig struct {
+	ClientSecret string
 }
 
 type StorageConfig struct {
@@ -163,6 +172,7 @@ func Load() (*Config, error) {
 			VerifyEmailURL:           env("EMAIL_VERIFY_URL", "http://localhost:5173/verify-email"),
 			PublicSiteURL:            env("PUBLIC_SITE_URL", "http://localhost:5173"),
 			RequireEmailVerification: envBool("REQUIRE_EMAIL_VERIFICATION", false),
+			AllowRegistration:        envBool("ALLOW_REGISTRATION", true),
 			TaxRateBps:               envInt("TAX_RATE_BPS", 0),
 			LowStockThreshold:        envInt("LOW_STOCK_THRESHOLD", 5),
 		},
@@ -206,7 +216,7 @@ func Load() (*Config, error) {
 		},
 		Payment: PaymentConfig{
 			DefaultProvider:     env("PAYMENT_PROVIDER", "mock"),
-			MockReturnURL:       env("PAYMENT_MOCK_RETURN_URL", "http://localhost:5173/payment/result"),
+			MockReturnURL:       env("PAYMENT_MOCK_RETURN_URL", "http://localhost:8080/payment/result"),
 			StripeSecretKey:     env("STRIPE_SECRET_KEY", ""),
 			StripeWebhookSecret: env("STRIPE_WEBHOOK_SECRET", ""),
 		},

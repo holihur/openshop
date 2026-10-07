@@ -39,6 +39,7 @@ export default function App() {
           <Route path="shipping" element={<ShippingPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="settings/:group" element={<SettingsPage />} />
           <Route path="currency" element={<CurrencyPage />} />
         </Route>
       </Route>

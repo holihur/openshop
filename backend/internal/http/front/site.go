@@ -14,12 +14,14 @@ type siteHeroView struct {
 }
 
 type siteView struct {
-	PublicURL    string               `json:"publicUrl"`
-	Hero         siteHeroView         `json:"hero"`
-	Announcement siteAnnouncementView `json:"announcement"`
-	Features     []siteFeatureView    `json:"features"`
-	Tagline      string               `json:"tagline"`
-	ThemeColor   string               `json:"themeColor"`
+	PublicURL         string               `json:"publicUrl"`
+	Hero              siteHeroView         `json:"hero"`
+	Announcement      siteAnnouncementView `json:"announcement"`
+	Features          []siteFeatureView    `json:"features"`
+	Tagline           string               `json:"tagline"`
+	ThemeColor        string               `json:"themeColor"`
+	AllowRegistration bool                 `json:"allowRegistration"`
+	OIDCEnabled       bool                 `json:"oidcEnabled"`
 }
 
 type siteFeatureView struct {
@@ -54,7 +56,9 @@ func (h *Handler) GetSite(c *gin.Context) {
 			{Title: h.Settings.String(ctx, "store.feature2_title"), Text: h.Settings.String(ctx, "store.feature2_text")},
 			{Title: h.Settings.String(ctx, "store.feature3_title"), Text: h.Settings.String(ctx, "store.feature3_text")},
 		},
-		Tagline:    h.Settings.String(ctx, "store.tagline"),
-		ThemeColor: h.Settings.String(ctx, "store.theme_color"),
+		Tagline:           h.Settings.String(ctx, "store.tagline"),
+		ThemeColor:        h.Settings.String(ctx, "store.theme_color"),
+		AllowRegistration: h.Settings.Bool(ctx, "auth.allow_registration"),
+		OIDCEnabled:       h.OIDC != nil && h.OIDC.Enabled(ctx),
 	})
 }

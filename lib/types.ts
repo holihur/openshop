@@ -28,6 +28,8 @@ export interface Site {
   features: { title: string; text: string }[];
   tagline: string;
   themeColor: string;
+  allowRegistration: boolean;
+  oidcEnabled: boolean;
 }
 
 export interface Category {
@@ -65,6 +67,7 @@ export interface Product {
   stock: number;
   weightGrams: number;
   variants?: Variant[];
+  faqs?: { id: string; question: string; answer: string }[];
   rating?: number;
   reviewCount?: number;
 }

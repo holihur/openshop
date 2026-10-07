@@ -11,6 +11,7 @@ import { formatDate, formatMoney } from "@lib/format";
 import {
   useAdminOrder,
   useCompleteOrder,
+  useConfirmOrderPayment,
   useRefundOrder,
   useShipOrder,
 } from "@lib/hooks/useAdmin";
@@ -23,6 +24,7 @@ export function OrderDetailPage() {
   const ship = useShipOrder();
   const complete = useCompleteOrder();
   const refund = useRefundOrder();
+  const confirmPayment = useConfirmOrderPayment();
 
   if (isLoading) {
     return <Skeleton className="h-64 w-full" />;
@@ -47,6 +49,15 @@ export function OrderDetailPage() {
           <OrderStatusBadge status={order.status} />
         </div>
         <div className="flex flex-wrap gap-2">
+          {order.status === "pending_payment" && (
+            <Button
+              size="sm"
+              disabled={confirmPayment.isPending}
+              onClick={() => confirmPayment.mutate(order.id)}
+            >
+              {t("ops.confirmPayment")}
+            </Button>
+          )}
           {order.status === "paid" && (
             <Button
               size="sm"
