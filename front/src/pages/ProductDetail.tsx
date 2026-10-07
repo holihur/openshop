@@ -93,7 +93,8 @@ export function ProductDetailPage() {
     );
   }
 
-  const gallery = [product.coverImage, ...(product.images ?? [])].filter(Boolean);
+  // Deduplicate: a product's cover may also appear in its gallery.
+  const gallery = [...new Set([product.coverImage, ...(product.images ?? [])].filter(Boolean))];
   const shown = activeImage ?? gallery[0];
 
   const variants = (product.variants ?? []).filter((v) => v.active);

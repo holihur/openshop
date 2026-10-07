@@ -5,10 +5,11 @@ import { api } from "@lib/api";
 import { t } from "@lib/i18n";
 import type { Review } from "@lib/types";
 
-export function useReviews(productId: string) {
+export function useReviews(productId: string, page = 1, pageSize = 10) {
   return useQuery({
-    queryKey: ["reviews", productId],
-    queryFn: () => api.getPage<Review[]>(`/products/${productId}/reviews?pageSize=20`),
+    queryKey: ["reviews", productId, page, pageSize],
+    queryFn: () =>
+      api.getPage<Review[]>(`/products/${productId}/reviews?page=${page}&pageSize=${pageSize}`),
     enabled: Boolean(productId),
   });
 }

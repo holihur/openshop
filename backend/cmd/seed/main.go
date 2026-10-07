@@ -176,7 +176,7 @@ func main() {
 					fatal("upload cover", err)
 				}
 				existing.CoverImage = url
-				existing.Images = []string{url}
+				existing.Images = nil
 				if err := products.Update(ctx, existing); err != nil {
 					fatal("update product", err)
 				}
@@ -193,7 +193,7 @@ func main() {
 		p := &domain.Product{
 			ID: ids.NewID(), CategoryID: catIDs[spec.catSlug], Title: spec.title, Slug: slug,
 			Description: spec.desc, PriceCents: spec.price, Currency: cfg.App.Currency,
-			CoverImage: url, Images: []string{url},
+			CoverImage: url, Images: nil,
 			Status: domain.ProductPublished, Stock: spec.stock, CreatedAt: now, UpdatedAt: now,
 		}
 		if err := products.Create(ctx, p); err != nil {

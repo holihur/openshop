@@ -9,6 +9,7 @@ import { Label } from "@lib/components/ui/label";
 import { Separator } from "@lib/components/ui/separator";
 import { Textarea } from "@lib/components/ui/textarea";
 import { Skeleton } from "@lib/components/ui/skeleton";
+import { Pagination } from "@lib/components/pagination";
 import { useAddReview, useReviews } from "@lib/hooks/useReviews";
 import { useAuth } from "@lib/auth";
 import { useI18n, t as translate } from "@lib/i18n";
@@ -34,7 +35,8 @@ function Stars({ value, className }: { value: number; className?: string }) {
 export function ReviewsSection({ productId }: { productId: string }) {
   const { user } = useAuth();
   const { t } = useI18n();
-  const { data, isLoading } = useReviews(productId);
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useReviews(productId, page);
   const addReview = useAddReview(productId);
 
   const [rating, setRating] = useState(5);
@@ -50,6 +52,7 @@ export function ReviewsSection({ productId }: { productId: string }) {
           setTitle("");
           setBody("");
           setRating(5);
+          setPage(1);
         },
       },
     );
@@ -127,6 +130,15 @@ export function ReviewsSection({ productId }: { productId: string }) {
               </li>
             ))}
           </ul>
+        )}
+
+        {data && data.total > data.pageSize && (
+          <Pagination
+            page={data.page}
+            pageSize={data.pageSize}
+            total={data.total}
+            onChange={setPage}
+          />
         )}
       </CardContent>
     </Card>
