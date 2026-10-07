@@ -353,7 +353,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 			// Referral commissions are paid into the referrer's wallet once the
 			// cooling-off period (default 15 days) has elapsed. Leader-locked.
 			settler := worker.NewCommissionSettler(commissionSvc, locker, log,
-				cfg.Worker.RetentionInterval, 100)
+				cfg.Worker.CommissionSettleInterval, 100)
 			app.wg.Add(1)
 			go func() {
 				defer app.wg.Done()

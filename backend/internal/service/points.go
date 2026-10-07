@@ -119,6 +119,11 @@ func (s *PointsService) MaxRedeemable(ctx context.Context, payableCents int64) i
 }
 
 func (s *PointsService) apply(ctx context.Context, userID string, delta int64, txType domain.PointsTransactionType, refType, refID, description string) error {
+	// Ensure the account exists so the atomic UPDATE always matches a row; a
+	// missing row would otherwise look like an overdraft.
+	if _, err := s.points.Ensure(ctx, userID); err != nil {
+		return err
+	}
 	balance, err := s.points.AddPoints(ctx, userID, delta)
 	if err != nil {
 		return err

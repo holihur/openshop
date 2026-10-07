@@ -21,27 +21,30 @@ type OrderItemView struct {
 }
 
 type OrderView struct {
-	ID              string          `json:"id"`
-	OrderNo         string          `json:"orderNo"`
-	Status          string          `json:"status"`
-	Currency        string          `json:"currency"`
-	SubtotalCents   int64           `json:"subtotalCents"`
-	DiscountCents   int64           `json:"discountCents"`
-	CouponCode      string          `json:"couponCode,omitempty"`
-	ShippingCents   int64           `json:"shippingCents"`
-	TaxCents        int64           `json:"taxCents"`
-	ShippingMethod  string          `json:"shippingMethod,omitempty"`
-	TotalCents      int64           `json:"totalCents"`
-	RefundedCents   int64           `json:"refundedCents"`
-	Items           []OrderItemView `json:"items"`
-	PaymentID       string          `json:"paymentId"`
-	ShippingAddress *AddressView    `json:"shippingAddress,omitempty"`
-	TrackingNo      string          `json:"trackingNo,omitempty"`
-	ShippedAt       string          `json:"shippedAt,omitempty"`
-	CompletedAt     string          `json:"completedAt,omitempty"`
-	ExpiresAt       string          `json:"expiresAt"`
-	PaidAt          string          `json:"paidAt,omitempty"`
-	CreatedAt       string          `json:"createdAt"`
+	ID                  string          `json:"id"`
+	OrderNo             string          `json:"orderNo"`
+	Status              string          `json:"status"`
+	Currency            string          `json:"currency"`
+	SubtotalCents       int64           `json:"subtotalCents"`
+	DiscountCents       int64           `json:"discountCents"`
+	WalletCents         int64           `json:"walletCents"`
+	PointsUsed          int64           `json:"pointsUsed"`
+	PointsDiscountCents int64           `json:"pointsDiscountCents"`
+	CouponCode          string          `json:"couponCode,omitempty"`
+	ShippingCents       int64           `json:"shippingCents"`
+	TaxCents            int64           `json:"taxCents"`
+	ShippingMethod      string          `json:"shippingMethod,omitempty"`
+	TotalCents          int64           `json:"totalCents"`
+	RefundedCents       int64           `json:"refundedCents"`
+	Items               []OrderItemView `json:"items"`
+	PaymentID           string          `json:"paymentId"`
+	ShippingAddress     *AddressView    `json:"shippingAddress,omitempty"`
+	TrackingNo          string          `json:"trackingNo,omitempty"`
+	ShippedAt           string          `json:"shippedAt,omitempty"`
+	CompletedAt         string          `json:"completedAt,omitempty"`
+	ExpiresAt           string          `json:"expiresAt"`
+	PaidAt              string          `json:"paidAt,omitempty"`
+	CreatedAt           string          `json:"createdAt"`
 	// AccessToken is returned once for guest orders so the buyer can view and
 	// pay without an account.
 	AccessToken string `json:"accessToken,omitempty"`
@@ -107,6 +110,7 @@ func ToOrderView(o domain.Order) OrderView {
 	view := OrderView{
 		ID: o.ID, OrderNo: o.OrderNo, Status: string(o.Status), Currency: o.Currency,
 		SubtotalCents: o.SubtotalCents, DiscountCents: o.DiscountCents, CouponCode: o.CouponCode,
+		WalletCents: o.WalletCents, PointsUsed: o.PointsUsed, PointsDiscountCents: o.PointsDiscountCents,
 		ShippingCents: o.ShippingCents, TaxCents: o.TaxCents, ShippingMethod: o.ShippingMethodName,
 		TotalCents: o.TotalCents, Items: items, PaymentID: o.PaymentID,
 		RefundedCents: o.RefundedCents,

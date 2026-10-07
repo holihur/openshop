@@ -18,6 +18,10 @@ type CheckoutRequest struct {
 	Email            string `json:"email"`
 	Phone            string `json:"phone"`
 	Currency         string `json:"currency"`
+	// UseWallet spends the customer's wallet balance; Points is the number of
+	// loyalty points to redeem. Both are payment instruments applied after tax.
+	UseWallet bool  `json:"useWallet"`
+	Points    int64 `json:"points"`
 	// Address is an inline shipping address (used by guests).
 	Address *addressRequest `json:"address"`
 }
@@ -36,6 +40,8 @@ func (h *Handler) Checkout(c *gin.Context) {
 		GuestEmail:       req.Email,
 		GuestPhone:       req.Phone,
 		Currency:         req.Currency,
+		UseWallet:        req.UseWallet,
+		Points:           req.Points,
 		ShippingAddress:  inlineAddress(req.Address),
 	})
 	if err != nil {

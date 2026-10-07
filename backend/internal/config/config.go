@@ -154,6 +154,8 @@ type WorkerConfig struct {
 	RetentionBatch    int
 	OutboxRetention   time.Duration
 	AuditRetention    time.Duration
+	// CommissionSettleInterval is how often held referral commissions are paid out.
+	CommissionSettleInterval time.Duration
 }
 
 // Load reads configuration from the environment, applying safe development
@@ -247,16 +249,17 @@ func Load() (*Config, error) {
 			SampleRatio: envFloat("OTEL_SAMPLE_RATIO", 1.0),
 		},
 		Worker: WorkerConfig{
-			Enabled:            envBool("WORKER_ENABLED", true),
-			OrderSweepInterval: envDuration("ORDER_SWEEP_INTERVAL", time.Minute),
-			OrderSweepBatch:    envInt("ORDER_SWEEP_BATCH", 100),
-			OutboxInterval:     envDuration("OUTBOX_INTERVAL", time.Second),
-			OutboxBatch:        envInt("OUTBOX_BATCH", 100),
-			LeaderLockTTL:      envDuration("LEADER_LOCK_TTL", 30*time.Second),
-			RetentionInterval:  envDuration("RETENTION_INTERVAL", time.Hour),
-			RetentionBatch:     envInt("RETENTION_BATCH", 1000),
-			OutboxRetention:    envDuration("OUTBOX_RETENTION", 7*24*time.Hour),
-			AuditRetention:     envDuration("AUDIT_RETENTION", 90*24*time.Hour),
+			Enabled:                  envBool("WORKER_ENABLED", true),
+			OrderSweepInterval:       envDuration("ORDER_SWEEP_INTERVAL", time.Minute),
+			OrderSweepBatch:          envInt("ORDER_SWEEP_BATCH", 100),
+			OutboxInterval:           envDuration("OUTBOX_INTERVAL", time.Second),
+			OutboxBatch:              envInt("OUTBOX_BATCH", 100),
+			LeaderLockTTL:            envDuration("LEADER_LOCK_TTL", 30*time.Second),
+			RetentionInterval:        envDuration("RETENTION_INTERVAL", time.Hour),
+			RetentionBatch:           envInt("RETENTION_BATCH", 1000),
+			OutboxRetention:          envDuration("OUTBOX_RETENTION", 7*24*time.Hour),
+			AuditRetention:           envDuration("AUDIT_RETENTION", 90*24*time.Hour),
+			CommissionSettleInterval: envDuration("COMMISSION_SETTLE_INTERVAL", 10*time.Minute),
 		},
 	}
 
