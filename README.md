@@ -8,7 +8,8 @@ A production-grade, **horizontally scalable** e-commerce storefront.
   surface can be deployed on an internal network. Both embed their SPA.
 - **Frontends** — React 19 · TypeScript · Vite · TailwindCSS v4 · shadcn/ui,
   as two SPAs sharing one `lib/` (`front` storefront, `ops` admin console).
-  Package management is pnpm (workspace).
+  Package management is pnpm (workspace). Both are internationalised (English
+  and Chinese) via a shared, dependency-free `lib/i18n` with a language switcher.
 
 Every third-party integration is reached through a **port interface**, so the
 business logic never depends on a concrete database, cache, broker, payment
@@ -671,6 +672,9 @@ realms: the storefront only authenticates customers and ops only administrators,
 and JWTs are audience-scoped (`aud: front` / `aud: ops`) so a storefront token is
 rejected by the ops binary and vice versa. Refresh tokens are role-checked too,
 so neither realm can mint a token for the other.
+- **Shared i18n, no runtime dependency.** `lib/i18n` provides a tiny provider
+with typed message keys, `{var}` interpolation, `localStorage` persistence and
+`<html lang>` sync; `en`/`zh` catalogs live in one file and both SPAs share them.
 - **Money as integers.** Prices are stored in minor units (`price_cents`) to
   avoid floating-point drift.
 - **UUID primary keys.** Any replica can generate ids without a central

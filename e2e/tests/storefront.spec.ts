@@ -31,3 +31,11 @@ test("the storefront rejects an admin account (realm isolation)", async ({ page 
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.locator("p.text-destructive")).toBeVisible();
 });
+
+test("switching language localises the storefront", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("locale-switcher").selectOption("zh");
+  await expect(page.getByRole("link", { name: "商品", exact: true })).toBeVisible();
+  await page.getByTestId("locale-switcher").selectOption("en");
+  await expect(page.getByRole("link", { name: "Products", exact: true })).toBeVisible();
+});

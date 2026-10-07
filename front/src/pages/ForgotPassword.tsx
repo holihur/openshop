@@ -6,8 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lib/
 import { Input } from "@lib/components/ui/input";
 import { Label } from "@lib/components/ui/label";
 import { api } from "@lib/api";
+import { useI18n } from "@lib/i18n";
 
 export function ForgotPasswordPage() {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -27,26 +29,21 @@ export function ForgotPasswordPage() {
     <div className="mx-auto max-w-md py-8">
       <Card>
         <CardHeader>
-          <CardTitle>Reset your password</CardTitle>
-          <CardDescription>
-            Enter your email and we&apos;ll send you a reset link.
-          </CardDescription>
+          <CardTitle>{t("auth.forgotTitle")}</CardTitle>
+          <CardDescription>{t("auth.forgotSubtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           {sent ? (
             <div className="space-y-4 text-sm">
-              <p className="text-muted-foreground">
-                If an account exists for <span className="font-medium">{email}</span>, a reset link
-                is on its way.
-              </p>
+              <p className="text-muted-foreground">{t("auth.resetSent", { email })}</p>
               <Button variant="outline" asChild>
-                <Link to="/login">Back to sign in</Link>
+                <Link to="/login">{t("auth.backToSignIn")}</Link>
               </Button>
             </div>
           ) : (
             <form onSubmit={onSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t("auth.email")}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -57,11 +54,11 @@ export function ForgotPasswordPage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? "Sending…" : "Send reset link"}
+                {submitting ? t("auth.sending") : t("auth.sendLink")}
               </Button>
               <p className="text-muted-foreground text-center text-sm">
                 <Link to="/login" className="underline">
-                  Back to sign in
+                  {t("auth.backToSignIn")}
                 </Link>
               </p>
             </form>

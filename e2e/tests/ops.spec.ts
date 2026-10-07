@@ -33,3 +33,11 @@ test("the ops console rejects a customer account (realm isolation)", async ({ pa
   await signIn(page, "customer@openshop.local", "customer12345");
   await expect(page).toHaveURL(/\/login$/);
 });
+
+test("switching language localises the console", async ({ page }) => {
+  await signIn(page);
+  await page.getByTestId("locale-switcher").selectOption("zh");
+  await expect(page.getByRole("link", { name: "概览" })).toBeVisible();
+  await page.getByTestId("locale-switcher").selectOption("en");
+  await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
+});

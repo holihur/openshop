@@ -8,11 +8,13 @@ import { WishlistButton } from "@lib/components/wishlist-button";
 import { useAddToCart } from "@lib/hooks/useCart";
 import { usePrice } from "@lib/hooks/usePrice";
 import { useAuth } from "@lib/auth";
+import { useI18n } from "@lib/i18n";
 import type { Product } from "@lib/types";
 
 export function ProductCard({ product }: { product: Product }) {
   const addToCart = useAddToCart();
   const { user } = useAuth();
+  const { t } = useI18n();
   const price = usePrice();
   const outOfStock = product.stock <= 0;
 
@@ -34,7 +36,7 @@ export function ProductCard({ product }: { product: Product }) {
           )}
           {outOfStock && (
             <Badge variant="secondary" className="absolute top-2 left-2">
-              Out of stock
+              {t("product.outOfStock")}
             </Badge>
           )}
           <WishlistButton productId={product.id} className="absolute top-2 right-2" />
@@ -56,7 +58,7 @@ export function ProductCard({ product }: { product: Product }) {
           onClick={() => addToCart.mutate({ productId: product.id })}
         >
           <ShoppingCart className="size-4" />
-          Add
+          {t("product.add")}
         </Button>
       </CardFooter>
     </Card>

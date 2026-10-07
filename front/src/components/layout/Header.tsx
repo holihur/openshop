@@ -7,6 +7,9 @@ import { Badge } from "@lib/components/ui/badge";
 import { useAuth } from "@lib/auth";
 import { useCurrency } from "@lib/currency";
 import { useCart } from "@lib/hooks/useCart";
+import { useI18n } from "@lib/i18n";
+import type { MessageKey } from "@lib/i18n/messages";
+import { LocaleSwitcher } from "@lib/components/locale-switcher";
 import { cn } from "@lib/utils";
 
 function useTheme() {
@@ -20,10 +23,10 @@ function useTheme() {
   return { dark, toggle: () => setDark((d) => !d) };
 }
 
-const navItems = [
-  { to: "/", label: "Home", end: true },
-  { to: "/products", label: "Products" },
-  { to: "/orders", label: "Orders" },
+const navItems: { to: string; label: MessageKey; end?: boolean }[] = [
+  { to: "/", label: "nav.home", end: true },
+  { to: "/products", label: "nav.products" },
+  { to: "/orders", label: "nav.orders" },
 ];
 
 export function Header() {
@@ -31,6 +34,7 @@ export function Header() {
   const { data: cart } = useCart();
   const { dark, toggle } = useTheme();
   const { currency, available, setCurrency } = useCurrency();
+  const { t } = useI18n();
 
   return (
     <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 border-b backdrop-blur">
@@ -55,7 +59,7 @@ export function Header() {
                 )
               }
             >
-              {item.label}
+              {t(item.label)}
             </NavLink>
           ))}
           {user && (
@@ -70,7 +74,7 @@ export function Header() {
                 )
               }
             >
-              Addresses
+              {t("nav.addresses")}
             </NavLink>
           )}
           {user && (
@@ -85,7 +89,7 @@ export function Header() {
                 )
               }
             >
-              Wishlist
+              {t("nav.wishlist")}
             </NavLink>
           )}
           {user && (
@@ -100,7 +104,7 @@ export function Header() {
                 )
               }
             >
-              Settings
+              {t("nav.settings")}
             </NavLink>
           )}
         </nav>
@@ -120,6 +124,7 @@ export function Header() {
               ))}
             </select>
           )}
+          <LocaleSwitcher className="hidden sm:inline-flex" />
           <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
             {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </Button>
@@ -141,14 +146,14 @@ export function Header() {
                 {user.name || user.email}
               </span>
               <Button variant="outline" size="sm" onClick={() => void logout()}>
-                Sign out
+                {t("common.signOut")}
               </Button>
             </div>
           ) : (
             <Button size="sm" asChild>
               <Link to="/login">
                 <User className="size-4" />
-                Sign in
+                {t("nav.signIn")}
               </Link>
             </Button>
           )}

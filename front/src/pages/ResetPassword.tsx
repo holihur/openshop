@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lib/
 import { Input } from "@lib/components/ui/input";
 import { Label } from "@lib/components/ui/label";
 import { api } from "@lib/api";
+import { useI18n } from "@lib/i18n";
 
 export function ResetPasswordPage() {
+  const { t } = useI18n();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const token = params.get("token") ?? "";
@@ -23,10 +25,10 @@ export function ResetPasswordPage() {
     setSubmitting(true);
     try {
       await api.post("/auth/password/reset", { token, newPassword: password });
-      toast.success("Password updated. Please sign in.");
+      toast.success(t("auth.resetTitle"));
       navigate("/login", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Reset failed");
+      setError(err instanceof Error ? err.message : t("common.unexpectedError"));
     } finally {
       setSubmitting(false);
     }
@@ -36,21 +38,21 @@ export function ResetPasswordPage() {
     <div className="mx-auto max-w-md py-8">
       <Card>
         <CardHeader>
-          <CardTitle>Choose a new password</CardTitle>
-          <CardDescription>Your other sessions will be signed out.</CardDescription>
+          <CardTitle>{t("auth.resetTitle")}</CardTitle>
+          <CardDescription>{t("auth.resetSubtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           {token === "" ? (
             <div className="space-y-4 text-sm">
-              <p className="text-destructive">This reset link is missing or invalid.</p>
+              <p className="text-destructive">{t("auth.invalidLink")}</p>
               <Button variant="outline" asChild>
-                <Link to="/forgot-password">Request a new link</Link>
+                <Link to="/forgot-password">{t("auth.requestNewLink")}</Link>
               </Button>
             </div>
           ) : (
             <form onSubmit={onSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="password">New password</Label>
+                <Label htmlFor="password">{t("auth.newPassword")}</Label>
                 <Input
                   id="password"
                   type="password"
@@ -60,11 +62,11 @@ export function ResetPasswordPage() {
                   minLength={8}
                   required
                 />
-                <p className="text-muted-foreground text-xs">At least 8 characters.</p>
+                <p className="text-muted-foreground text-xs">{t("auth.passwordHint")}</p>
               </div>
               {error && <p className="text-destructive text-sm">{error}</p>}
               <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? "Updating…" : "Update password"}
+                {submitting ? t("auth.updating") : t("auth.updatePassword")}
               </Button>
             </form>
           )}

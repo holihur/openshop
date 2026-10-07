@@ -21,6 +21,7 @@ import { ProductForm } from "@/components/admin/product-form";
 import { VariantsEditor } from "@/components/admin/variants-editor";
 import { OrderStatusBadge } from "@lib/components/order-status-badge";
 import { Pagination } from "@lib/components/pagination";
+import { useI18n } from "@lib/i18n";
 import { useAdminCoupons, useAdminOrders, useAdminProducts, useAdminReviews, useAuditLogs, useCreateCoupon, useCurrencies, useDashboard, useDeleteReviewAdmin, useSetCurrencyRate, useUpdateCoupon } from "@lib/hooks/useAdmin";
 import {
   useAdminShippingMethods,
@@ -495,6 +496,7 @@ export function AdminShipping() {
 
 export function AdminDashboard() {
   const { data, isLoading } = useDashboard();
+  const { t } = useI18n();
 
   if (isLoading || !data) {
     return (
@@ -507,12 +509,12 @@ export function AdminDashboard() {
   }
 
   const cards = [
-    { label: "Revenue", value: formatMoney(data.revenueCents) },
-    { label: "Paid orders", value: data.paidOrders },
-    { label: "Pending orders", value: data.pendingOrders },
-    { label: "Total orders", value: data.totalOrders },
-    { label: "Products", value: data.totalProducts },
-    { label: "Customers", value: data.totalUsers },
+    { label: t("ops.revenue"), value: formatMoney(data.revenueCents) },
+    { label: t("ops.paidOrders"), value: data.paidOrders },
+    { label: t("ops.pendingOrders"), value: data.pendingOrders },
+    { label: t("ops.totalOrders"), value: data.totalOrders },
+    { label: t("ops.totalProducts"), value: data.totalProducts },
+    { label: t("ops.totalUsers"), value: data.totalUsers },
   ];
 
   return (
@@ -531,7 +533,7 @@ export function AdminDashboard() {
       {data.lowStock.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Low stock ({data.lowStock.length})</CardTitle>
+            <CardTitle>{t("ops.lowStock", { count: data.lowStock.length })}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {data.lowStock.slice(0, 10).map((item) => (
@@ -541,7 +543,7 @@ export function AdminDashboard() {
                   {item.variantName ? ` · ${item.variantName}` : ""}
                 </span>
                 <Badge variant={item.stock === 0 ? "destructive" : "warning"}>
-                  {item.stock} left
+                  {t("ops.left", { count: item.stock })}
                 </Badge>
               </div>
             ))}
@@ -551,16 +553,16 @@ export function AdminDashboard() {
 
       <Card className="py-0">
         <CardHeader>
-          <CardTitle className="py-4">Recent orders</CardTitle>
+          <CardTitle className="py-4">{t("ops.recentOrders")}</CardTitle>
         </CardHeader>
         <CardContent className="px-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Placed</TableHead>
+                <TableHead>{t("orders.orderNo")}</TableHead>
+                <TableHead>{t("common.status")}</TableHead>
+                <TableHead>{t("orders.total")}</TableHead>
+                <TableHead>{t("orders.placed")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@lib/components/ui/button";
+import { useI18n } from "@lib/i18n";
 
 export function Pagination({
   page,
@@ -13,6 +14,7 @@ export function Pagination({
   total: number;
   onChange: (page: number) => void;
 }) {
+  const { t } = useI18n();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   if (totalPages <= 1) return null;
 
@@ -25,10 +27,10 @@ export function Pagination({
         onClick={() => onChange(page - 1)}
       >
         <ChevronLeft className="size-4" />
-        Previous
+        {t("common.previous")}
       </Button>
       <span className="text-muted-foreground text-sm">
-        Page {page} of {totalPages}
+        {t("common.pageOf", { page, total: totalPages })}
       </span>
       <Button
         variant="outline"
@@ -36,7 +38,7 @@ export function Pagination({
         disabled={page >= totalPages}
         onClick={() => onChange(page + 1)}
       >
-        Next
+        {t("common.next")}
         <ChevronRight className="size-4" />
       </Button>
     </div>

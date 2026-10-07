@@ -6,9 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lib/
 import { Input } from "@lib/components/ui/input";
 import { Label } from "@lib/components/ui/label";
 import { useAuth } from "@lib/auth";
+import { useI18n } from "@lib/i18n";
 
 export function RegisterPage() {
   const { register } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
@@ -25,7 +27,7 @@ export function RegisterPage() {
       await register({ name, email, password });
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(err instanceof Error ? err.message : t("common.unexpectedError"));
     } finally {
       setSubmitting(false);
     }
@@ -35,17 +37,17 @@ export function RegisterPage() {
     <div className="mx-auto max-w-md py-8">
       <Card>
         <CardHeader>
-          <CardTitle>Create your account</CardTitle>
-          <CardDescription>It only takes a moment.</CardDescription>
+          <CardTitle>{t("auth.registerTitle")}</CardTitle>
+          <CardDescription>{t("auth.createSubtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">{t("auth.name")}</Label>
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("auth.email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -56,7 +58,7 @@ export function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("auth.password")}</Label>
               <Input
                 id="password"
                 type="password"
@@ -66,17 +68,17 @@ export function RegisterPage() {
                 minLength={8}
                 required
               />
-              <p className="text-muted-foreground text-xs">At least 8 characters.</p>
+              <p className="text-muted-foreground text-xs">{t("auth.passwordHint")}</p>
             </div>
             {error && <p className="text-destructive text-sm">{error}</p>}
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Creating account…" : "Create account"}
+              {submitting ? t("auth.registering") : t("auth.createAccount")}
             </Button>
           </form>
           <p className="text-muted-foreground mt-4 text-center text-sm">
-            Already have an account?{" "}
+            {t("auth.haveAccount")}{" "}
             <Link to="/login" className="text-foreground underline">
-              Sign in
+              {t("auth.signIn")}
             </Link>
           </p>
         </CardContent>

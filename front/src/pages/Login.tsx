@@ -6,9 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lib/
 import { Input } from "@lib/components/ui/input";
 import { Label } from "@lib/components/ui/label";
 import { useAuth } from "@lib/auth";
+import { useI18n } from "@lib/i18n";
 
 export function LoginPage() {
   const { login } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/";
@@ -26,7 +28,7 @@ export function LoginPage() {
       await login(identifier, password);
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign in failed");
+      setError(err instanceof Error ? err.message : t("common.unexpectedError"));
     } finally {
       setSubmitting(false);
     }
@@ -36,13 +38,13 @@ export function LoginPage() {
     <div className="mx-auto max-w-md py-8">
       <Card>
         <CardHeader>
-          <CardTitle>Welcome back</CardTitle>
-          <CardDescription>Sign in to your OpenShop account.</CardDescription>
+          <CardTitle>{t("auth.welcomeBack")}</CardTitle>
+          <CardDescription>{t("auth.signInSubtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="identifier">Email or phone</Label>
+              <Label htmlFor="identifier">{t("auth.emailOrPhone")}</Label>
               <Input
                 id="identifier"
                 value={identifier}
@@ -53,9 +55,9 @@ export function LoginPage() {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t("auth.password")}</Label>
                 <Link to="/forgot-password" className="text-muted-foreground text-xs underline">
-                  Forgot password?
+                  {t("auth.forgotPassword")}
                 </Link>
               </div>
               <Input
@@ -69,13 +71,13 @@ export function LoginPage() {
             </div>
             {error && <p className="text-destructive text-sm">{error}</p>}
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Signing in…" : "Sign in"}
+              {submitting ? t("auth.signingIn") : t("auth.signIn")}
             </Button>
           </form>
           <p className="text-muted-foreground mt-4 text-center text-sm">
-            No account?{" "}
+            {t("auth.noAccount")}{" "}
             <Link to="/register" className="text-foreground underline">
-              Create one
+              {t("auth.createOne")}
             </Link>
           </p>
         </CardContent>

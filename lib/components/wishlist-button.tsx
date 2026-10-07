@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "@lib/auth";
 import { useToggleWishlist, useWishlistIds } from "@lib/hooks/useWishlist";
+import { useI18n } from "@lib/i18n";
 import { cn } from "@lib/utils";
 
 // WishlistButton toggles a product in the signed-in user's wishlist. It shares
@@ -15,6 +16,7 @@ export function WishlistButton({
   className?: string;
 }) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const saved = useWishlistIds();
   const toggle = useToggleWishlist();
@@ -23,7 +25,7 @@ export function WishlistButton({
   return (
     <button
       type="button"
-      aria-label={isSaved ? "Remove from wishlist" : "Save to wishlist"}
+      aria-label={isSaved ? t("product.removeFromWishlist") : t("product.saveToWishlist")}
       className={cn(
         "bg-background/80 hover:bg-background inline-flex size-8 items-center justify-center rounded-full border backdrop-blur transition-colors",
         className,

@@ -11,9 +11,13 @@ import {
   Store,
   Truck,
   Wallet,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@lib/components/ui/button";
+import { LocaleSwitcher } from "@lib/components/locale-switcher";
+import { useI18n } from "@lib/i18n";
+import type { MessageKey } from "@lib/i18n/messages";
 import { cn } from "@lib/utils";
 import { useAuth } from "@lib/auth";
 
@@ -21,20 +25,21 @@ import { useAuth } from "@lib/auth";
 // intranet), so the link is configurable at build time.
 const storefrontURL = import.meta.env.VITE_STOREFRONT_URL ?? "http://localhost:8080";
 
-const nav = [
-  { to: "/", label: "Dashboard", icon: BarChart3, end: true },
-  { to: "/products", label: "Products", icon: Boxes },
-  { to: "/orders", label: "Orders", icon: ShoppingCart },
-  { to: "/coupons", label: "Coupons", icon: BadgePercent },
-  { to: "/reviews", label: "Reviews", icon: Star },
-  { to: "/shipping", label: "Shipping", icon: Truck },
-  { to: "/currency", label: "Currency", icon: Wallet },
-  { to: "/audit", label: "Audit", icon: ScrollText },
+const nav: { to: string; label: MessageKey; icon: LucideIcon; end?: boolean }[] = [
+  { to: "/", label: "ops.dashboard", icon: BarChart3, end: true },
+  { to: "/products", label: "ops.products", icon: Boxes },
+  { to: "/orders", label: "ops.orders", icon: ShoppingCart },
+  { to: "/coupons", label: "ops.coupons", icon: BadgePercent },
+  { to: "/reviews", label: "ops.reviews", icon: Star },
+  { to: "/shipping", label: "ops.shipping", icon: Truck },
+  { to: "/currency", label: "ops.currency", icon: Wallet },
+  { to: "/audit", label: "ops.audit", icon: ScrollText },
 ];
 
 /** Chrome for the operations console: sidebar navigation, storefront link and sign-out. */
 export function OpsLayout() {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   async function onLogout() {
@@ -51,16 +56,17 @@ export function OpsLayout() {
             OpenShop Ops
           </NavLink>
           <div className="flex items-center gap-3 text-sm">
+            <LocaleSwitcher className="hidden sm:inline-flex" />
             <span className="text-muted-foreground hidden sm:inline">{user?.email}</span>
             <Button variant="outline" size="sm" asChild>
               <a href={storefrontURL} target="_blank" rel="noreferrer">
                 <ExternalLink className="size-4" />
-                Storefront
+                {t("common.storefront")}
               </a>
             </Button>
             <Button variant="ghost" size="sm" onClick={onLogout}>
               <LogOut className="size-4" />
-              Sign out
+              {t("common.signOut")}
             </Button>
           </div>
         </div>
@@ -84,7 +90,7 @@ export function OpsLayout() {
                 }
               >
                 <Icon className="size-4" />
-                {label}
+                {t(label)}
               </NavLink>
             ))}
           </nav>
