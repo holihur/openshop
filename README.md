@@ -552,6 +552,12 @@ make e2e        # or: pnpm --filter @openshop/e2e test
 k6 run scripts/loadtest.js            # browse + shop scenarios, thresholds enforced
 ```
 
+The script ramps a browsing scenario to 30 VUs and runs 10 concurrent shoppers
+(each with its own guest cart, so checkouts do not contend). It fails the run on
+threshold breach: `http_req_failed < 5%`, `http_req_duration p(95) < 800ms` and
+`checkout_duration p(95) < 1500ms`. CI runs it in the `loadtest` job against a
+freshly migrated and seeded database.
+
 ---
 
 ## Observability

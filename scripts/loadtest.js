@@ -11,8 +11,10 @@ import { check, group, sleep } from "k6";
 import { Trend } from "k6/metrics";
 
 const BASE = __ENV.BASE || "http://localhost:8080/api/v1";
-const IDENTIFIER = __ENV.IDENTIFIER || "admin@openshop.local";
-const PASSWORD = __ENV.PASSWORD || "admin12345";
+// The storefront realm only accepts customers (admins are restricted to the ops
+// binary), so the shopping scenario signs in as the seeded demo customer.
+const IDENTIFIER = __ENV.IDENTIFIER || "customer@openshop.local";
+const PASSWORD = __ENV.PASSWORD || "customer12345";
 
 const checkoutTrend = new Trend("checkout_duration", true);
 
@@ -67,30 +69,40 @@ export function browse() {
 }
 
 export function shop() {
+  // Exercise the authenticated read path (realm-restricted to customers).
   const token = login();
-  if (!token) return;
-  const auth = { headers: { Authorization: `Bearer ${token}` } };
+  if (token) {
+    http.get(`${BASE}/orders`, { headers: { Authorization: `Bearer ${token}` } });
+  }
+
+  // Each VU owns its own guest cart, so concurrent checkouts never contend on
+  // a single cart (which would make the failure-rate threshold flaky).
+  const guestHeaders = { "X-Guest-Id": `k6-vu-${__VU}`, "Content-Type": "application/json" };
 
   const list = http.get(`${BASE}/products?pageSize=12`);
   const products = list.json("data") || [];
   if (products.length === 0) return;
   const product = products[Math.floor(Math.random() * products.length)];
 
-  http.del(`${BASE}/cart`, null, auth);
+  http.del(`${BASE}/cart`, null, { headers: guestHeaders });
   const add = http.post(
     `${BASE}/cart/items`,
     JSON.stringify({ productId: product.id, quantity: 1 }),
-    { ...auth, headers: { ...auth.headers, "Content-Type": "application/json" } },
+    { headers: guestHeaders },
   );
   check(add, { "add to cart 200": (r) => r.status === 200 });
 
   const start = Date.now();
-  const order = http.post(`${BASE}/orders`, null, {
-    headers: {
-      ...auth.headers,
-      "Idempotency-Key": `k6-${__VU}-${__ITER}-${Date.now()}`,
+  const order = http.post(
+    `${BASE}/orders`,
+    JSON.stringify({ email: `k6-${__VU}@example.com` }),
+    {
+      headers: {
+        ...guestHeaders,
+        "Idempotency-Key": `k6-${__VU}-${__ITER}-${Date.now()}`,
+      },
     },
-  });
+  );
   checkoutTrend.add(Date.now() - start);
   check(order, { "checkout 201": (r) => r.status === 201 });
 

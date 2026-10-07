@@ -149,6 +149,66 @@ jobs:
           path: e2e/playwright-report/
           retention-days: 7
 
+  loadtest:
+    name: Load test (k6)
+    runs-on: ubuntu-latest
+    needs: [backend]
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: openshop
+          POSTGRES_PASSWORD: openshop
+          POSTGRES_DB: openshop
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U openshop"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      POSTGRES_DSN: host=localhost port=5432 user=openshop password=openshop dbname=openshop sslmode=disable TimeZone=UTC
+      REDIS_ADDR: localhost:6379
+      NATS_URL: nats://localhost:4222
+      HTTP_ADDR: :8080
+      WORKER_ENABLED: "false"
+      # The load generator is a single IP; raise the limiter so it measures the
+      # app rather than the rate limit (which is covered by unit tests).
+      HTTP_RATE_LIMIT_RPS: "100000"
+      HTTP_RATE_LIMIT_USER_RPS: "100000"
+      BASE: http://localhost:8080/api/v1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Start NATS (JetStream)
+        run: docker run -d --name nats -p 4222:4222 -p 8222:8222 nats:2-alpine -js -sd /data
+      - name: Migrate and seed
+        working-directory: backend
+        run: |
+          go run ./cmd/migrate -dir migrations
+          go run ./cmd/seed
+      - name: Build and start the API
+        working-directory: backend
+        run: |
+          go build -o /tmp/openshop ./cmd/server
+          /tmp/openshop &
+          ready=""
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/healthz >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          test -n "$ready" || { echo "server did not become ready"; exit 1; }
+      - uses: grafana/setup-k6-action@v1
+      - name: Run k6 (thresholds enforced)
+        run: k6 run scripts/loadtest.js
+
   release-config:
     name: GoReleaser config
     runs-on: ubuntu-latest
