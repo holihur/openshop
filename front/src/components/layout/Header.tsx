@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@lib/components/ui/button";
 import { Badge } from "@lib/components/ui/badge";
 import { AccountMenu } from "@lib/components/account-menu";
+import { NotificationBell } from "@/components/notification-bell";
 import { useCart } from "@lib/hooks/useCart";
 import { useI18n } from "@lib/i18n";
 import type { MessageKey } from "@lib/i18n/messages";
@@ -65,6 +66,7 @@ export function Header() {
             </Link>
           </Button>
 
+          <NotificationBell />
           <AccountMenu />
         </div>
       </div>

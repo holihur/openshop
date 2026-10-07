@@ -154,6 +154,17 @@ type WithdrawalRepository interface {
 	List(ctx context.Context, f domain.WithdrawalFilter) (domain.Page[domain.Withdrawal], error)
 }
 
+// NotificationRepository persists in-app notifications.
+type NotificationRepository interface {
+	Create(ctx context.Context, n *domain.Notification) error
+	List(ctx context.Context, f domain.NotificationFilter) (domain.Page[domain.Notification], error)
+	UnreadCount(ctx context.Context, userID string) (int64, error)
+	MarkRead(ctx context.Context, id, userID string, at time.Time) error
+	MarkAllRead(ctx context.Context, userID string, at time.Time) error
+	// Broadcast inserts a copy for every customer and returns how many were made.
+	Broadcast(ctx context.Context, n *domain.Notification) (int64, error)
+}
+
 // RetentionRepository prunes append-only tables so they do not grow without
 // limit. Deletes are batched to keep transactions short.
 type RetentionRepository interface {

@@ -219,6 +219,26 @@ export interface ReferralSummary {
   approvedCents: number;
 }
 
+export type NotificationType =
+  | "system"
+  | "order"
+  | "ticket"
+  | "wallet"
+  | "commission"
+  | "withdrawal";
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body?: string;
+  link?: string;
+  read: boolean;
+  readAt?: string;
+  createdAt: string;
+  data?: Record<string, unknown>;
+}
+
 export type WithdrawalStatus = "requested" | "approved" | "paid" | "rejected" | "cancelled";
 export type WithdrawalMethod = "bank" | "alipay" | "wechat" | "other";
 

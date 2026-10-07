@@ -138,6 +138,7 @@ func New(
 			admin.POST("/withdrawals/:id/approve", middleware.RequirePermission(domain.PermWithdrawalsWrite), fh.ApproveWithdrawal)
 			admin.POST("/withdrawals/:id/reject", middleware.RequirePermission(domain.PermWithdrawalsWrite), fh.RejectWithdrawal)
 			admin.POST("/withdrawals/:id/pay", middleware.RequirePermission(domain.PermWithdrawalsWrite), fh.PayWithdrawal)
+			admin.POST("/notifications/broadcast", middleware.RequirePermission(domain.PermNotificationsWrite), fh.BroadcastNotification)
 
 			admin.GET("/customers", middleware.RequirePermission(domain.PermCustomersRead), fh.ListCustomers)
 			admin.GET("/customers/:id", middleware.RequirePermission(domain.PermCustomersRead), fh.GetCustomer)

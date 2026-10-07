@@ -20,6 +20,7 @@ type CommissionService struct {
 	ids         port.IDGenerator
 	clock       port.Clock
 	settings    *SettingsService
+	notifier    Notifier
 }
 
 func NewCommissionService(
@@ -32,6 +33,9 @@ func NewCommissionService(
 ) *CommissionService {
 	return &CommissionService{referrals: referrals, commissions: commissions, wallets: wallets, ids: ids, clock: clock, settings: settings}
 }
+
+// SetNotifier wires in-app notifications (optional).
+func (s *CommissionService) SetNotifier(n Notifier) { s.notifier = n }
 
 // Enabled reports whether the referral programme is switched on.
 func (s *CommissionService) Enabled(ctx context.Context) bool {
@@ -147,6 +151,13 @@ func (s *CommissionService) SettleDue(ctx context.Context, limit int) (int, erro
 		if _, err := s.wallets.Credit(ctx, c.ReferrerID, c.AmountCents, domain.WalletCommission,
 			"commission", c.ID, "Referral commission"); err != nil {
 			return settled, err
+		}
+		if s.notifier != nil {
+			_ = s.notifier.Notify(ctx, NotifyInput{
+				UserID: c.ReferrerID, Type: domain.NotificationCommission,
+				Title: "Referral commission paid", Link: "/account/rewards",
+				Data: map[string]any{"code": "commission.paid", "amountCents": c.AmountCents},
+			})
 		}
 		settled++
 	}

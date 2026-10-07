@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/port"
 	"github.com/holihur/openshop/internal/service"
 )
@@ -13,18 +14,35 @@ import (
 // group, adding replicas increases throughput while each event is still handled
 // exactly once by the group.
 type Consumers struct {
-	bus     port.EventBus
-	catalog *service.CatalogService
-	mailer  port.Mailer
-	logger  port.Logger
-	tracer  port.Tracer
+	bus      port.EventBus
+	catalog  *service.CatalogService
+	mailer   port.Mailer
+	logger   port.Logger
+	tracer   port.Tracer
+	notifier *service.NotificationService
 }
 
-func NewConsumers(bus port.EventBus, catalog *service.CatalogService, mailer port.Mailer, logger port.Logger, tracer port.Tracer) *Consumers {
+func NewConsumers(bus port.EventBus, catalog *service.CatalogService, mailer port.Mailer, logger port.Logger, tracer port.Tracer, notifier *service.NotificationService) *Consumers {
 	if tracer == nil {
 		tracer = port.NoopTracer{}
 	}
-	return &Consumers{bus: bus, catalog: catalog, mailer: mailer, logger: logger, tracer: tracer}
+	return &Consumers{bus: bus, catalog: catalog, mailer: mailer, logger: logger, tracer: tracer, notifier: notifier}
+}
+
+// notify raises an in-app notification for the customer who owns an order.
+// Guest orders have no user id and are skipped. code identifies the message
+// template so the client can render it in the reader's own language.
+func (c *Consumers) notify(ctx context.Context, payload *service.OrderEvent, ntype domain.NotificationType, code, title string) {
+	if c.notifier == nil || payload.UserID == "" {
+		return
+	}
+	_ = c.notifier.Notify(ctx, service.NotifyInput{
+		UserID: payload.UserID, Type: ntype, Title: title, Link: "/orders/" + payload.OrderID,
+		Data: map[string]any{
+			"code": code, "orderId": payload.OrderID, "orderNo": payload.OrderNo,
+			"amountCents": payload.TotalCents, "currency": payload.Currency,
+		},
+	})
 }
 
 // Start wires subscriptions. It returns an error if the broker rejects any
@@ -115,6 +133,7 @@ func (c *Consumers) onOrderPaid(ctx context.Context, evt port.Event) error {
 			HTML:    fmt.Sprintf("<p>We received your payment of %d %s.</p>", payload.TotalCents, payload.Currency),
 		})
 	}
+	c.notify(ctx, payload, domain.NotificationOrder, "order.paid", "Order paid")
 	return nil
 }
 
@@ -125,6 +144,7 @@ func (c *Consumers) onOrderCancelled(ctx context.Context, evt port.Event) error 
 	}
 	c.invalidate(ctx, payload)
 	c.logger.Info("order cancelled", "orderNo", payload.OrderNo)
+	c.notify(ctx, payload, domain.NotificationOrder, "order.cancelled", "Order cancelled")
 	return nil
 }
 
@@ -142,6 +162,7 @@ func (c *Consumers) onOrderRefunded(ctx context.Context, evt port.Event) error {
 			HTML:    "<p>We have refunded your order. The amount will appear on your statement shortly.</p>",
 		})
 	}
+	c.notify(ctx, payload, domain.NotificationOrder, "order.refunded", "Order refunded")
 	return nil
 }
 
@@ -158,6 +179,7 @@ func (c *Consumers) onOrderShipped(ctx context.Context, evt port.Event) error {
 			HTML:    "<p>Good news — your order is on its way.</p>",
 		})
 	}
+	c.notify(ctx, payload, domain.NotificationOrder, "order.shipped", "Order shipped")
 	return nil
 }
 
@@ -167,5 +189,6 @@ func (c *Consumers) onOrderCompleted(ctx context.Context, evt port.Event) error 
 		return err
 	}
 	c.logger.Info("order completed", "orderNo", payload.OrderNo)
+	c.notify(ctx, payload, domain.NotificationOrder, "order.completed", "Order completed")
 	return nil
 }

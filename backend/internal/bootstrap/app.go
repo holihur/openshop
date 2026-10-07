@@ -273,12 +273,16 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	commissionSvc := service.NewCommissionService(postgres.NewReferralRepository(db), postgres.NewCommissionRepository(db), walletSvc, ids, clock, settingsSvc)
 	orderSvc.SetLoyalty(walletSvc, pointsSvc, commissionSvc)
 	withdrawalSvc := service.NewWithdrawalService(postgres.NewWithdrawalRepository(db), walletSvc, ids, clock, db, settingsSvc, cfg.App.Currency)
+	notificationSvc := service.NewNotificationService(postgres.NewNotificationRepository(db), ids, clock)
+	withdrawalSvc.SetNotifier(notificationSvc)
+	commissionSvc.SetNotifier(notificationSvc)
+	ticketSvc.SetNotifier(notificationSvc)
 
 	// --- HTTP surface ---
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Orders: orderSvc, Payments: paymentSvc,
 		Coupons: couponSvc, Reviews: reviewSvc, Shipping: shippingSvc, Audit: auditSvc,
-		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Wallet: walletSvc, Points: pointsSvc, Commission: commissionSvc, Withdrawals: withdrawalSvc, Settings: settingsSvc, Customers: customerSvc, OIDC: oidcSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
+		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Wallet: walletSvc, Points: pointsSvc, Commission: commissionSvc, Withdrawals: withdrawalSvc, Notifications: notificationSvc, Settings: settingsSvc, Customers: customerSvc, OIDC: oidcSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
 			{Name: "postgres", Check: db.Ping},
@@ -314,7 +318,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	// Event consumers and scheduled jobs run only on the storefront binary; the
 	// ops binary is a pure admin surface and stays worker-free.
 	if opts.RunWorkers {
-		consumers := worker.NewConsumers(bus, catalogSvc, mailer, log, tracer)
+		consumers := worker.NewConsumers(bus, catalogSvc, mailer, log, tracer, notificationSvc)
 		if err := consumers.Start(); err != nil {
 			app.Close(context.Background())
 			return nil, err

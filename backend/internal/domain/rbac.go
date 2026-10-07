@@ -6,33 +6,34 @@ package domain
 type Permission string
 
 const (
-	PermProductsRead     Permission = "products:read"
-	PermProductsWrite    Permission = "products:write"
-	PermCategoriesWrite  Permission = "categories:write"
-	PermOrdersRead       Permission = "orders:read"
-	PermOrdersWrite      Permission = "orders:write"
-	PermRefundsWrite     Permission = "refunds:write"
-	PermReturnsRead      Permission = "returns:read"
-	PermReturnsWrite     Permission = "returns:write"
-	PermTicketsRead      Permission = "tickets:read"
-	PermTicketsWrite     Permission = "tickets:write"
-	PermLoyaltyRead      Permission = "loyalty:read"
-	PermLoyaltyWrite     Permission = "loyalty:write"
-	PermWithdrawalsRead  Permission = "withdrawals:read"
-	PermWithdrawalsWrite Permission = "withdrawals:write"
-	PermCouponsRead      Permission = "coupons:read"
-	PermCouponsWrite     Permission = "coupons:write"
-	PermShippingRead     Permission = "shipping:read"
-	PermShippingWrite    Permission = "shipping:write"
-	PermCurrencyWrite    Permission = "currency:write"
-	PermReviewsRead      Permission = "reviews:read"
-	PermReviewsWrite     Permission = "reviews:write"
-	PermAnalyticsRead    Permission = "analytics:read"
-	PermAuditRead        Permission = "audit:read"
-	PermSettingsRead     Permission = "settings:read"
-	PermSettingsWrite    Permission = "settings:write"
-	PermCustomersRead    Permission = "customers:read"
-	PermCustomersWrite   Permission = "customers:write"
+	PermProductsRead       Permission = "products:read"
+	PermProductsWrite      Permission = "products:write"
+	PermCategoriesWrite    Permission = "categories:write"
+	PermOrdersRead         Permission = "orders:read"
+	PermOrdersWrite        Permission = "orders:write"
+	PermRefundsWrite       Permission = "refunds:write"
+	PermReturnsRead        Permission = "returns:read"
+	PermReturnsWrite       Permission = "returns:write"
+	PermTicketsRead        Permission = "tickets:read"
+	PermTicketsWrite       Permission = "tickets:write"
+	PermLoyaltyRead        Permission = "loyalty:read"
+	PermLoyaltyWrite       Permission = "loyalty:write"
+	PermWithdrawalsRead    Permission = "withdrawals:read"
+	PermWithdrawalsWrite   Permission = "withdrawals:write"
+	PermNotificationsWrite Permission = "notifications:write"
+	PermCouponsRead        Permission = "coupons:read"
+	PermCouponsWrite       Permission = "coupons:write"
+	PermShippingRead       Permission = "shipping:read"
+	PermShippingWrite      Permission = "shipping:write"
+	PermCurrencyWrite      Permission = "currency:write"
+	PermReviewsRead        Permission = "reviews:read"
+	PermReviewsWrite       Permission = "reviews:write"
+	PermAnalyticsRead      Permission = "analytics:read"
+	PermAuditRead          Permission = "audit:read"
+	PermSettingsRead       Permission = "settings:read"
+	PermSettingsWrite      Permission = "settings:write"
+	PermCustomersRead      Permission = "customers:read"
+	PermCustomersWrite     Permission = "customers:write"
 )
 
 // allPermissions is the full catalogue, granted to the admin superuser role.
@@ -43,6 +44,7 @@ var allPermissions = []Permission{
 	PermTicketsRead, PermTicketsWrite,
 	PermLoyaltyRead, PermLoyaltyWrite,
 	PermWithdrawalsRead, PermWithdrawalsWrite,
+	PermNotificationsWrite,
 	PermCouponsRead, PermCouponsWrite,
 	PermShippingRead, PermShippingWrite, PermCurrencyWrite,
 	PermReviewsRead, PermReviewsWrite,
@@ -61,6 +63,7 @@ var rolePermissions = map[UserRole]map[Permission]bool{
 		PermTicketsRead, PermTicketsWrite,
 		PermLoyaltyRead, PermLoyaltyWrite,
 		PermWithdrawalsRead, PermWithdrawalsWrite,
+		PermNotificationsWrite,
 		PermReviewsRead, PermReviewsWrite,
 		PermCustomersRead, PermCustomersWrite,
 		PermAnalyticsRead,

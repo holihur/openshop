@@ -156,6 +156,12 @@ func New(
 			authed.POST("/wallet/withdrawals", fh.RequestWithdrawal)
 			authed.POST("/wallet/withdrawals/:id/cancel", fh.CancelWithdrawal)
 
+			// In-app notifications.
+			authed.GET("/notifications", fh.ListNotifications)
+			authed.GET("/notifications/unread-count", fh.NotificationUnreadCount)
+			authed.POST("/notifications/:id/read", fh.MarkNotificationRead)
+			authed.POST("/notifications/read-all", fh.MarkAllNotificationsRead)
+
 			authed.POST("/payments", middleware.Idempotency(cache, 24*time.Hour), fh.CreatePayment)
 			authed.POST("/payments/simulate", fh.SimulatePayment)
 

@@ -41,6 +41,7 @@ type TicketService struct {
 	clock    port.Clock
 	outbox   port.Outbox
 	settings *SettingsService
+	notifier Notifier
 }
 
 func NewTicketService(
@@ -54,6 +55,9 @@ func NewTicketService(
 ) *TicketService {
 	return &TicketService{tickets: tickets, users: users, orders: orders, ids: ids, clock: clock, outbox: outbox, settings: settings}
 }
+
+// SetNotifier wires in-app notifications (optional).
+func (s *TicketService) SetNotifier(n Notifier) { s.notifier = n }
 
 // Create opens a ticket and stores the first message.
 func (s *TicketService) Create(ctx context.Context, in CreateTicketInput) (*domain.Ticket, error) {
@@ -189,6 +193,15 @@ func (s *TicketService) Reply(ctx context.Context, id, authorID, role, body stri
 	}
 	if !internal {
 		s.notify(ctx, ticket, msg)
+	}
+	if staff && !internal && s.notifier != nil && ticket.UserID != "" {
+		_ = s.notifier.Notify(ctx, NotifyInput{
+			UserID: ticket.UserID, Type: domain.NotificationTicket,
+			Title: "Support replied to your ticket",
+			Body:  ticket.Subject,
+			Link:  "/support/" + ticket.ID,
+			Data:  map[string]any{"code": "ticket.reply", "reference": ticket.Reference(), "subject": ticket.Subject},
+		})
 	}
 	return msg, nil
 }

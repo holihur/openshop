@@ -31,6 +31,7 @@ type WithdrawalService struct {
 	tx          port.TxManager
 	settings    *SettingsService
 	currency    string
+	notifier    Notifier
 }
 
 func NewWithdrawalService(
@@ -47,6 +48,9 @@ func NewWithdrawalService(
 		settings: settings, currency: currency,
 	}
 }
+
+// SetNotifier wires in-app notifications (optional).
+func (s *WithdrawalService) SetNotifier(n Notifier) { s.notifier = n }
 
 // Enabled reports whether withdrawals are switched on.
 func (s *WithdrawalService) Enabled(ctx context.Context) bool {
@@ -122,6 +126,7 @@ func (s *WithdrawalService) Approve(ctx context.Context, id, reviewerID string) 
 	if err := s.withdrawals.Update(ctx, w); err != nil {
 		return nil, err
 	}
+	s.notify(ctx, w, "Withdrawal approved")
 	return w, nil
 }
 
@@ -150,6 +155,7 @@ func (s *WithdrawalService) Reject(ctx context.Context, id, reviewerID, reason s
 	if err != nil {
 		return nil, err
 	}
+	s.notify(ctx, w, "Withdrawal rejected")
 	return w, nil
 }
 
@@ -199,5 +205,22 @@ func (s *WithdrawalService) MarkPaid(ctx context.Context, id, reference string) 
 	if err := s.withdrawals.Update(ctx, w); err != nil {
 		return nil, err
 	}
+	s.notify(ctx, w, "Withdrawal paid")
 	return w, nil
+}
+
+// notify raises an in-app notification for the request owner.
+func (s *WithdrawalService) notify(ctx context.Context, w *domain.Withdrawal, title string) {
+	if s.notifier == nil {
+		return
+	}
+	_ = s.notifier.Notify(ctx, NotifyInput{
+		UserID: w.UserID, Type: domain.NotificationWithdrawal, Title: title,
+		Body: w.RejectReason, Link: "/account/wallet",
+		Data: map[string]any{
+			"code":   "withdrawal." + string(w.Status),
+			"status": string(w.Status), "amountCents": w.AmountCents, "currency": w.Currency,
+			"reason": w.RejectReason, "reference": w.PaidReference,
+		},
+	})
 }

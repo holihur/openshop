@@ -103,7 +103,7 @@ func (d *DB) AutoMigrate() error {
 		&orderModel{}, &orderItemModel{}, &paymentModel{}, &outboxModel{},
 		&couponModel{}, &couponRedemptionModel{}, &reviewModel{}, &variantModel{}, &addressModel{}, &shippingMethodModel{}, &auditModel{}, &wishlistModel{}, &shippingZoneModel{}, &shippingRateModel{}, &refundModel{}, &returnModel{}, &settingModel{}, &productFAQModel{}, &ticketModel{}, &ticketMessageModel{},
 		&walletModel{}, &walletTxModel{}, &pointsAccountModel{}, &pointsTxModel{},
-		&referralCodeModel{}, &referralModel{}, &commissionModel{}, &withdrawalModel{},
+		&referralCodeModel{}, &referralModel{}, &commissionModel{}, &withdrawalModel{}, &notificationModel{},
 	); err != nil {
 		return err
 	}

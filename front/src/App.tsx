@@ -23,6 +23,7 @@ import { WishlistPage } from "@/pages/Wishlist";
 import { AccountSettingsPage } from "@/pages/AccountSettings";
 import { WalletPage } from "@/pages/Wallet";
 import { RewardsPage } from "@/pages/Rewards";
+import { NotificationsPage } from "@/pages/Notifications";
 import { NotFoundPage } from "@/pages/NotFound";
 
 export default function App() {
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="account/settings" element={<AccountSettingsPage />} />
           <Route path="account/wallet" element={<WalletPage />} />
           <Route path="account/rewards" element={<RewardsPage />} />
+          <Route path="account/notifications" element={<NotificationsPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />
