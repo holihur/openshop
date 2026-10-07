@@ -61,10 +61,13 @@ func New(
 		r.GET("/metrics", gin.WrapH(fh.Metrics))
 	}
 
-	// Serve locally stored uploads in development. With the S3 driver the
-	// public URL points at the bucket instead.
+	// Serve locally stored uploads. With the S3 driver the public URL points at
+	// the bucket instead. The local handler resizes raster images on demand
+	// (?w=NNN) for responsive srcset.
 	if cfg.Storage.Driver == "" || cfg.Storage.Driver == "local" {
-		r.Static("/uploads", cfg.Storage.LocalDir)
+		uploads := gin.WrapH(mediaHandler(cfg.Storage.LocalDir))
+		r.GET("/uploads/*filepath", uploads)
+		r.HEAD("/uploads/*filepath", uploads)
 	}
 
 	r.GET("/healthz", fh.Healthz)

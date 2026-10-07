@@ -1,0 +1,120 @@
+package front
+
+import (
+	"bytes"
+	"image"
+	_ "image/gif"
+	"image/jpeg"
+	_ "image/png"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"golang.org/x/image/draw"
+	_ "golang.org/x/image/webp"
+)
+
+// mediaHandler serves locally stored uploads. When a raster image is requested
+// with ?w=NNN it resizes on the fly and caches the result on disk, so the
+// storefront can use responsive srcset without an external image service. SVGs
+// (vector) and unsupported formats are served unchanged.
+func mediaHandler(dir string) http.Handler {
+	root := filepath.Clean(dir)
+	fileServer := http.FileServer(http.Dir(root))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rel := strings.TrimPrefix(r.URL.Path, "/uploads/")
+		clean := filepath.Clean("/" + rel)
+		full := filepath.Join(root, clean)
+		if full != root && !strings.HasPrefix(full, root+string(os.PathSeparator)) {
+			http.NotFound(w, r)
+			return
+		}
+
+		width := parseWidth(r.URL.Query().Get("w"))
+		serveOriginal := func() {
+			req := r.Clone(r.Context())
+			req.URL.Path = "/" + strings.TrimPrefix(clean, "/")
+			fileServer.ServeHTTP(w, req)
+		}
+		if width == 0 || !isRaster(full) {
+			serveOriginal()
+			return
+		}
+		data, ok := resizeCached(root, clean, full, width)
+		if !ok {
+			// Decode failed or the image is already small enough: serve original.
+			serveOriginal()
+			return
+		}
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		http.ServeContent(w, r, filepath.Base(full), modTime(full), bytes.NewReader(data))
+	})
+}
+
+func parseWidth(raw string) int {
+	if raw == "" {
+		return 0
+	}
+	w, err := strconv.Atoi(raw)
+	if err != nil || w < 16 || w > 4000 {
+		return 0
+	}
+	return w
+}
+
+func isRaster(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".jpg", ".jpeg", ".png", ".gif", ".webp":
+		return true
+	default:
+		return false
+	}
+}
+
+// resizeCached returns the JPEG-encoded image scaled to width. It reads from and
+// writes to <root>/.cache so repeated requests are cheap.
+func resizeCached(root, clean, full string, width int) ([]byte, bool) {
+	cachePath := filepath.Join(root, ".cache", strings.TrimPrefix(clean, "/")+"_"+strconv.Itoa(width)+".jpg")
+	if data, err := os.ReadFile(cachePath); err == nil {
+		return data, true
+	}
+
+	f, err := os.Open(full)
+	if err != nil {
+		return nil, false
+	}
+	defer f.Close()
+
+	src, _, err := image.Decode(f)
+	if err != nil {
+		return nil, false
+	}
+	b := src.Bounds()
+	if b.Dx() <= width {
+		return nil, false // never upscale
+	}
+	height := b.Dy() * width / b.Dx()
+	dst := image.NewRGBA(image.Rect(0, 0, width, height))
+	draw.CatmullRom.Scale(dst, dst.Bounds(), src, b, draw.Over, nil)
+
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 82}); err != nil {
+		return nil, false
+	}
+	if err := os.MkdirAll(filepath.Dir(cachePath), 0o755); err == nil {
+		_ = os.WriteFile(cachePath, buf.Bytes(), 0o644)
+	}
+	return buf.Bytes(), true
+}
+
+func modTime(path string) time.Time {
+	if info, err := os.Stat(path); err == nil {
+		return info.ModTime()
+	}
+	return time.Time{}
+}

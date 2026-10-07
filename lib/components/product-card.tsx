@@ -9,6 +9,7 @@ import { useAddToCart } from "@lib/hooks/useCart";
 import { usePrice } from "@lib/hooks/usePrice";
 import { useAuth } from "@lib/auth";
 import { useI18n } from "@lib/i18n";
+import { responsiveSrcSet } from "@lib/media";
 import type { Product } from "@lib/types";
 
 export function ProductCard({ product }: { product: Product }) {
@@ -25,8 +26,11 @@ export function ProductCard({ product }: { product: Product }) {
           {product.coverImage ? (
             <img
               src={product.coverImage}
+              srcSet={responsiveSrcSet(product.coverImage)}
+              sizes="(max-width: 640px) 100vw, 33vw"
               alt={product.title}
               loading="lazy"
+              decoding="async"
               className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
           ) : (

@@ -15,6 +15,7 @@ import { useAuth } from "@lib/auth";
 import { useI18n } from "@lib/i18n";
 import { useSeo } from "@lib/hooks/useSeo";
 import { usePrice } from "@lib/hooks/usePrice";
+import { responsiveSrcSet } from "@lib/media";
 import { cn } from "@lib/utils";
 import type { Product, Variant } from "@lib/types";
 
@@ -116,7 +117,14 @@ export function ProductDetailPage() {
         <div className="space-y-3">
           <div className="bg-muted aspect-square overflow-hidden rounded-xl border">
             {shown ? (
-              <img src={shown} alt={product.title} className="size-full object-cover" />
+              <img
+                src={shown}
+                srcSet={responsiveSrcSet(shown)}
+                sizes="(max-width: 768px) 100vw, 50vw"
+                alt={product.title}
+                decoding="async"
+                className="size-full object-cover"
+              />
             ) : (
               <div className="text-muted-foreground flex size-full items-center justify-center">
                 <ImageOff className="size-10" />
