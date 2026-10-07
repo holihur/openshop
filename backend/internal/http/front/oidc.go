@@ -24,21 +24,35 @@ func randomState() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-// OIDCStart begins the authorization-code flow: it stores a CSRF state token
-// and redirects the browser to the identity provider.
+// oidcProvider resolves the provider for a request: the explicit ?provider=
+// wins, otherwise the default (first configured) provider is used.
+func (h *Handler) oidcProvider(c *gin.Context) string {
+	ctx := c.Request.Context()
+	if id := strings.TrimSpace(c.Query("provider")); id != "" {
+		return id
+	}
+	if h.OIDC == nil {
+		return ""
+	}
+	return h.OIDC.DefaultProviderID(ctx)
+}
+
+// OIDCStart begins the authorization-code flow for one provider: it stores a
+// CSRF state token (mapped to the provider id) and redirects the browser.
 func (h *Handler) OIDCStart(c *gin.Context) {
 	ctx := c.Request.Context()
 	if h.OIDC == nil || !h.OIDC.Enabled(ctx) {
 		response.Fail(c, domain.ErrNotFound)
 		return
 	}
+	providerID := h.oidcProvider(c)
 	state, err := randomState()
 	if err != nil {
 		response.Fail(c, err)
 		return
 	}
-	_ = h.Cache.Set(ctx, oidcStatePrefix+state, "1", 10*time.Minute)
-	redirect, err := h.OIDC.AuthCodeURL(ctx, state)
+	_ = h.Cache.Set(ctx, oidcStatePrefix+state, providerID, 10*time.Minute)
+	redirect, err := h.OIDC.AuthCodeURL(ctx, providerID, state)
 	if err != nil {
 		response.Fail(c, err)
 		return
@@ -60,13 +74,16 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 		response.Fail(c, domain.ErrUnauthorized)
 		return
 	}
-	if _, err := h.Cache.Get(ctx, oidcStatePrefix+state); err != nil {
+	// The provider id stored with the state is authoritative, so a tampered
+	// ?provider= cannot redirect the code exchange to another provider.
+	providerID, err := h.Cache.Get(ctx, oidcStatePrefix+state)
+	if err != nil {
 		response.Fail(c, domain.ErrUnauthorized)
 		return
 	}
 	_ = h.Cache.Delete(ctx, oidcStatePrefix+state)
 
-	identity, err := h.OIDC.Exchange(ctx, c.Query("code"))
+	identity, err := h.OIDC.Exchange(ctx, providerID, c.Query("code"))
 	if err != nil {
 		response.Fail(c, err)
 		return

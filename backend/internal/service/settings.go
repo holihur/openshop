@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -172,6 +173,14 @@ func validateSetting(def domain.SettingDef, raw string) (string, error) {
 			return "", fmt.Errorf("%w: %s must be a hex color like #6366f1", domain.ErrInvalidArgument, def.Key)
 		}
 		return strings.ToLower(v), nil
+	case domain.SettingJSON:
+		if v == "" {
+			return "", nil
+		}
+		if !json.Valid([]byte(v)) {
+			return "", fmt.Errorf("%w: %s must be valid JSON", domain.ErrInvalidArgument, def.Key)
+		}
+		return v, nil
 	default:
 		return v, nil
 	}

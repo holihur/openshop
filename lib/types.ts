@@ -13,7 +13,7 @@ export interface User {
 export interface Setting {
   key: string;
   group: string;
-  type: "string" | "int" | "bool" | "color";
+  type: "string" | "int" | "bool" | "color" | "json";
   value: string;
   default: string;
   description: string;
@@ -30,6 +30,7 @@ export interface Site {
   themeColor: string;
   allowRegistration: boolean;
   oidcEnabled: boolean;
+  oidcProviders: { id: string; name: string }[];
   withdrawalEnabled: boolean;
   withdrawalMinCents: number;
   withdrawalInstructions: string;

@@ -83,9 +83,18 @@ export function LoginPage() {
                 <span className="bg-card relative z-10 px-2">{t("auth.or")}</span>
                 <span className="bg-border absolute inset-x-0 top-1/2 h-px" />
               </div>
-              <Button type="button" variant="outline" className="w-full" asChild>
-                <a href="/api/v1/auth/oidc/start">{t("auth.signInWithSSO")}</a>
-              </Button>
+              <div className="space-y-2">
+                {(site.oidcProviders?.length
+                  ? site.oidcProviders
+                  : [{ id: "", name: t("auth.signInWithSSO") }]
+                ).map((p) => (
+                  <Button key={p.id || "default"} type="button" variant="outline" className="w-full" asChild>
+                    <a href={`/api/v1/auth/oidc/start${p.id ? `?provider=${encodeURIComponent(p.id)}` : ""}`}>
+                      {t("auth.signInWith", { provider: p.name })}
+                    </a>
+                  </Button>
+                ))}
+              </div>
             </>
           )}
 

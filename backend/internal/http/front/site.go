@@ -1,6 +1,8 @@
 package front
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/holihur/openshop/internal/http/response"
@@ -27,6 +29,26 @@ type siteView struct {
 	WithdrawalEnabled      bool   `json:"withdrawalEnabled"`
 	WithdrawalMinCents     int64  `json:"withdrawalMinCents"`
 	WithdrawalInstructions string `json:"withdrawalInstructions"`
+	// OIDCProviders lists the single sign-on buttons to render.
+	OIDCProviders []oidcProviderView `json:"oidcProviders"`
+}
+
+type oidcProviderView struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// oidcProviderViews adapts the service's provider list to the API shape.
+func (h *Handler) oidcProviderViews(ctx context.Context) []oidcProviderView {
+	if h.OIDC == nil {
+		return nil
+	}
+	providers := h.OIDC.Providers(ctx)
+	out := make([]oidcProviderView, 0, len(providers))
+	for _, p := range providers {
+		out = append(out, oidcProviderView{ID: p.ID, Name: p.Name})
+	}
+	return out
 }
 
 type siteFeatureView struct {
@@ -65,6 +87,7 @@ func (h *Handler) GetSite(c *gin.Context) {
 		ThemeColor:             h.Settings.String(ctx, "store.theme_color"),
 		AllowRegistration:      h.Settings.Bool(ctx, "auth.allow_registration"),
 		OIDCEnabled:            h.OIDC != nil && h.OIDC.Enabled(ctx),
+		OIDCProviders:          h.oidcProviderViews(ctx),
 		WithdrawalEnabled:      h.Settings.Bool(ctx, "wallet.withdrawal_enabled"),
 		WithdrawalMinCents:     int64(h.Settings.Int(ctx, "wallet.min_withdrawal_cents")),
 		WithdrawalInstructions: h.Settings.String(ctx, "wallet.withdrawal_instructions"),

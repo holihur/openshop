@@ -226,7 +226,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	})
 	// The mail transport is resolved from settings on every send.
 	mailer := mail.NewDynamic(settingsSvc, cfg.Mail.Pass, log)
-	oidcSvc := service.NewOIDCService(settingsSvc, cfg.OIDC.ClientSecret,
+	oidcSvc := service.NewOIDCService(settingsSvc, cfg.OIDC.ClientSecret, cfg.OIDC.ClientSecrets,
 		func(ctx context.Context, issuer, clientID, clientSecret, redirectURL string, scopes []string) (port.IdentityProvider, error) {
 			return oidc.New(ctx, issuer, clientID, clientSecret, redirectURL, scopes)
 		})

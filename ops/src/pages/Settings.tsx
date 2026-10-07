@@ -142,6 +142,14 @@ export function SettingsPage() {
                             className="max-w-40"
                           />
                         </div>
+                      ) : s.type === "json" ? (
+                        <textarea
+                          id={s.key}
+                          value={draft[s.key] ?? ""}
+                          onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}
+                          spellCheck={false}
+                          className="border-input bg-background min-h-32 w-full rounded-md border p-2 font-mono text-xs"
+                        />
                       ) : (
                         <Input
                           id={s.key}

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -107,7 +108,10 @@ type PaymentConfig struct {
 // OIDCConfig holds the secret half of the OIDC configuration; the rest lives in
 // the settings table so operators can change it without a restart.
 type OIDCConfig struct {
+	// ClientSecret is the single-provider secret (legacy form).
 	ClientSecret string
+	// ClientSecrets maps a provider id to its secret.
+	ClientSecrets map[string]string
 }
 
 type StorageConfig struct {
@@ -222,6 +226,10 @@ func Load() (*Config, error) {
 			StripeSecretKey:     env("STRIPE_SECRET_KEY", ""),
 			StripeWebhookSecret: env("STRIPE_WEBHOOK_SECRET", ""),
 		},
+		OIDC: OIDCConfig{
+			ClientSecret:  env("OIDC_CLIENT_SECRET", ""),
+			ClientSecrets: envJSONMap("OIDC_CLIENT_SECRETS"),
+		},
 		Storage: StorageConfig{
 			Driver:    env("STORAGE_DRIVER", "local"),
 			LocalDir:  env("STORAGE_LOCAL_DIR", "./data/uploads"),
@@ -287,6 +295,18 @@ func envInt(key string, def int) int {
 		}
 	}
 	return def
+}
+
+func envJSONMap(key string) map[string]string {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return nil
+	}
+	out := map[string]string{}
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return nil
+	}
+	return out
 }
 
 func envBool(key string, def bool) bool {

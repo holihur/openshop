@@ -8,6 +8,8 @@ const (
 	SettingInt    SettingType = "int"
 	SettingBool   SettingType = "bool"
 	SettingColor  SettingType = "color"
+	// SettingJSON is a JSON document edited as text; it must parse.
+	SettingJSON SettingType = "json"
 )
 
 // SettingDef describes one configurable runtime setting. Defaults are the
@@ -74,7 +76,9 @@ var SettingDefs = []SettingDef{
 	{Key: "auth.allow_registration", Group: "auth", Type: SettingBool,
 		Default: "true", Description: "Allow public sign-up (disable to close the store)"},
 	{Key: "oidc.enabled", Group: "auth", Type: SettingBool,
-		Default: "false", Description: "Offer single sign-on via an OpenID Connect provider"},
+		Default: "false", Description: "Offer single sign-on via OpenID Connect providers"},
+	{Key: "oidc.providers", Group: "auth", Type: SettingJSON,
+		Default: "[]", Description: "JSON array of providers: id, name, issuer, clientId, redirectUrl, scopes, enabled"},
 	{Key: "oidc.issuer", Group: "auth", Type: SettingString,
 		Default: "", Description: "OIDC issuer URL (used for discovery)"},
 	{Key: "oidc.client_id", Group: "auth", Type: SettingString,
