@@ -14,7 +14,7 @@ test("the ops console requires sign-in and then shows the dashboard", async ({ p
   await page.goto(`${opsBase}/`);
   await expect(page).toHaveURL(/\/login$/);
   await signIn(page);
-  await expect(page.getByText(/Low stock/)).toBeVisible();
+  await expect(page.getByText("Revenue")).toBeVisible();
 });
 
 test("the ops sidebar navigates between sections", async ({ page }) => {

@@ -8,11 +8,12 @@ ARG NODE_VERSION=24
 # --- frontend (front + ops) -----------------------------------------------
 FROM node:${NODE_VERSION}-alpine AS web
 WORKDIR /src
-RUN corepack enable
+RUN npm install -g pnpm@11.25.0
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY lib/package.json lib/
 COPY front/package.json front/
 COPY ops/package.json ops/
+COPY e2e/package.json e2e/
 RUN pnpm install --frozen-lockfile
 COPY lib ./lib
 COPY front ./front
@@ -26,8 +27,8 @@ COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend ./
 # Drop in the freshly built SPAs so //go:embed picks them up.
-COPY --from=web /src/front/dist ./internal/http/web/front/dist
-COPY --from=web /src/ops/dist ./internal/http/web/ops/dist
+COPY --from=web /src/front/dist ./internal/http/front/assets/dist
+COPY --from=web /src/ops/dist ./internal/http/ops/assets/dist
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/ops ./cmd/ops && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate && \

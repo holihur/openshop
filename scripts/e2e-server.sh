@@ -8,7 +8,7 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODE="${1:-server}"
 
-if [ ! -f "$ROOT/backend/internal/http/web/front/dist/index.html" ]; then
+if [ ! -f "$ROOT/backend/internal/http/front/assets/dist/index.html" ]; then
   "$ROOT/scripts/embed-frontend.sh"
 fi
 
