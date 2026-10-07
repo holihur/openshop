@@ -1,0 +1,2 @@
+ALTER TABLE audit_logs ALTER COLUMN prev_hash TYPE CHAR(64);
+ALTER TABLE audit_logs ALTER COLUMN hash TYPE CHAR(64);

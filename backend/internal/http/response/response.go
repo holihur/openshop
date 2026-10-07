@@ -110,6 +110,10 @@ func classify(err error) (int, string, string) {
 		return http.StatusPaymentRequired, "insufficient_funds", "insufficient wallet balance"
 	case errors.Is(err, domain.ErrLoyaltyDisabled):
 		return http.StatusBadRequest, "loyalty_disabled", "wallet and points are disabled"
+	case errors.Is(err, domain.ErrAccountLocked):
+		return http.StatusLocked, "account_locked", "too many failed attempts, try again later"
+	case errors.Is(err, domain.ErrOIDCUnavailable):
+		return http.StatusBadGateway, "oidc_unavailable", "the identity provider could not be reached"
 	default:
 		return http.StatusInternalServerError, "internal_error", "something went wrong"
 	}
@@ -153,6 +157,10 @@ func statusFor(code string) int {
 		return http.StatusPaymentRequired
 	case "loyalty_disabled":
 		return http.StatusBadRequest
+	case "account_locked":
+		return http.StatusLocked
+	case "oidc_unavailable":
+		return http.StatusBadGateway
 	default:
 		return http.StatusInternalServerError
 	}

@@ -45,9 +45,11 @@ func New(
 	r.RedirectTrailingSlash = false
 	// ClientIP (used by the per-IP rate limiter and audit) honours
 	// X-Forwarded-For only from configured proxies.
-	if len(cfg.HTTP.TrustedProxies) > 0 {
-		_ = r.SetTrustedProxies(cfg.HTTP.TrustedProxies)
-	}
+	// Trust no proxy by default: ClientIP then uses the socket address, so
+	// X-Forwarded-For cannot be spoofed to bypass rate limits or forge audit
+	// entries. Set HTTP_TRUSTED_PROXIES to the ingress addresses when deployed
+	// behind one.
+	_ = r.SetTrustedProxies(cfg.HTTP.TrustedProxies)
 	r.Use(
 		middleware.RequestID(),
 		middleware.Tracing(tracer),
@@ -55,6 +57,8 @@ func New(
 		middleware.Logger(fh.Logger),
 		middleware.Metrics(metrics),
 		middleware.Locale(),
+		middleware.SecurityHeaders(cfg.App.IsProduction()),
+		middleware.MaxBody(2<<20),
 		middleware.CORS(cfg.HTTP.CORSOrigins),
 		middleware.RateLimit(limiter, handler.SettingLimit(settings, "security.rate_limit_rps")),
 	)

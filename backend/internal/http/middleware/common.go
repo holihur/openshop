@@ -59,6 +59,42 @@ func Recovery(log port.Logger) gin.HandlerFunc {
 	}
 }
 
+// SecurityHeaders sets defence-in-depth response headers. The SPA is served
+// from the same origin as the API, so a strict content policy is possible: it
+// blocks inline and third-party scripts, which is the main route by which a
+// session token stored by the client could be exfiltrated.
+func SecurityHeaders(production bool) gin.HandlerFunc {
+	const policy = "default-src 'self'; base-uri 'self'; object-src 'none'; " +
+		"frame-ancestors 'none'; form-action 'self'; " +
+		"img-src 'self' data: blob: https:; font-src 'self' data:; " +
+		"style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https:"
+	return func(c *gin.Context) {
+		h := c.Writer.Header()
+		h.Set("Content-Security-Policy", policy)
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		h.Set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()")
+		h.Set("Cross-Origin-Opener-Policy", "same-origin")
+		if production {
+			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		c.Next()
+	}
+}
+
+// MaxBody caps a request body so a single request cannot exhaust memory. The
+// handlers that legitimately receive large payloads (uploads, webhooks) keep
+// their own, tighter limits.
+func MaxBody(limit int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Body != nil && limit > 0 {
+			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
+		}
+		c.Next()
+	}
+}
+
 // CORS allows the configured SPA origins. It is written by hand to avoid
 // binding the API to a third-party middleware and to support credentials.
 func CORS(origins []string) gin.HandlerFunc {

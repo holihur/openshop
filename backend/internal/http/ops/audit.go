@@ -45,3 +45,14 @@ func (h *Handler) ListAuditLogs(c *gin.Context) {
 	}
 	response.Paginated(c, out, logs.Total, logs.Page, logs.PageSize)
 }
+
+// VerifyAuditChain recomputes the audit hash chain and reports the first entry
+// that does not match, so tampering or deletion is detectable.
+func (h *Handler) VerifyAuditChain(c *gin.Context) {
+	checked, brokenID, err := h.Audit.VerifyChain(c.Request.Context())
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{"checked": checked, "intact": brokenID == "", "brokenId": brokenID})
+}

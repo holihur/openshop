@@ -165,17 +165,44 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (*AuthResult, er
 	if !user.CanLogin() {
 		return nil, fmt.Errorf("%w: account is not active", domain.ErrForbidden)
 	}
+	// Per-account throttling: a distributed attack cannot be stopped by the
+	// per-IP limiter alone.
+	if user.Locked(s.clock.Now()) {
+		return nil, domain.ErrAccountLocked
+	}
 	if !s.roleAllowed(user.Role) {
 		// Wrong surface for this account (e.g. an admin on the storefront).
 		return nil, domain.ErrUnauthorized
 	}
 	if !s.hasher.Compare(user.PasswordHash, in.Password) {
+		s.recordLoginFailure(ctx, user)
 		return nil, domain.ErrUnauthorized
 	}
 	if s.settings != nil && s.settings.Bool(ctx, "auth.require_email_verification") && !user.EmailVerified {
 		return nil, domain.ErrEmailNotVerified
 	}
+	if user.FailedAttempts > 0 {
+		_ = s.users.ClearLoginFailures(ctx, user.ID)
+	}
 	return s.issue(ctx, user, "")
+}
+
+// recordLoginFailure counts a wrong password and locks the account once the
+// configured threshold is reached. Failures are best-effort: a storage error
+// must not turn a failed sign-in into a 500.
+func (s *AuthService) recordLoginFailure(ctx context.Context, user *domain.User) {
+	maxAttempts := 10
+	lockMinutes := 15
+	if s.settings != nil {
+		if v := s.settings.Int(ctx, "security.max_failed_attempts"); v > 0 {
+			maxAttempts = v
+		}
+		if v := s.settings.Int(ctx, "security.lockout_minutes"); v > 0 {
+			lockMinutes = v
+		}
+	}
+	lockUntil := s.clock.Now().Add(time.Duration(lockMinutes) * time.Minute)
+	_, _ = s.users.RecordLoginFailure(ctx, user.ID, maxAttempts, lockUntil)
 }
 
 // OIDC signs in (or provisions) a customer from a verified external identity.

@@ -24,6 +24,11 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	FindByPhone(ctx context.Context, phone string) (*domain.User, error)
 	List(ctx context.Context, f domain.UserFilter) (domain.Page[domain.User], error)
+	// RecordLoginFailure increments the consecutive-failure counter and locks
+	// the account once lockAfter is reached. It returns the new counter.
+	RecordLoginFailure(ctx context.Context, userID string, lockAfter int, lockUntil time.Time) (int, error)
+	// ClearLoginFailures resets the counter after a successful sign-in.
+	ClearLoginFailures(ctx context.Context, userID string) error
 }
 
 // CategoryRepository persists categories.
@@ -283,6 +288,8 @@ type ShippingZoneRepository interface {
 type AuditRepository interface {
 	Create(ctx context.Context, entry *domain.AuditLog) error
 	List(ctx context.Context, f domain.AuditFilter) (domain.Page[domain.AuditLog], error)
+	// VerifyChain recomputes the hash chain over the retained entries.
+	VerifyChain(ctx context.Context) (checked int64, brokenID string, err error)
 }
 
 // WishlistRepository persists a user's saved products.

@@ -31,8 +31,16 @@ type User struct {
 	Status          UserStatus
 	EmailVerified   bool
 	EmailVerifiedAt *time.Time
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	// FailedAttempts and LockedUntil implement per-account throttling.
+	FailedAttempts int
+	LockedUntil    *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+// Locked reports whether the account is temporarily locked out.
+func (u *User) Locked(now time.Time) bool {
+	return u.LockedUntil != nil && u.LockedUntil.After(now)
 }
 
 func (u *User) IsAdmin() bool { return u.Role == RoleAdmin }

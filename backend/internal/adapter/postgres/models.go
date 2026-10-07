@@ -118,6 +118,8 @@ type userModel struct {
 	Status          string `gorm:"size:32;not null;default:active"`
 	EmailVerified   bool   `gorm:"not null;default:false"`
 	EmailVerifiedAt *time.Time
+	FailedAttempts  int `gorm:"not null;default:0"`
+	LockedUntil     *time.Time
 	CreatedAt       time.Time `gorm:"not null"`
 	UpdatedAt       time.Time `gorm:"not null"`
 }
@@ -401,6 +403,7 @@ func toUser(m *userModel) *domain.User {
 		ID: m.ID, Email: m.Email, Phone: m.Phone, PasswordHash: m.PasswordHash,
 		Name: m.Name, Role: domain.UserRole(m.Role), Status: domain.UserStatus(m.Status),
 		EmailVerified: m.EmailVerified, EmailVerifiedAt: m.EmailVerifiedAt,
+		FailedAttempts: m.FailedAttempts, LockedUntil: m.LockedUntil,
 		CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
 }
@@ -410,6 +413,7 @@ func fromUser(u *domain.User) *userModel {
 		ID: u.ID, Email: u.Email, Phone: u.Phone, PasswordHash: u.PasswordHash,
 		Name: u.Name, Role: string(u.Role), Status: string(u.Status),
 		EmailVerified: u.EmailVerified, EmailVerifiedAt: u.EmailVerifiedAt,
+		FailedAttempts: u.FailedAttempts, LockedUntil: u.LockedUntil,
 		CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt,
 	}
 }

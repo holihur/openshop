@@ -73,6 +73,32 @@ func (r *fakeUserRepo) List(_ context.Context, f domain.UserFilter) (domain.Page
 	return domain.Page[domain.User]{Items: out, Total: int64(len(out)), Page: 1, PageSize: len(out)}, nil
 }
 
+// RecordLoginFailure and ClearLoginFailures implement per-account throttling.
+func (r *fakeUserRepo) RecordLoginFailure(_ context.Context, userID string, lockAfter int, lockUntil time.Time) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	u, ok := r.byID[userID]
+	if !ok {
+		return 0, domain.ErrNotFound
+	}
+	u.FailedAttempts++
+	if u.FailedAttempts >= lockAfter {
+		locked := lockUntil
+		u.LockedUntil = &locked
+	}
+	return u.FailedAttempts, nil
+}
+
+func (r *fakeUserRepo) ClearLoginFailures(_ context.Context, userID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if u, ok := r.byID[userID]; ok {
+		u.FailedAttempts = 0
+		u.LockedUntil = nil
+	}
+	return nil
+}
+
 func (r *fakeUserRepo) FindByID(_ context.Context, id string) (*domain.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

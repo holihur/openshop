@@ -41,9 +41,10 @@ func New(
 	fh := &Handler{Handler: shared, Analytics: analytics}
 	r := gin.New()
 	r.RedirectTrailingSlash = false
-	if len(cfg.HTTP.TrustedProxies) > 0 {
-		_ = r.SetTrustedProxies(cfg.HTTP.TrustedProxies)
-	}
+	// Trust no proxy by default, so X-Forwarded-For cannot be spoofed to bypass
+	// rate limits or forge audit entries. Set HTTP_TRUSTED_PROXIES behind an
+	// ingress.
+	_ = r.SetTrustedProxies(cfg.HTTP.TrustedProxies)
 	// The console is same-origin (in dev the Vite server proxies to us), so no
 	// CORS middleware is needed and none is enabled.
 	r.Use(
@@ -53,6 +54,8 @@ func New(
 		middleware.Logger(fh.Logger),
 		middleware.Metrics(metrics),
 		middleware.Locale(),
+		middleware.SecurityHeaders(cfg.App.IsProduction()),
+		middleware.MaxBody(2<<20),
 		middleware.RateLimit(limiter, handler.SettingLimit(settings, "security.rate_limit_rps")),
 	)
 
@@ -153,6 +156,7 @@ func New(
 			admin.GET("/stats", middleware.RequirePermission(domain.PermAnalyticsRead), fh.Dashboard)
 			admin.GET("/inventory/low-stock", middleware.RequirePermission(domain.PermAnalyticsRead), fh.LowStock)
 			admin.GET("/audit-logs", middleware.RequirePermission(domain.PermAuditRead), fh.ListAuditLogs)
+			admin.GET("/audit-logs/verify", middleware.RequirePermission(domain.PermAuditRead), fh.VerifyAuditChain)
 
 			admin.GET("/settings", middleware.RequirePermission(domain.PermSettingsRead), fh.ListSettings)
 			admin.PUT("/settings", middleware.RequirePermission(domain.PermSettingsWrite), fh.UpdateSettings)

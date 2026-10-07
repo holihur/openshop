@@ -47,3 +47,9 @@ func (s *AuditService) List(ctx context.Context, f domain.AuditFilter) (domain.P
 	f.Page, f.PageSize = clampPage(f.Page, f.PageSize, 20)
 	return s.repo.List(ctx, f)
 }
+
+// VerifyChain recomputes the audit hash chain, so tampering with a stored entry
+// is detectable.
+func (s *AuditService) VerifyChain(ctx context.Context) (int64, string, error) {
+	return s.repo.VerifyChain(ctx)
+}

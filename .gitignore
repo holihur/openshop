@@ -38,3 +38,6 @@ node_modules/
 # Local dev tooling
 /bin/
 /.dev/
+
+# Local-only security notes (not tracked).
+SECURITY.md

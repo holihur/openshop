@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/port"
@@ -69,6 +70,26 @@ func (r *UserRepository) FindByPhone(ctx context.Context, phone string) (*domain
 		return nil, translate(err)
 	}
 	return toUser(&m), nil
+}
+
+func (r *UserRepository) RecordLoginFailure(ctx context.Context, userID string, lockAfter int, lockUntil time.Time) (int, error) {
+	var attempts int
+	row := r.db.session(ctx).Raw(
+		`UPDATE users
+		 SET failed_attempts = failed_attempts + 1,
+		     locked_until = CASE WHEN failed_attempts + 1 >= ? THEN ? ELSE locked_until END,
+		     updated_at = now()
+		 WHERE id = ?
+		 RETURNING failed_attempts`, lockAfter, lockUntil, userID).Row()
+	if err := row.Scan(&attempts); err != nil {
+		return 0, translate(err)
+	}
+	return attempts, nil
+}
+
+func (r *UserRepository) ClearLoginFailures(ctx context.Context, userID string) error {
+	return translate(r.db.session(ctx).Model(&userModel{}).Where("id = ?", userID).
+		Updates(map[string]any{"failed_attempts": 0, "locked_until": nil}).Error)
 }
 
 func (r *UserRepository) List(ctx context.Context, f domain.UserFilter) (domain.Page[domain.User], error) {
