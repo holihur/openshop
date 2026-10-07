@@ -30,8 +30,8 @@ type Handler struct {
 	Audit    *service.AuditService
 	Currency *service.CurrencyService
 	Returns  *service.ReturnService
+	Settings *service.SettingsService
 	Storage  port.ObjectStorage
-	SiteURL  string
 	IDs      port.IDGenerator
 	Logger   port.Logger
 	Metrics  http.Handler

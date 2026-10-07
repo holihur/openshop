@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -72,14 +73,15 @@ func allowedRoles(s Surface) []domain.UserRole {
 // or internal/http/ops) needs to build its engine. Injecting the builder keeps
 // each binary free of the other surface: the linker drops whatever is unused.
 type HTTPDeps struct {
-	Config  *config.Config
-	Handler *handler.Handler
-	Tokens  port.TokenIssuer
-	Auth    *service.AuthService
-	Cache   port.Cache
-	Limiter port.RateLimiter
-	Metrics port.Metrics
-	Tracer  port.Tracer
+	Config   *config.Config
+	Handler  *handler.Handler
+	Tokens   port.TokenIssuer
+	Auth     *service.AuthService
+	Cache    port.Cache
+	Limiter  port.RateLimiter
+	Metrics  port.Metrics
+	Tracer   port.Tracer
+	Settings *service.SettingsService
 
 	// Surface-specific services (nil for the other surface).
 	Cart      *service.CartService
@@ -188,12 +190,26 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	currencyRepo := postgres.NewCurrencyRepository(db)
 	outbox := postgres.NewOutboxRepository(db)
 
+	// Runtime settings: defaults come from the environment, overrides from the
+	// ops console. Everything here can change without a restart.
+	settingsRepo := postgres.NewSettingsRepository(db)
+	settingsSvc := service.NewSettingsService(settingsRepo, clock, map[string]string{
+		"store.public_url":                cfg.App.PublicSiteURL,
+		"checkout.tax_rate_bps":           strconv.Itoa(cfg.App.TaxRateBps),
+		"checkout.order_ttl_minutes":      strconv.Itoa(int(cfg.App.OrderTTL.Minutes())),
+		"inventory.low_stock_threshold":   strconv.Itoa(cfg.App.LowStockThreshold),
+		"auth.require_email_verification": strconv.FormatBool(cfg.App.RequireEmailVerification),
+		"auth.password_reset_url":         cfg.App.PasswordResetURL,
+		"auth.email_verify_url":           cfg.App.VerifyEmailURL,
+		"security.rate_limit_rps":         strconv.Itoa(cfg.HTTP.RateLimitRPS),
+		"security.rate_limit_user_rps":    strconv.Itoa(cfg.HTTP.RateLimitUserRPS),
+	})
+
 	// --- services ---
 	authSvc := service.NewAuthService(users, hasher, tokens, cache, ids, clock, mailer, service.AuthConfig{
-		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL, ResetBaseURL: cfg.App.PasswordResetURL,
-		VerifyBaseURL: cfg.App.VerifyEmailURL, RequireEmailVerification: cfg.App.RequireEmailVerification,
+		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL,
 		AllowedRoles: allowedRoles(surface),
-	})
+	}, settingsSvc)
 	catalogSvc := service.NewCatalogService(categories, products, variantRepo, cache, ids, clock, cfg.App.Currency)
 	couponSvc := service.NewCouponService(couponRepo, ids, clock)
 	reviewSvc := service.NewReviewService(reviewRepo, products, orders, cache, ids, clock)
@@ -211,7 +227,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		analyticsSvc *service.AnalyticsService
 	)
 	if surface == SurfaceOps {
-		analyticsSvc = service.NewAnalyticsService(analyticsRepo, cache, cfg.App.Currency, cfg.App.LowStockThreshold)
+		analyticsSvc = service.NewAnalyticsService(analyticsRepo, cache, cfg.App.Currency, settingsSvc)
 	} else {
 		cartSvc = service.NewCartService(cartRepo, products, variantRepo)
 		addressSvc = service.NewAddressService(addressRepo, ids, clock)
@@ -220,15 +236,14 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	}
 	returnSvc := service.NewReturnService(returnRepo, orders, ids, clock)
 	retentionRepo := postgres.NewRetentionRepository(db)
-	orderSvc := service.NewOrderService(orders, users, products, couponRepo, variantRepo, addressRepo, shippingRepo, zoneRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, invoice.NewPDFRenderer(), cfg.App.TaxRateBps, cfg.App.OrderTTL, cfg.App.Currency)
+	orderSvc := service.NewOrderService(orders, users, products, couponRepo, variantRepo, addressRepo, shippingRepo, zoneRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, invoice.NewPDFRenderer(), settingsSvc, cfg.App.Currency)
 	paymentSvc := service.NewPaymentService(paymentRepo, refundRepo, orders, payments, orderSvc, ids, clock, log, promMetrics)
 
 	// --- HTTP surface ---
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Orders: orderSvc, Payments: paymentSvc,
 		Coupons: couponSvc, Reviews: reviewSvc, Shipping: shippingSvc, Audit: auditSvc,
-		Currency: currencySvc, Returns: returnSvc, Storage: objectStore, IDs: ids, Logger: log,
-		SiteURL: cfg.App.PublicSiteURL,
+		Currency: currencySvc, Returns: returnSvc, Settings: settingsSvc, Storage: objectStore, IDs: ids, Logger: log,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
 			{Name: "postgres", Check: db.Ping},
@@ -245,7 +260,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	}
 	engine := opts.BuildHTTP(HTTPDeps{
 		Config: cfg, Handler: h, Tokens: tokens, Auth: authSvc,
-		Cache: cache, Limiter: limiter, Metrics: promMetrics, Tracer: tracer,
+		Cache: cache, Limiter: limiter, Metrics: promMetrics, Tracer: tracer, Settings: settingsSvc,
 		Cart: cartSvc, Addresses: addressSvc, Wishlist: wishlistSvc, Account: accountSvc, Analytics: analyticsSvc,
 	})
 

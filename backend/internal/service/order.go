@@ -44,8 +44,7 @@ type OrderService struct {
 	metrics      port.Metrics
 	tracer       port.Tracer
 	invoices     port.InvoiceRenderer
-	taxRateBps   int
-	ttl          time.Duration
+	settings     *SettingsService
 	currency     string
 }
 
@@ -70,8 +69,7 @@ func NewOrderService(
 	metrics port.Metrics,
 	tracer port.Tracer,
 	invoices port.InvoiceRenderer,
-	taxRateBps int,
-	ttl time.Duration,
+	settings *SettingsService,
 	currency string,
 ) *OrderService {
 	if metrics == nil {
@@ -84,7 +82,7 @@ func NewOrderService(
 		orders: orders, users: users, products: products, coupons: coupons, variants: variants, addresses: addresses,
 		shipping: shipping, zones: zones, rates: rates, carts: carts, locker: locker, tx: tx,
 		outbox: outbox, ids: ids, clock: clock, logger: logger, productCache: productCache,
-		metrics: metrics, tracer: tracer, invoices: invoices, taxRateBps: taxRateBps, ttl: ttl, currency: currency,
+		metrics: metrics, tracer: tracer, invoices: invoices, settings: settings, currency: currency,
 	}
 }
 
@@ -238,7 +236,7 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 		Status:          domain.OrderPendingPayment,
 		Currency:        target,
 		ShippingAddress: shipping,
-		ExpiresAt:       now.Add(s.ttl),
+		ExpiresAt:       now.Add(time.Duration(s.settings.Int(ctx, "checkout.order_ttl_minutes")) * time.Minute),
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}
@@ -328,7 +326,7 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 		if taxable < 0 {
 			taxable = 0
 		}
-		order.TaxCents = taxable * int64(s.taxRateBps) / 10000
+		order.TaxCents = taxable * int64(s.settings.Int(ctx, "checkout.tax_rate_bps")) / 10000
 		order.TotalCents = taxable + order.TaxCents
 
 		if err := s.orders.Create(txCtx, order); err != nil {

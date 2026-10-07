@@ -441,6 +441,8 @@ is not present on the public storefront binary. All routes require an admin JWT.
 | `GET` | `/ops/reviews` | List reviews for moderation |
 | `GET` | `/ops/inventory/low-stock` | Products/variants at or below the threshold |
 | `GET` | `/ops/audit-logs` | Audit trail (security and admin actions) |
+| `GET` | `/ops/settings` | List runtime settings with current/default values |
+| `PUT` | `/ops/settings` | Update runtime settings (applied without a restart) |
 | `PUT` | `/ops/currencies/:code` | Set an exchange rate |
 | `POST` | `/ops/orders/:id/refund` | Refund part or all of a paid order (`amountCents`, `restock`) |
 | `POST` | `/ops/orders/:id/ship` | Mark a paid order shipped (tracking number) |
@@ -733,6 +735,13 @@ through unchanged, so product grids and detail pages emit `srcset` out of the bo
 - **Discounts are integers too.** Percent coupons use integer math and caps so
   rounding never produces fractional money; the discount can never exceed the
   subtotal.
+- **Runtime configuration, not redeploys.** Tax rate, unpaid-order TTL,
+  low-stock threshold, email-verification requirement, reset/verify URLs, the
+  public site URL and the rate limits are stored in a `settings` table and
+  edited from the ops console; services read them per request (cached for a few
+  seconds) so a change takes effect without a restart or redeploy. Only what is
+  needed to boot — database/Redis/NATS addresses, listen addresses, secrets,
+  storage credentials — stays in the environment.
 - **The ops console is fully navigable.** Lists are server-paginated with
   search/filter controls (products by keyword/category, orders by status, returns
   by status, audit by action) and detail views are deep-linkable routes

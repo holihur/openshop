@@ -1,5 +1,4 @@
 export type UserRole = "customer" | "admin" | "support" | "catalog" | "finance";
-
 export interface User {
   id: string;
   email: string;
@@ -9,6 +8,17 @@ export interface User {
   emailVerified: boolean;
   /** Fine-grained ops capabilities; present for ops roles only. */
   permissions?: string[];
+}
+
+export interface Setting {
+  key: string;
+  group: string;
+  type: "string" | "int" | "bool";
+  value: string;
+  default: string;
+  description: string;
+  min?: number;
+  max?: number;
 }
 
 export interface Category {

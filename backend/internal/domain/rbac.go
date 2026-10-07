@@ -23,6 +23,8 @@ const (
 	PermReviewsWrite    Permission = "reviews:write"
 	PermAnalyticsRead   Permission = "analytics:read"
 	PermAuditRead       Permission = "audit:read"
+	PermSettingsRead    Permission = "settings:read"
+	PermSettingsWrite   Permission = "settings:write"
 )
 
 // allPermissions is the full catalogue, granted to the admin superuser role.
@@ -34,6 +36,7 @@ var allPermissions = []Permission{
 	PermShippingRead, PermShippingWrite, PermCurrencyWrite,
 	PermReviewsRead, PermReviewsWrite,
 	PermAnalyticsRead, PermAuditRead,
+	PermSettingsRead, PermSettingsWrite,
 }
 
 // rolePermissions maps the non-superuser ops roles to their capabilities.

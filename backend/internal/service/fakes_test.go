@@ -975,3 +975,37 @@ func (m *fakeMailer) last() (port.Email, bool) {
 	}
 	return m.sent[len(m.sent)-1], true
 }
+
+type fakeSettingsRepo struct {
+	mu     sync.Mutex
+	values map[string]string
+}
+
+func (r *fakeSettingsRepo) All(_ context.Context) (map[string]string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make(map[string]string, len(r.values))
+	for k, v := range r.values {
+		out[k] = v
+	}
+	return out, nil
+}
+
+func (r *fakeSettingsRepo) Upsert(_ context.Context, values map[string]string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.values == nil {
+		r.values = map[string]string{}
+	}
+	for k, v := range values {
+		r.values[k] = v
+	}
+	return nil
+}
+
+// newTestSettings builds a SettingsService whose overrides are the given map
+// (defaults otherwise). The clock is fixed so the cache never expires in tests.
+func newTestSettings(values map[string]string) *SettingsService {
+	return NewSettingsService(&fakeSettingsRepo{values: values},
+		fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)}, nil)
+}

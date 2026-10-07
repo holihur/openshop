@@ -46,7 +46,7 @@ func main() {
 		Surface:    bootstrap.SurfaceFront,
 		RunWorkers: true,
 		BuildHTTP: func(d bootstrap.HTTPDeps) http.Handler {
-			return apphttpfront.New(d.Config, d.Tokens, d.Auth, d.Cache, d.Limiter, d.Metrics, d.Tracer, d.Handler, d.Cart, d.Addresses, d.Wishlist, d.Account)
+			return apphttpfront.New(d.Config, d.Tokens, d.Auth, d.Cache, d.Settings, d.Limiter, d.Metrics, d.Tracer, d.Handler, d.Cart, d.Addresses, d.Wishlist, d.Account)
 		},
 	})
 	if err != nil {

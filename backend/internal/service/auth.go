@@ -36,34 +36,24 @@ type refreshRecord struct {
 
 // AuthService implements registration, login, token refresh and logout.
 type AuthService struct {
-	users                    port.UserRepository
-	hasher                   port.PasswordHasher
-	tokens                   port.TokenIssuer
-	cache                    port.Cache
-	ids                      port.IDGenerator
-	clock                    port.Clock
-	mailer                   port.Mailer
-	accessTTL                time.Duration
-	refreshTTL               time.Duration
-	resetBaseURL             string
-	verifyBaseURL            string
-	requireEmailVerification bool
+	users      port.UserRepository
+	hasher     port.PasswordHasher
+	tokens     port.TokenIssuer
+	cache      port.Cache
+	ids        port.IDGenerator
+	clock      port.Clock
+	mailer     port.Mailer
+	accessTTL  time.Duration
+	refreshTTL time.Duration
+	settings   *SettingsService
 	// allowedRoles, when non-empty, restricts this surface's sessions to those
 	// roles so a storefront token cannot be used on ops and vice versa.
 	allowedRoles []domain.UserRole
-	// the storefront only signs in customers and ops only signs in admins.
-	allowedRole domain.UserRole
 }
 
 type AuthConfig struct {
 	AccessTTL  time.Duration
 	RefreshTTL time.Duration
-	// ResetBaseURL is the frontend URL a password-reset email links to.
-	ResetBaseURL string
-	// VerifyBaseURL is the frontend URL an email-verification link points at.
-	VerifyBaseURL string
-	// RequireEmailVerification blocks login until the email is verified.
-	RequireEmailVerification bool
 	// AllowedRoles restricts this surface's sessions to a set of roles so the
 	// storefront and the ops console cannot be crossed (empty allows any).
 	AllowedRoles []domain.UserRole
@@ -78,11 +68,11 @@ func NewAuthService(
 	clock port.Clock,
 	mailer port.Mailer,
 	cfg AuthConfig,
+	settings *SettingsService,
 ) *AuthService {
 	return &AuthService{
 		users: users, hasher: hasher, tokens: tokens, cache: cache, ids: ids, clock: clock, mailer: mailer,
-		accessTTL: cfg.AccessTTL, refreshTTL: cfg.RefreshTTL, resetBaseURL: cfg.ResetBaseURL,
-		verifyBaseURL: cfg.VerifyBaseURL, requireEmailVerification: cfg.RequireEmailVerification,
+		accessTTL: cfg.AccessTTL, refreshTTL: cfg.RefreshTTL, settings: settings,
 		allowedRoles: cfg.AllowedRoles,
 	}
 }
@@ -179,7 +169,7 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (*AuthResult, er
 	if !s.hasher.Compare(user.PasswordHash, in.Password) {
 		return nil, domain.ErrUnauthorized
 	}
-	if s.requireEmailVerification && !user.EmailVerified {
+	if s.settings != nil && s.settings.Bool(ctx, "auth.require_email_verification") && !user.EmailVerified {
 		return nil, domain.ErrEmailNotVerified
 	}
 	return s.issue(ctx, user, "")
@@ -270,6 +260,14 @@ func (s *AuthService) IsRevoked(ctx context.Context, jti string) (bool, error) {
 
 func (s *AuthService) Me(ctx context.Context, userID string) (*domain.User, error) {
 	return s.users.FindByID(ctx, userID)
+}
+
+// baseURL resolves a URL setting, trimming a trailing slash.
+func (s *AuthService) baseURL(ctx context.Context, key string) string {
+	if s.settings == nil {
+		return ""
+	}
+	return strings.TrimRight(s.settings.String(ctx, key), "/")
 }
 
 // roleAllowed reports whether a user role may hold a session on this surface.
@@ -380,7 +378,7 @@ func (s *AuthService) SendVerification(ctx context.Context, user *domain.User) e
 		return err
 	}
 	if s.mailer != nil {
-		link := s.verifyBaseURL + "?token=" + token
+		link := s.baseURL(ctx, "auth.email_verify_url") + "?token=" + token
 		_ = s.mailer.Send(ctx, port.Email{
 			To:      user.Email,
 			Subject: "Verify your OpenShop email",
@@ -504,7 +502,7 @@ func (s *AuthService) RequestPasswordReset(ctx context.Context, email string) er
 		return err
 	}
 	if s.mailer != nil {
-		link := s.resetBaseURL + "?token=" + token
+		link := s.baseURL(ctx, "auth.password_reset_url") + "?token=" + token
 		_ = s.mailer.Send(ctx, port.Email{
 			To:      user.Email,
 			Subject: "Reset your OpenShop password",

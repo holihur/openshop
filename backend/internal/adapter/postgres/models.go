@@ -642,3 +642,12 @@ func fromShippingRate(r *domain.ShippingRate) *shippingRateModel {
 		FreeThresholdCents: r.FreeThresholdCents, PerKgCents: r.PerKgCents,
 	}
 }
+
+// settingModel is a runtime setting override (defaults live in code/config).
+type settingModel struct {
+	Key       string    `gorm:"primaryKey;size:128"`
+	Value     string    `gorm:"type:text;not null"`
+	UpdatedAt time.Time `gorm:"not null"`
+}
+
+func (settingModel) TableName() string { return "settings" }

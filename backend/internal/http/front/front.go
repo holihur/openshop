@@ -26,6 +26,7 @@ func New(
 	tokens port.TokenIssuer,
 	auth *service.AuthService,
 	cache port.Cache,
+	settings *service.SettingsService,
 	limiter port.RateLimiter,
 	metrics port.Metrics,
 	tracer port.Tracer,
@@ -54,7 +55,7 @@ func New(
 		middleware.Logger(fh.Logger),
 		middleware.Metrics(metrics),
 		middleware.CORS(cfg.HTTP.CORSOrigins),
-		middleware.RateLimit(limiter, cfg.HTTP.RateLimitRPS),
+		middleware.RateLimit(limiter, handler.SettingLimit(settings, "security.rate_limit_rps")),
 	)
 
 	if fh.Metrics != nil {
@@ -107,7 +108,7 @@ func New(
 
 		// Authenticated customer area.
 		authed := api.Group("")
-		authed.Use(middleware.Auth(tokens, auth, false), middleware.RateLimitUser(limiter, cfg.HTTP.RateLimitUserRPS))
+		authed.Use(middleware.Auth(tokens, auth, false), middleware.RateLimitUser(limiter, handler.SettingLimit(settings, "security.rate_limit_user_rps")))
 		{
 			authed.POST("/auth/logout", fh.Logout)
 			authed.GET("/auth/me", fh.Me)

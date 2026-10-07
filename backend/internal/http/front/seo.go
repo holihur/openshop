@@ -10,11 +10,19 @@ import (
 	"github.com/holihur/openshop/internal/domain"
 )
 
+// siteURL resolves the public site URL from runtime settings.
+func (h *Handler) siteURL(c *gin.Context) string {
+	if h.Settings == nil {
+		return ""
+	}
+	return strings.TrimRight(h.Settings.String(c.Request.Context(), "store.public_url"), "/")
+}
+
 // RobotsTxt advertises the sitemap and allows crawling.
 func (h *Handler) RobotsTxt(c *gin.Context) {
 	body := "User-agent: *\nAllow: /\n"
-	if h.SiteURL != "" {
-		body += "Sitemap: " + strings.TrimRight(h.SiteURL, "/") + "/sitemap.xml\n"
+	if u := h.siteURL(c); u != "" {
+		body += "Sitemap: " + u + "/sitemap.xml\n"
 	}
 	c.Data(200, "text/plain; charset=utf-8", []byte(body))
 }
@@ -33,7 +41,7 @@ type urlSet struct {
 // Sitemap renders an XML sitemap of static pages and published products. It
 // pages through the catalog so it works for large stores too.
 func (h *Handler) Sitemap(c *gin.Context) {
-	base := strings.TrimRight(h.SiteURL, "/")
+	base := h.siteURL(c)
 	if base == "" {
 		base = "http://localhost:5173"
 	}

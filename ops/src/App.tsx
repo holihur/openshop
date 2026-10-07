@@ -8,6 +8,7 @@ import { OrdersPage } from "@/pages/Orders";
 import { OrderDetailPage } from "@/pages/OrderDetail";
 import { ProductDetailPage } from "@/pages/ProductDetail";
 import { CategoriesPage } from "@/pages/Categories";
+import { SettingsPage } from "@/pages/Settings";
 import { CouponsPage } from "@/pages/Coupons";
 import { ReviewsPage } from "@/pages/Reviews";
 import { ReturnsPage } from "@/pages/Returns";
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="returns" element={<ReturnsPage />} />
           <Route path="shipping" element={<ShippingPage />} />
           <Route path="audit" element={<AuditPage />} />
+          <Route path="settings" element={<SettingsPage />} />
           <Route path="currency" element={<CurrencyPage />} />
         </Route>
       </Route>

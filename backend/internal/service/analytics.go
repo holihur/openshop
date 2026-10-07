@@ -13,14 +13,14 @@ const dashboardCacheKey = "admin:dashboard"
 // AnalyticsService serves the merchant dashboard, briefly cached so repeated
 // refreshes do not hammer the database.
 type AnalyticsService struct {
-	repo              port.AnalyticsRepository
-	cache             port.Cache
-	base              string
-	lowStockThreshold int
+	repo     port.AnalyticsRepository
+	cache    port.Cache
+	base     string
+	settings *SettingsService
 }
 
-func NewAnalyticsService(repo port.AnalyticsRepository, cache port.Cache, base string, lowStockThreshold int) *AnalyticsService {
-	return &AnalyticsService{repo: repo, cache: cache, base: base, lowStockThreshold: lowStockThreshold}
+func NewAnalyticsService(repo port.AnalyticsRepository, cache port.Cache, base string, settings *SettingsService) *AnalyticsService {
+	return &AnalyticsService{repo: repo, cache: cache, base: base, settings: settings}
 }
 
 func (s *AnalyticsService) Dashboard(ctx context.Context) (domain.Dashboard, error) {
@@ -33,7 +33,7 @@ func (s *AnalyticsService) Dashboard(ctx context.Context) (domain.Dashboard, err
 		return domain.Dashboard{}, err
 	}
 	dashboard.RevenueCents = dashboard.RevenueByCurrency[s.base]
-	if items, err := s.repo.LowStock(ctx, s.lowStockThreshold); err == nil {
+	if items, err := s.repo.LowStock(ctx, s.lowStockThreshold(ctx)); err == nil {
 		dashboard.LowStock = items
 	}
 	_ = s.cache.SetJSON(ctx, dashboardCacheKey, dashboard, 30*time.Second)
@@ -41,5 +41,12 @@ func (s *AnalyticsService) Dashboard(ctx context.Context) (domain.Dashboard, err
 }
 
 func (s *AnalyticsService) LowStock(ctx context.Context) ([]domain.LowStockItem, error) {
-	return s.repo.LowStock(ctx, s.lowStockThreshold)
+	return s.repo.LowStock(ctx, s.lowStockThreshold(ctx))
+}
+
+func (s *AnalyticsService) lowStockThreshold(ctx context.Context) int {
+	if s.settings == nil {
+		return 0
+	}
+	return s.settings.Int(ctx, "inventory.low_stock_threshold")
 }

@@ -1062,6 +1062,44 @@ paths:
         - { in: query, name: page, schema: { type: integer, default: 1 } }
       responses:
         "200": { description: A page of audit entries }
+  /ops/settings:
+    get:
+      tags: [Ops]
+      summary: List runtime settings
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Every runtime setting with its current and default value
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string }
+                        group: { type: string }
+                        type: { type: string, enum: [string, int, bool] }
+                        value: { type: string }
+                        default: { type: string }
+                        description: { type: string }
+    put:
+      tags: [Ops]
+      summary: Update runtime settings (applied without a restart)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { type: string }
+      responses:
+        "200": { description: The resolved settings }
+        "400": { $ref: "#/components/responses/Error" }
   /guest/orders/{token}:
     get:
       tags: [Orders]

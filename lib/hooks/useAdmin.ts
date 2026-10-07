@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { errorMessage } from "@lib/errors";
 import { api } from "@lib/api";
 import { t } from "@lib/i18n";
-import type { AuditLog, Category, Coupon, CurrenciesResponse, Dashboard, ExchangeRate, Order, Product, Review, Variant } from "@lib/types";
+import type { AuditLog, Category, Coupon, CurrenciesResponse, Dashboard, ExchangeRate, Order, Product, Review, Setting, Variant } from "@lib/types";
 
 function qs(params: Record<string, string | number | undefined>): string {
   const sp = new URLSearchParams();
@@ -334,6 +334,26 @@ export function useUpdateVariant(productId: string) {
       api.patch<Variant>(`/ops/variants/${id}`, input),
     onSuccess: () => {
       invalidateVariants(queryClient, productId);
+    },
+    onError: (error: Error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useSettings() {
+  return useQuery({
+    queryKey: ["admin", "settings"],
+    queryFn: () => api.get<Setting[]>("/ops/settings"),
+    staleTime: 0,
+  });
+}
+
+export function useUpdateSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (values: Record<string, string>) => api.put<Setting[]>("/ops/settings", values),
+    onSuccess: (items) => {
+      toast.success(t("toast.settingsSaved"));
+      queryClient.setQueryData(["admin", "settings"], items);
     },
     onError: (error: Error) => toast.error(errorMessage(error)),
   });

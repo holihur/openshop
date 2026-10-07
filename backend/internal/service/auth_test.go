@@ -15,7 +15,8 @@ func newAuthFixture() (*AuthService, *fakeCache, *fakeUserRepo) {
 	cache := newFakeCache()
 	svc := NewAuthService(users, fakeHasher{}, fakeTokens{}, cache, &seqIDs{},
 		fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)}, &fakeMailer{},
-		AuthConfig{AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour, ResetBaseURL: "http://test/reset"},
+		AuthConfig{AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour},
+		newTestSettings(map[string]string{"auth.password_reset_url": "http://test/reset"}),
 	)
 	return svc, cache, users
 }
@@ -79,7 +80,8 @@ func newAuthFixtureWithMailer() (*AuthService, *fakeMailer, *fakeCache) {
 	mailer := &fakeMailer{}
 	svc := NewAuthService(users, fakeHasher{}, fakeTokens{}, cache, &seqIDs{},
 		fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)}, mailer,
-		AuthConfig{AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour, ResetBaseURL: "http://test/reset"},
+		AuthConfig{AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour},
+		newTestSettings(map[string]string{"auth.password_reset_url": "http://test/reset"}),
 	)
 	return svc, mailer, cache
 }

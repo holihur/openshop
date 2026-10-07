@@ -8,6 +8,7 @@ import {
   RotateCcw,
   ScrollText,
   ShoppingCart,
+  SlidersHorizontal,
   Star,
   Store,
   Tags,
@@ -38,6 +39,7 @@ const nav: { to: string; label: MessageKey; icon: LucideIcon; end?: boolean; per
   { to: "/shipping", label: "ops.shipping", icon: Truck, perm: "shipping:read" },
   { to: "/currency", label: "ops.currency", icon: Wallet, perm: "currency:write" },
   { to: "/audit", label: "ops.audit", icon: ScrollText, perm: "audit:read" },
+  { to: "/settings", label: "ops.settings", icon: SlidersHorizontal, perm: "settings:read" },
 ];
 
 /** Chrome for the operations console: sidebar navigation, storefront link and sign-out. */

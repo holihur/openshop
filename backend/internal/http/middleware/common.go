@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -91,13 +92,17 @@ func CORS(origins []string) gin.HandlerFunc {
 
 // RateLimit implements a sliding-window limiter backed by the shared rate
 // limiter, so limits are enforced across all replicas rather than per instance.
-// At most rps requests are allowed in any trailing one-second window.
-func RateLimit(limiter port.RateLimiter, rps int) gin.HandlerFunc {
-	if rps <= 0 {
-		rps = 50
-	}
+// At most rps requests are allowed in any trailing one-second window. The limit
+// is resolved per request so it can be changed at runtime from the ops console.
+func RateLimit(limiter port.RateLimiter, rps func(ctx context.Context) int) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		allowed, retryAfter, err := limiter.Allow(c.Request.Context(), "ratelimit:ip:"+c.ClientIP(), rps, time.Second)
+		limit := 50
+		if rps != nil {
+			if v := rps(c.Request.Context()); v > 0 {
+				limit = v
+			}
+		}
+		allowed, retryAfter, err := limiter.Allow(c.Request.Context(), "ratelimit:ip:"+c.ClientIP(), limit, time.Second)
 		if err == nil && !allowed {
 			rejectRateLimited(c, retryAfter)
 			return
@@ -109,17 +114,20 @@ func RateLimit(limiter port.RateLimiter, rps int) gin.HandlerFunc {
 // RateLimitUser enforces a per-authenticated-user sliding window using the
 // shared rate limiter. It runs after Auth so it can key on the user id,
 // complementing the per-IP limiter that protects unauthenticated traffic.
-func RateLimitUser(limiter port.RateLimiter, rps int) gin.HandlerFunc {
-	if rps <= 0 {
-		rps = 100
-	}
+func RateLimitUser(limiter port.RateLimiter, rps func(ctx context.Context) int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := UserID(c)
 		if userID == "" {
 			c.Next()
 			return
 		}
-		allowed, retryAfter, err := limiter.Allow(c.Request.Context(), "ratelimit:user:"+userID, rps, time.Second)
+		limit := 100
+		if rps != nil {
+			if v := rps(c.Request.Context()); v > 0 {
+				limit = v
+			}
+		}
+		allowed, retryAfter, err := limiter.Allow(c.Request.Context(), "ratelimit:user:"+userID, limit, time.Second)
 		if err == nil && !allowed {
 			rejectRateLimited(c, retryAfter)
 			return

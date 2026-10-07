@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -41,7 +42,10 @@ func newOrderFixtureTax(taxBps int) *orderFixture {
 	svc := NewOrderService(
 		orders, users, products, coupons, variants, addresses, shipping, zones, nil, carts, locker, fakeTx{}, outbox,
 		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
-		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, nil, taxBps, 30*time.Minute, "CNY",
+		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, nil, newTestSettings(map[string]string{
+			"checkout.tax_rate_bps":      strconv.Itoa(taxBps),
+			"checkout.order_ttl_minutes": "30",
+		}), "CNY",
 	)
 	return &orderFixture{
 		svc: svc, products: products, variants: variants, addresses: addresses, shipping: shipping,
@@ -492,7 +496,8 @@ func TestCheckoutConvertsCurrency(t *testing.T) {
 		orders, users, products, coupons, variants, addresses, shipping, zones, fakeRates{rate: 7_000_000},
 		carts, locker, fakeTx{}, outbox,
 		&seqIDs{}, fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
-		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, nil, 0, 30*time.Minute, "CNY",
+		nopLogger{}, nil, port.NopMetrics{}, port.NoopTracer{}, nil,
+		newTestSettings(map[string]string{"checkout.tax_rate_bps": "0"}), "CNY",
 	)
 	products.put(&domain.Product{ID: "p1", Title: "Tee", PriceCents: 1000, Currency: "CNY", Status: domain.ProductPublished, Stock: 5})
 	_ = carts.Save(context.Background(), &domain.Cart{UserID: "u1", Items: []domain.CartItem{{ProductID: "p1", Quantity: 2}}})

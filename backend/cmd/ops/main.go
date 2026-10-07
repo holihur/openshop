@@ -46,7 +46,7 @@ func main() {
 		Surface:    bootstrap.SurfaceOps,
 		RunWorkers: false,
 		BuildHTTP: func(d bootstrap.HTTPDeps) http.Handler {
-			return apphttpops.New(d.Config, d.Tokens, d.Auth, d.Limiter, d.Cache, d.Metrics, d.Tracer, d.Handler, d.Analytics)
+			return apphttpops.New(d.Config, d.Tokens, d.Auth, d.Limiter, d.Cache, d.Settings, d.Metrics, d.Tracer, d.Handler, d.Analytics)
 		},
 	})
 	if err != nil {

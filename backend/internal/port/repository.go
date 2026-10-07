@@ -96,6 +96,13 @@ type RetentionRepository interface {
 	DeleteAuditBefore(ctx context.Context, before time.Time, limit int) (int64, error)
 }
 
+// SettingsRepository persists runtime settings that operators edit in the ops
+// console. Only overrides are stored; defaults live in code/config.
+type SettingsRepository interface {
+	All(ctx context.Context) (map[string]string, error)
+	Upsert(ctx context.Context, values map[string]string) error
+}
+
 // CouponRepository persists coupons and their redemptions. IncrementUsage is
 // the distributed-safe guard that enforces global usage limits.
 type CouponRepository interface {

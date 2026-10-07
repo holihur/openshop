@@ -28,6 +28,7 @@ func New(
 	auth *service.AuthService,
 	limiter port.RateLimiter,
 	cache port.Cache,
+	settings *service.SettingsService,
 	metrics port.Metrics,
 	tracer port.Tracer,
 	shared *handler.Handler,
@@ -51,7 +52,7 @@ func New(
 		middleware.Recovery(fh.Logger),
 		middleware.Logger(fh.Logger),
 		middleware.Metrics(metrics),
-		middleware.RateLimit(limiter, cfg.HTTP.RateLimitRPS),
+		middleware.RateLimit(limiter, handler.SettingLimit(settings, "security.rate_limit_rps")),
 	)
 
 	if fh.Metrics != nil {
@@ -121,6 +122,9 @@ func New(
 			admin.GET("/stats", middleware.RequirePermission(domain.PermAnalyticsRead), fh.Dashboard)
 			admin.GET("/inventory/low-stock", middleware.RequirePermission(domain.PermAnalyticsRead), fh.LowStock)
 			admin.GET("/audit-logs", middleware.RequirePermission(domain.PermAuditRead), fh.ListAuditLogs)
+
+			admin.GET("/settings", middleware.RequirePermission(domain.PermSettingsRead), fh.ListSettings)
+			admin.PUT("/settings", middleware.RequirePermission(domain.PermSettingsWrite), fh.UpdateSettings)
 
 			admin.GET("/shipping-methods", middleware.RequirePermission(domain.PermShippingRead), fh.AdminListShippingMethods)
 			admin.POST("/shipping-methods", middleware.RequirePermission(domain.PermShippingWrite), fh.CreateShippingMethod)
