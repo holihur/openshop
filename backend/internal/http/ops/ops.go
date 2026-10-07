@@ -129,6 +129,11 @@ func New(
 			admin.PATCH("/tickets/:id", middleware.RequirePermission(domain.PermTicketsWrite), fh.UpdateTicket)
 			admin.POST("/tickets/:id/assign", middleware.RequirePermission(domain.PermTicketsWrite), fh.AssignTicketToMe)
 
+			admin.GET("/wallet/transactions", middleware.RequirePermission(domain.PermLoyaltyRead), fh.ListWalletTransactions)
+			admin.POST("/customers/:id/wallet/adjust", middleware.RequirePermission(domain.PermLoyaltyWrite), fh.AdjustWallet)
+			admin.POST("/customers/:id/points/adjust", middleware.RequirePermission(domain.PermLoyaltyWrite), fh.AdjustPoints)
+			admin.GET("/commissions", middleware.RequirePermission(domain.PermLoyaltyRead), fh.ListCommissions)
+
 			admin.GET("/customers", middleware.RequirePermission(domain.PermCustomersRead), fh.ListCustomers)
 			admin.GET("/customers/:id", middleware.RequirePermission(domain.PermCustomersRead), fh.GetCustomer)
 			admin.PATCH("/customers/:id", middleware.RequirePermission(domain.PermCustomersWrite), fh.UpdateCustomer)

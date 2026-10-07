@@ -46,6 +46,9 @@ type OrderService struct {
 	invoices     port.InvoiceRenderer
 	settings     *SettingsService
 	currency     string
+	wallet       *WalletService
+	points       *PointsService
+	commission   *CommissionService
 }
 
 func NewOrderService(
@@ -84,6 +87,12 @@ func NewOrderService(
 		outbox: outbox, ids: ids, clock: clock, logger: logger, productCache: productCache,
 		metrics: metrics, tracer: tracer, invoices: invoices, settings: settings, currency: currency,
 	}
+}
+
+// SetLoyalty wires the wallet, points and referral services after construction.
+// They are optional: when unset, checkout simply ignores stored value.
+func (s *OrderService) SetLoyalty(wallet *WalletService, points *PointsService, commission *CommissionService) {
+	s.wallet, s.points, s.commission = wallet, points, commission
 }
 
 // Checkout converts the user's cart into a pending order, reserving stock. The
@@ -159,6 +168,10 @@ type CheckoutInput struct {
 	ShippingAddress *domain.Address
 	// Currency is the settlement currency; empty means the store base currency.
 	Currency string
+	// UseWallet spends the customer's wallet balance; Points is the number of
+	// loyalty points to redeem. Both are payment instruments applied after tax.
+	UseWallet bool
+	Points    int64
 }
 
 func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *domain.Order, err error) {
@@ -330,7 +343,22 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 			taxable = 0
 		}
 		order.TaxCents = taxable * int64(s.settings.Int(ctx, "checkout.tax_rate_bps")) / 10000
-		order.TotalCents = taxable + order.TaxCents
+		gross := taxable + order.TaxCents
+
+		// Wallet balance and loyalty points are payment instruments, applied after
+		// tax. They are debited now and returned if the order is cancelled.
+		if err := s.applyLoyalty(txCtx, order, in, gross); err != nil {
+			return err
+		}
+		payable := gross - order.WalletCents - order.PointsDiscountCents
+		if payable <= 0 {
+			// Fully covered by wallet and/or points: the order is already paid.
+			order.TotalCents = 0
+			order.Status = domain.OrderPaid
+			order.PaidAt = &now
+		} else {
+			order.TotalCents = payable
+		}
 
 		if err := s.orders.Create(txCtx, order); err != nil {
 			return err
@@ -346,6 +374,11 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 		}
 		// The event is enqueued in the same transaction as the order, so a crash
 		// between commit and publish can never lose it.
+		if order.Status == domain.OrderPaid {
+			if err := s.enqueue(txCtx, SubjectOrderPaid, order); err != nil {
+				return err
+			}
+		}
 		return s.enqueue(txCtx, SubjectOrderCreated, order)
 	})
 	if err != nil {
@@ -412,6 +445,9 @@ func (s *OrderService) Cancel(ctx context.Context, userID, orderID string, isAdm
 			return fmt.Errorf("%w: order cannot be cancelled", domain.ErrConflict)
 		}
 		if err := s.releaseStock(txCtx, o); err != nil {
+			return err
+		}
+		if err := s.refundLoyalty(txCtx, o); err != nil {
 			return err
 		}
 		o.Status = domain.OrderCancelled
@@ -494,6 +530,14 @@ func (s *OrderService) MarkRefunded(ctx context.Context, orderID, paymentID stri
 		if err := s.releaseStock(txCtx, o); err != nil {
 			return err
 		}
+		if err := s.refundLoyalty(txCtx, o); err != nil {
+			return err
+		}
+		if s.commission != nil {
+			if err := s.commission.ReverseForOrder(txCtx, o.ID); err != nil {
+				return err
+			}
+		}
 		o.Status = domain.OrderRefunded
 		o.PaymentID = paymentID
 		o.UpdatedAt = s.clock.Now()
@@ -544,6 +588,14 @@ func (s *OrderService) ApplyRefund(ctx context.Context, orderID string, amountCe
 			o.Status = domain.OrderRefunded
 			if restock {
 				if err := s.releaseStock(txCtx, o); err != nil {
+					return err
+				}
+			}
+			if err := s.refundLoyalty(txCtx, o); err != nil {
+				return err
+			}
+			if s.commission != nil {
+				if err := s.commission.ReverseForOrder(txCtx, o.ID); err != nil {
 					return err
 				}
 			}
@@ -634,6 +686,18 @@ func (s *OrderService) MarkCompleted(ctx context.Context, orderID string) (*doma
 			return err
 		}
 		out = o
+		if o.UserID != "" && s.points != nil {
+			if pts := s.points.EarnForOrder(txCtx, o); pts > 0 {
+				if err := s.points.Earn(txCtx, o.UserID, pts, "order", o.ID, "Order "+o.OrderNo); err != nil {
+					return err
+				}
+			}
+		}
+		if s.commission != nil {
+			if err := s.commission.CreateForOrder(txCtx, o); err != nil {
+				return err
+			}
+		}
 		s.metrics.Counter("openshop_orders_completed_total", 1, nil)
 		return s.enqueue(txCtx, SubjectOrderCompleted, o)
 	})
@@ -732,6 +796,69 @@ func (s *OrderService) CancelExpired(ctx context.Context, orderID string) error 
 // ListExpired exposes the repository query to the worker.
 func (s *OrderService) ListExpired(ctx context.Context, now time.Time, limit int) ([]domain.Order, error) {
 	return s.orders.FindExpiredPending(ctx, now, limit)
+}
+
+// applyLoyalty debits wallet balance and loyalty points against an order. Both
+// are payment instruments applied after tax; the amounts are recorded on the
+// order so a cancellation can return them. The calls join the ambient
+// transaction, so the balance change and the order commit together.
+func (s *OrderService) applyLoyalty(ctx context.Context, order *domain.Order, in CheckoutInput, gross int64) error {
+	if order.UserID == "" || gross <= 0 {
+		return nil
+	}
+	remaining := gross
+	if in.UseWallet && s.wallet != nil && s.wallet.Enabled(ctx) {
+		applied := s.wallet.Balance(ctx, order.UserID)
+		if applied > remaining {
+			applied = remaining
+		}
+		if applied > 0 {
+			if _, err := s.wallet.Debit(ctx, order.UserID, applied, domain.WalletPurchase, "order", order.ID, "Order "+order.OrderNo); err != nil {
+				return err
+			}
+			order.WalletCents = applied
+			remaining -= applied
+		}
+	}
+	if in.Points > 0 && s.points != nil && s.points.Enabled(ctx) && remaining > 0 {
+		rate := s.points.RedeemValue(ctx, 1)
+		if rate <= 0 {
+			rate = 1
+		}
+		points := in.Points
+		if balance := s.points.Balance(ctx, order.UserID); points > balance {
+			points = balance
+		}
+		if maxPoints := s.points.MaxRedeemable(ctx, remaining) / rate; points > maxPoints {
+			points = maxPoints
+		}
+		if points > 0 {
+			if err := s.points.Redeem(ctx, order.UserID, points, "order", order.ID, "Order "+order.OrderNo); err != nil {
+				return err
+			}
+			order.PointsUsed = points
+			order.PointsDiscountCents = points * rate
+		}
+	}
+	return nil
+}
+
+// refundLoyalty returns the wallet balance and points debited at checkout.
+func (s *OrderService) refundLoyalty(ctx context.Context, o *domain.Order) error {
+	if o.UserID == "" {
+		return nil
+	}
+	if o.WalletCents > 0 && s.wallet != nil {
+		if _, err := s.wallet.Credit(ctx, o.UserID, o.WalletCents, domain.WalletRefund, "order", o.ID, "Order cancelled"); err != nil {
+			return err
+		}
+	}
+	if o.PointsUsed > 0 && s.points != nil {
+		if err := s.points.Refund(ctx, o.UserID, o.PointsUsed, "order", o.ID, "Order cancelled"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *OrderService) releaseStock(ctx context.Context, o *domain.Order) error {

@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 import { Badge } from "@lib/components/ui/badge";
 import { Button } from "@lib/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@lib/components/ui/card";
+import { Input } from "@lib/components/ui/input";
+import { Label } from "@lib/components/ui/label";
 import { Skeleton } from "@lib/components/ui/skeleton";
 import {
   Table,
@@ -16,6 +19,7 @@ import {
 import { OrderStatusBadge } from "@lib/components/order-status-badge";
 import { useI18n } from "@lib/i18n";
 import { useAdminCustomer, useCustomerOrders, useUpdateCustomer } from "@lib/hooks/useAdmin";
+import { useAdjustPoints, useAdjustWallet, useWalletLedger } from "@lib/hooks/useLoyalty";
 import { formatDate, formatMoney } from "@lib/format";
 
 /** Customer detail: profile, enable/disable and order history. */
@@ -126,7 +130,85 @@ export function CustomerDetailPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <LoyaltyPanel customerId={customer.id} />
     </div>
+  );
+}
+
+function LoyaltyPanel({ customerId }: { customerId: string }) {
+  const { t } = useI18n();
+  const adjustWallet = useAdjustWallet(customerId);
+  const adjustPoints = useAdjustPoints(customerId);
+  const { data: ledger } = useWalletLedger({ userId: customerId });
+  const [amount, setAmount] = useState("");
+  const [points, setPoints] = useState("");
+
+  const balance = ledger?.items[0]?.balanceAfter ?? 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{t("nav.wallet")}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm">
+          {t("wallet.balance")}: <span className="font-semibold">{formatMoney(balance)}</span>
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <form
+            className="space-y-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const cents = Math.round(Number.parseFloat(amount) * 100);
+              if (!Number.isFinite(cents) || cents === 0) return;
+              adjustWallet.mutate(
+                { amountCents: cents, description: t("ops.walletAdjust") },
+                { onSuccess: () => setAmount("") },
+              );
+            }}
+          >
+            <Label htmlFor="wallet-amount">{t("ops.walletAdjust")}</Label>
+            <Input
+              id="wallet-amount"
+              type="number"
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+            />
+            <Button type="submit" size="sm" disabled={adjustWallet.isPending}>
+              {t("ops.apply")}
+            </Button>
+          </form>
+
+          <form
+            className="space-y-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const value = Math.trunc(Number(points));
+              if (!Number.isFinite(value) || value === 0) return;
+              adjustPoints.mutate(
+                { points: value, description: t("ops.pointsAdjust") },
+                { onSuccess: () => setPoints("") },
+              );
+            }}
+          >
+            <Label htmlFor="points-amount">{t("ops.pointsAdjust")}</Label>
+            <Input
+              id="points-amount"
+              type="number"
+              value={points}
+              onChange={(e) => setPoints(e.target.value)}
+              placeholder="0"
+            />
+            <Button type="submit" size="sm" disabled={adjustPoints.isPending}>
+              {t("ops.apply")}
+            </Button>
+          </form>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

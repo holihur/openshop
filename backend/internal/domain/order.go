@@ -54,6 +54,12 @@ type Order struct {
 	DiscountCents int64
 	CouponID      string
 	CouponCode    string
+	// WalletCents, PointsUsed and PointsDiscountCents record stored-value and
+	// loyalty applied at checkout; they are debited when the order is placed and
+	// returned if it is cancelled.
+	WalletCents         int64
+	PointsUsed          int64
+	PointsDiscountCents int64
 	// ShippingCents and TaxCents are computed at checkout; TotalCents is the
 	// grand total the customer pays.
 	ShippingCents      int64

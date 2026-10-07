@@ -155,6 +155,67 @@ export interface ReturnRequest {
   createdAt: string;
 }
 
+export interface Wallet {
+  currency: string;
+  balanceCents: number;
+}
+
+export type WalletTransactionType =
+  | "topup"
+  | "purchase"
+  | "refund"
+  | "commission"
+  | "withdrawal"
+  | "adjustment";
+
+export interface WalletTransaction {
+  id: string;
+  type: WalletTransactionType;
+  amountCents: number;
+  balanceAfter: number;
+  referenceType?: string;
+  referenceId?: string;
+  description: string;
+  createdAt: string;
+}
+
+export interface PointsAccount {
+  balance: number;
+  lifetimeEarned: number;
+}
+
+export interface PointsTransaction {
+  id: string;
+  type: string;
+  points: number;
+  balanceAfter: number;
+  description: string;
+  createdAt: string;
+}
+
+export type CommissionStatus = "pending" | "approved" | "reversed";
+
+export interface Commission {
+  id: string;
+  referrerId: string;
+  refereeId: string;
+  orderId: string;
+  baseCents: number;
+  rateBps: number;
+  amountCents: number;
+  status: CommissionStatus;
+  holdUntil: string;
+  approvedAt?: string;
+  createdAt: string;
+}
+
+export interface ReferralSummary {
+  code: string;
+  referrals: number;
+  pendingCents: number;
+  approvedCents: number;
+}
+
 export type TicketKind = "presale" | "postsale" | "other";
 export type TicketStatus = "open" | "pending" | "resolved" | "closed";
 export type TicketPriority = "low" | "normal" | "high" | "urgent";

@@ -144,6 +144,15 @@ func New(
 			authed.GET("/tickets/:id", fh.GetMyTicket)
 			authed.POST("/tickets/:id/messages", fh.ReplyMyTicket)
 
+			// Wallet, loyalty points and the referral programme.
+			authed.GET("/wallet", fh.GetWallet)
+			authed.GET("/wallet/transactions", fh.ListWalletTransactions)
+			authed.POST("/wallet/topup", fh.TopUpWallet)
+			authed.GET("/points", fh.GetPoints)
+			authed.GET("/points/transactions", fh.ListPointsTransactions)
+			authed.GET("/referrals", fh.GetReferralSummary)
+			authed.GET("/referrals/commissions", fh.ListMyCommissions)
+
 			authed.POST("/payments", middleware.Idempotency(cache, 24*time.Hour), fh.CreatePayment)
 			authed.POST("/payments/simulate", fh.SimulatePayment)
 

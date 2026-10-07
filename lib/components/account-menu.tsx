@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronDown, Heart, LifeBuoy, LogOut, MapPin, Package, Settings, User as UserIcon } from "lucide-react";
+import { ChevronDown, Gift, Heart, LifeBuoy, LogOut, MapPin, Package, Settings, User as UserIcon, Wallet } from "lucide-react";
 
 import { Button } from "@lib/components/ui/button";
 import { useAuth } from "@lib/auth";
@@ -44,6 +44,8 @@ export function AccountMenu() {
   const items = [
     { to: "/orders", label: t("nav.orders"), icon: Package },
     { to: "/support", label: t("nav.support"), icon: LifeBuoy },
+    { to: "/account/wallet", label: t("nav.wallet"), icon: Wallet },
+    { to: "/account/rewards", label: t("nav.rewards"), icon: Gift },
     { to: "/account/addresses", label: t("nav.addresses"), icon: MapPin },
     { to: "/account/wishlist", label: t("nav.wishlist"), icon: Heart },
     { to: "/account/settings", label: t("nav.settings"), icon: Settings },

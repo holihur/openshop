@@ -9,10 +9,11 @@ import (
 )
 
 type registerRequest struct {
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
-	Password string `json:"password" binding:"required,min=8"`
-	Name     string `json:"name"`
+	Email        string `json:"email"`
+	Phone        string `json:"phone"`
+	Password     string `json:"password" binding:"required,min=8"`
+	Name         string `json:"name"`
+	ReferralCode string `json:"referralCode"`
 }
 
 type forgotPasswordRequest struct {
@@ -44,6 +45,11 @@ func (h *Handler) Register(c *gin.Context) {
 	if err != nil {
 		response.Fail(c, err)
 		return
+	}
+	// Link the new account to a referrer when a code was supplied. A bad code is
+	// ignored so registration never fails because of a typo.
+	if h.Commission != nil && req.ReferralCode != "" {
+		_ = h.Commission.ApplyReferral(c.Request.Context(), req.ReferralCode, res.User.ID)
 	}
 	response.Created(c, handler.ToAuthView(res))
 }

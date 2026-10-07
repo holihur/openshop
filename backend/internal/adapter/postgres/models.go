@@ -157,34 +157,37 @@ type productModel struct {
 func (productModel) TableName() string { return "products" }
 
 type orderModel struct {
-	ID                 string     `gorm:"type:uuid;primaryKey"`
-	OrderNo            string     `gorm:"size:64;uniqueIndex;not null"`
-	UserID             uuidString `gorm:"type:uuid;index"`
-	GuestEmail         string     `gorm:"size:255;not null;default:''"`
-	GuestPhone         string     `gorm:"size:32;not null;default:''"`
-	AccessToken        string     `gorm:"size:128;not null;default:''"`
-	Status             string     `gorm:"size:32;index;not null"`
-	Currency           string     `gorm:"size:8;not null"`
-	SubtotalCents      int64      `gorm:"not null;default:0"`
-	DiscountCents      int64      `gorm:"not null;default:0"`
-	CouponID           uuidString `gorm:"type:uuid;index"`
-	CouponCode         string     `gorm:"size:64;not null;default:''"`
-	TotalCents         int64      `gorm:"not null"`
-	RefundedCents      int64      `gorm:"not null;default:0"`
-	ShippingCents      int64      `gorm:"not null;default:0"`
-	TaxCents           int64      `gorm:"not null;default:0"`
-	ShippingMethodID   uuidString `gorm:"type:uuid;index"`
-	ShippingMethodName string     `gorm:"size:128;not null;default:''"`
-	PaymentID          uuidString `gorm:"type:uuid;index"`
-	ShippingJSON       []byte     `gorm:"column:shipping_address;type:jsonb"`
-	TrackingNo         string     `gorm:"size:128;not null;default:''"`
-	ShippedAt          *time.Time
-	CompletedAt        *time.Time
-	ExpiresAt          time.Time        `gorm:"index;not null"`
-	PaidAt             *time.Time       `gorm:"index"`
-	Items              []orderItemModel `gorm:"foreignKey:OrderID;constraint:OnDelete:CASCADE"`
-	CreatedAt          time.Time        `gorm:"not null"`
-	UpdatedAt          time.Time        `gorm:"not null"`
+	ID                  string     `gorm:"type:uuid;primaryKey"`
+	OrderNo             string     `gorm:"size:64;uniqueIndex;not null"`
+	UserID              uuidString `gorm:"type:uuid;index"`
+	GuestEmail          string     `gorm:"size:255;not null;default:''"`
+	GuestPhone          string     `gorm:"size:32;not null;default:''"`
+	AccessToken         string     `gorm:"size:128;not null;default:''"`
+	Status              string     `gorm:"size:32;index;not null"`
+	Currency            string     `gorm:"size:8;not null"`
+	SubtotalCents       int64      `gorm:"not null;default:0"`
+	DiscountCents       int64      `gorm:"not null;default:0"`
+	WalletCents         int64      `gorm:"not null;default:0"`
+	PointsUsed          int64      `gorm:"not null;default:0"`
+	PointsDiscountCents int64      `gorm:"not null;default:0"`
+	CouponID            uuidString `gorm:"type:uuid;index"`
+	CouponCode          string     `gorm:"size:64;not null;default:''"`
+	TotalCents          int64      `gorm:"not null"`
+	RefundedCents       int64      `gorm:"not null;default:0"`
+	ShippingCents       int64      `gorm:"not null;default:0"`
+	TaxCents            int64      `gorm:"not null;default:0"`
+	ShippingMethodID    uuidString `gorm:"type:uuid;index"`
+	ShippingMethodName  string     `gorm:"size:128;not null;default:''"`
+	PaymentID           uuidString `gorm:"type:uuid;index"`
+	ShippingJSON        []byte     `gorm:"column:shipping_address;type:jsonb"`
+	TrackingNo          string     `gorm:"size:128;not null;default:''"`
+	ShippedAt           *time.Time
+	CompletedAt         *time.Time
+	ExpiresAt           time.Time        `gorm:"index;not null"`
+	PaidAt              *time.Time       `gorm:"index"`
+	Items               []orderItemModel `gorm:"foreignKey:OrderID;constraint:OnDelete:CASCADE"`
+	CreatedAt           time.Time        `gorm:"not null"`
+	UpdatedAt           time.Time        `gorm:"not null"`
 }
 
 func (orderModel) TableName() string { return "orders" }
@@ -462,6 +465,7 @@ func toOrder(m *orderModel) *domain.Order {
 		ID: m.ID, OrderNo: m.OrderNo, UserID: string(m.UserID), Status: domain.OrderStatus(m.Status),
 		GuestEmail: m.GuestEmail, GuestPhone: m.GuestPhone, AccessToken: m.AccessToken,
 		Currency: m.Currency, SubtotalCents: m.SubtotalCents, DiscountCents: m.DiscountCents,
+		WalletCents: m.WalletCents, PointsUsed: m.PointsUsed, PointsDiscountCents: m.PointsDiscountCents,
 		CouponID: string(m.CouponID), CouponCode: m.CouponCode, TotalCents: m.TotalCents,
 		RefundedCents: m.RefundedCents,
 		ShippingCents: m.ShippingCents, TaxCents: m.TaxCents,
@@ -508,6 +512,7 @@ func fromOrder(o *domain.Order) *orderModel {
 		ID: o.ID, OrderNo: o.OrderNo, UserID: uuidString(o.UserID), Status: string(o.Status),
 		GuestEmail: o.GuestEmail, GuestPhone: o.GuestPhone, AccessToken: o.AccessToken,
 		Currency: o.Currency, SubtotalCents: o.SubtotalCents, DiscountCents: o.DiscountCents,
+		WalletCents: o.WalletCents, PointsUsed: o.PointsUsed, PointsDiscountCents: o.PointsDiscountCents,
 		CouponID: uuidString(o.CouponID), CouponCode: o.CouponCode, TotalCents: o.TotalCents,
 		ShippingCents: o.ShippingCents, TaxCents: o.TaxCents,
 		ShippingMethodID: uuidString(o.ShippingMethodID), ShippingMethodName: o.ShippingMethodName,

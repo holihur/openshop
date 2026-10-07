@@ -16,6 +16,8 @@ import { useCart, useClearCart, useRemoveCartItem, useUpdateCartItem } from "@li
 import { useAddresses } from "@lib/hooks/useAddresses";
 import { useShippingMethods } from "@lib/hooks/useShipping";
 import { usePaymentMethods } from "@lib/hooks/usePayment";
+import { usePoints, useWallet } from "@lib/hooks/useLoyalty";
+import { formatMoney } from "@lib/format";
 import type { MessageKey } from "@lib/i18n/messages";
 import { useAuth } from "@lib/auth";
 import { useI18n } from "@lib/i18n";
@@ -38,6 +40,8 @@ export function CartPage() {
   const [addressId, setAddressId] = useState("");
   const [shippingMethodId, setShippingMethodId] = useState("");
   const [provider, setProvider] = useState("");
+  const [useWalletBalance, setUseWalletBalance] = useState(false);
+  const [pointsInput, setPointsInput] = useState("");
   const [email, setEmail] = useState("");
   const [guestAddress, setGuestAddress] = useState({
     recipient: "",
@@ -51,6 +55,9 @@ export function CartPage() {
   const { data: shippingMethods } = useShippingMethods();
   const { data: paymentMethods } = usePaymentMethods();
   const chosenProvider = provider || paymentMethods?.[0] || "mock";
+  const { data: wallet } = useWallet(Boolean(user));
+  const { data: pointsAccount } = usePoints(Boolean(user));
+  const pointsValue = Math.max(0, Math.floor(Number(pointsInput) || 0));
   const chosenAddress =
     addressId || addresses?.find((a) => a.default)?.id || addresses?.[0]?.id || "";
   const chosenMethod =
@@ -100,6 +107,8 @@ export function CartPage() {
         ...(couponCode ? { couponCode } : {}),
         ...(addressId ? { addressId } : {}),
         ...(shippingMethodId ? { shippingMethodId } : {}),
+        ...(useWalletBalance ? { useWallet: true } : {}),
+        ...(pointsValue > 0 ? { points: pointsValue } : {}),
         currency,
       });
       // Then open a payment session with the (sandbox) provider.
@@ -442,6 +451,35 @@ export function CartPage() {
               <span>{price(shippingCents)}</span>
             </div>
             <p className="text-muted-foreground text-xs">{t("cart.taxesAtCheckout")}</p>
+            {user && wallet && wallet.balanceCents > 0 && (
+              <label className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={useWalletBalance}
+                    onChange={(e) => setUseWalletBalance(e.target.checked)}
+                  />
+                  {t("cart.useWallet")}
+                </span>
+                <span className="text-muted-foreground">
+                  {formatMoney(wallet.balanceCents, wallet.currency)}
+                </span>
+              </label>
+            )}
+            {user && pointsAccount && pointsAccount.balance > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span>{t("cart.usePoints", { balance: pointsAccount.balance })}</span>
+                <input
+                  type="number"
+                  min="0"
+                  max={pointsAccount.balance}
+                  value={pointsInput}
+                  onChange={(e) => setPointsInput(e.target.value)}
+                  placeholder="0"
+                  className="border-input bg-background h-8 w-24 rounded-md border px-2 text-sm"
+                />
+              </div>
+            )}
             <div className="flex justify-between text-base font-semibold">
               <span>{t("cart.total")}</span>
               <span>{price((applied?.totalCents ?? cart.totalCents) + shippingCents)}</span>

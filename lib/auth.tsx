@@ -20,6 +20,7 @@ interface AuthContextValue {
     phone?: string;
     password: string;
     name?: string;
+    referralCode?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   reload: () => Promise<void>;

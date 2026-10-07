@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { errorMessage } from "@lib/errors";
 import { Button } from "@lib/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lib/components/ui/card";
@@ -14,10 +14,12 @@ export function RegisterPage() {
   const { t } = useI18n();
   const { data: site } = useSite();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [referralCode, setReferralCode] = useState(() => searchParams.get("ref") ?? "");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -40,7 +42,7 @@ export function RegisterPage() {
     setError("");
     setSubmitting(true);
     try {
-      await register({ name, email, password });
+      await register({ name, email, password, ...(referralCode ? { referralCode } : {}) });
       navigate("/", { replace: true });
     } catch (err) {
       setError(errorMessage(err));
@@ -85,6 +87,15 @@ export function RegisterPage() {
                 required
               />
               <p className="text-muted-foreground text-xs">{t("auth.passwordHint")}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="referral">{t("auth.referralCode")}</Label>
+              <Input
+                id="referral"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value)}
+                placeholder={t("auth.referralCodeHint")}
+              />
             </div>
             {error && <p className="text-destructive text-sm">{error}</p>}
             <Button type="submit" className="w-full" disabled={submitting}>

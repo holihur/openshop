@@ -267,11 +267,17 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	orderSvc := service.NewOrderService(orders, users, products, couponRepo, variantRepo, addressRepo, shippingRepo, zoneRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, invoice.NewPDFRenderer(), settingsSvc, cfg.App.Currency)
 	paymentSvc := service.NewPaymentService(paymentRepo, refundRepo, orders, payments, orderSvc, ids, clock, log, promMetrics, settingsSvc)
 
+	// Wallet, loyalty points and referral commissions settle into the wallet.
+	walletSvc := service.NewWalletService(postgres.NewWalletRepository(db), ids, clock, settingsSvc, cfg.App.Currency)
+	pointsSvc := service.NewPointsService(postgres.NewPointsRepository(db), ids, clock, settingsSvc)
+	commissionSvc := service.NewCommissionService(postgres.NewReferralRepository(db), postgres.NewCommissionRepository(db), walletSvc, ids, clock, settingsSvc)
+	orderSvc.SetLoyalty(walletSvc, pointsSvc, commissionSvc)
+
 	// --- HTTP surface ---
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Orders: orderSvc, Payments: paymentSvc,
 		Coupons: couponSvc, Reviews: reviewSvc, Shipping: shippingSvc, Audit: auditSvc,
-		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Settings: settingsSvc, Customers: customerSvc, OIDC: oidcSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
+		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Wallet: walletSvc, Points: pointsSvc, Commission: commissionSvc, Settings: settingsSvc, Customers: customerSvc, OIDC: oidcSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
 			{Name: "postgres", Check: db.Ping},
@@ -342,6 +348,16 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 			go func() {
 				defer app.wg.Done()
 				app.runWorker(workerCtx, "retention", retention.Run)
+			}()
+
+			// Referral commissions are paid into the referrer's wallet once the
+			// cooling-off period (default 15 days) has elapsed. Leader-locked.
+			settler := worker.NewCommissionSettler(commissionSvc, locker, log,
+				cfg.Worker.RetentionInterval, 100)
+			app.wg.Add(1)
+			go func() {
+				defer app.wg.Done()
+				app.runWorker(workerCtx, "commission-settler", settler.Run)
 			}()
 		}
 	}

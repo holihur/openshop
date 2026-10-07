@@ -25,6 +25,8 @@ var (
 	ErrEmailNotVerified     = errors.New("email not verified")
 	ErrInvoiceUnavailable   = errors.New("invoice is not available for this order")
 	ErrRegistrationDisabled = errors.New("registration is disabled")
+	ErrInsufficientFunds    = errors.New("insufficient wallet balance")
+	ErrLoyaltyDisabled      = errors.New("wallet and points are disabled")
 )
 
 // Error is a domain error carrying a stable machine-readable code alongside a

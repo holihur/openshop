@@ -101,6 +101,51 @@ type TicketRepository interface {
 	CountOpen(ctx context.Context) (int64, error)
 }
 
+// WalletRepository persists a user's stored-value balance and its ledger.
+type WalletRepository interface {
+	// Ensure returns the user's wallet, creating it on first use.
+	Ensure(ctx context.Context, userID, currency string) (*domain.Wallet, error)
+	FindByUser(ctx context.Context, userID string) (*domain.Wallet, error)
+	// AddBalance atomically applies a signed delta and returns the new balance.
+	// When allowNegative is false an overdraft fails with domain.ErrInsufficientFunds.
+	AddBalance(ctx context.Context, userID string, delta int64, allowNegative bool) (int64, error)
+	AddTransaction(ctx context.Context, tx *domain.WalletTransaction) error
+	ListTransactions(ctx context.Context, f domain.WalletTxFilter) (domain.Page[domain.WalletTransaction], error)
+}
+
+// PointsRepository persists a user's loyalty balance and its ledger.
+type PointsRepository interface {
+	Ensure(ctx context.Context, userID string) (*domain.PointsAccount, error)
+	FindByUser(ctx context.Context, userID string) (*domain.PointsAccount, error)
+	// AddPoints atomically applies a signed delta and returns the new balance.
+	// Earning also increases the lifetime total.
+	AddPoints(ctx context.Context, userID string, delta int64) (int64, error)
+	AddTransaction(ctx context.Context, tx *domain.PointsTransaction) error
+	ListTransactions(ctx context.Context, userID string, page, pageSize int) (domain.Page[domain.PointsTransaction], error)
+}
+
+// ReferralRepository persists referral codes and links.
+type ReferralRepository interface {
+	EnsureCode(ctx context.Context, userID, code string) (*domain.Referral, error)
+	FindCode(ctx context.Context, userID string) (string, error)
+	// FindReferrerByCode resolves a referral code to the referring user.
+	FindReferrerByCode(ctx context.Context, code string) (string, error)
+	FindByReferee(ctx context.Context, refereeID string) (*domain.Referral, error)
+	Create(ctx context.Context, r *domain.Referral) error
+	ListByReferrer(ctx context.Context, referrerID string, page, pageSize int) (domain.Page[domain.Referral], error)
+}
+
+// CommissionRepository persists referral commissions.
+type CommissionRepository interface {
+	Create(ctx context.Context, c *domain.Commission) error
+	FindByOrder(ctx context.Context, orderID string) (*domain.Commission, error)
+	ListDue(ctx context.Context, now time.Time, limit int) ([]domain.Commission, error)
+	MarkApproved(ctx context.Context, id string, at time.Time) error
+	MarkReversed(ctx context.Context, id string) error
+	SumByReferrer(ctx context.Context, referrerID string) (pending, approved int64, err error)
+	List(ctx context.Context, f domain.CommissionFilter) (domain.Page[domain.Commission], error)
+}
+
 // RetentionRepository prunes append-only tables so they do not grow without
 // limit. Deletes are batched to keep transactions short.
 type RetentionRepository interface {
