@@ -12,6 +12,8 @@ import { SettingsPage } from "@/pages/Settings";
 import { CouponsPage } from "@/pages/Coupons";
 import { ReviewsPage } from "@/pages/Reviews";
 import { ReturnsPage } from "@/pages/Returns";
+import { CustomersPage } from "@/pages/Customers";
+import { CustomerDetailPage } from "@/pages/CustomerDetail";
 import { ShippingPage } from "@/pages/Shipping";
 import { AuditPage } from "@/pages/Audit";
 import { CurrencyPage } from "@/pages/Currency";
@@ -29,6 +31,8 @@ export default function App() {
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
+          <Route path="customers" element={<CustomersPage />} />
+          <Route path="customers/:id" element={<CustomerDetailPage />} />
           <Route path="coupons" element={<CouponsPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="returns" element={<ReturnsPage />} />

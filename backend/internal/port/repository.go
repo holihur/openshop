@@ -23,6 +23,7 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	FindByPhone(ctx context.Context, phone string) (*domain.User, error)
+	List(ctx context.Context, f domain.UserFilter) (domain.Page[domain.User], error)
 }
 
 // CategoryRepository persists categories.
@@ -117,6 +118,7 @@ type CouponRepository interface {
 	IncrementUsage(ctx context.Context, id string) error
 	CountRedemptions(ctx context.Context, couponID, userID string) (int64, error)
 	CreateRedemption(ctx context.Context, r *domain.CouponRedemption) error
+	ListRedemptions(ctx context.Context, couponID string, f domain.CouponFilter) (domain.Page[domain.CouponRedemption], error)
 }
 
 // ReviewRepository persists product reviews and their aggregate.

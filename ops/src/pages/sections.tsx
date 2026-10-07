@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@lib/components/ui/table";
 import { ProductForm } from "@/components/admin/product-form";
+import { CouponUsage } from "@/components/admin/coupon-usage";
 import { OrderStatusBadge } from "@lib/components/order-status-badge";
 import { Pagination } from "@lib/components/pagination";
 import { useI18n } from "@lib/i18n";
@@ -617,6 +618,7 @@ export function AdminDashboard() {
 export function AdminCoupons() {
   const { t } = useI18n();
   const [page, setPage] = useState(1);
+  const [usageId, setUsageId] = useState<string | null>(null);
   const { data, isLoading } = useAdminCoupons(page, 20);
   const create = useCreateCoupon();
   const update = useUpdateCoupon();
@@ -762,6 +764,13 @@ export function AdminCoupons() {
                         >
                           {t("ops.editLimit")}
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setUsageId((id) => (id === c.id ? null : c.id))}
+                        >
+                          {t("ops.usage")}
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -771,6 +780,19 @@ export function AdminCoupons() {
           )}
         </CardContent>
       </Card>
+      {usageId && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>{t("ops.usage")}</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => setUsageId(null)}>
+              {t("common.close")}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <CouponUsage couponId={usageId} />
+          </CardContent>
+        </Card>
+      )}
       {data && (
         <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onChange={setPage} />
       )}

@@ -1110,6 +1110,51 @@ paths:
       responses:
         "200": { description: The resolved settings }
         "400": { $ref: "#/components/responses/Error" }
+  /ops/customers:
+    get:
+      tags: [Ops]
+      summary: List customer accounts
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: keyword, schema: { type: string } }
+        - { in: query, name: status, schema: { type: string, enum: [active, disabled] } }
+        - { in: query, name: page, schema: { type: integer, default: 1 } }
+      responses:
+        "200": { description: A page of customers }
+  /ops/customers/{id}:
+    get:
+      tags: [Ops]
+      summary: Get one customer
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: The customer }
+    patch:
+      tags: [Ops]
+      summary: Rename or enable/disable a customer
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                status: { type: string, enum: [active, disabled] }
+      responses:
+        "200": { description: The updated customer }
+  /ops/coupons/{id}/redemptions:
+    get:
+      tags: [Ops]
+      summary: A coupon's usage history
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: A page of redemptions }
   /guest/orders/{token}:
     get:
       tags: [Orders]

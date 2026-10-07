@@ -85,6 +85,35 @@ func (h *Handler) ListCoupons(c *gin.Context) {
 	response.Paginated(c, out, coupons.Total, coupons.Page, coupons.PageSize)
 }
 
+type couponRedemptionView struct {
+	ID            string `json:"id"`
+	OrderID       string `json:"orderId"`
+	OrderNo       string `json:"orderNo"`
+	UserID        string `json:"userId"`
+	UserEmail     string `json:"userEmail"`
+	DiscountCents int64  `json:"discountCents"`
+	CreatedAt     string `json:"createdAt"`
+}
+
+// ListCouponRedemptions returns a coupon's usage history (admin only).
+func (h *Handler) ListCouponRedemptions(c *gin.Context) {
+	page, size := handler.ParsePage(c, 20)
+	result, err := h.Coupons.ListRedemptions(c.Request.Context(), c.Param("id"), domain.CouponFilter{Page: page, PageSize: size})
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	out := make([]couponRedemptionView, 0, len(result.Items))
+	for _, r := range result.Items {
+		out = append(out, couponRedemptionView{
+			ID: r.ID, OrderID: r.OrderID, OrderNo: r.OrderNo, UserID: r.UserID,
+			UserEmail: r.UserEmail, DiscountCents: r.DiscountCents,
+			CreatedAt: r.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		})
+	}
+	response.Paginated(c, out, result.Total, result.Page, result.PageSize)
+}
+
 func (h *Handler) UpdateCoupon(c *gin.Context) {
 	var req updateCouponRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

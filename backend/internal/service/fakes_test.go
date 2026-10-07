@@ -57,6 +57,22 @@ func (r *fakeUserRepo) Delete(_ context.Context, id string) error {
 	return nil
 }
 
+func (r *fakeUserRepo) List(_ context.Context, f domain.UserFilter) (domain.Page[domain.User], error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]domain.User, 0)
+	for _, u := range r.byID {
+		if f.Role != nil && u.Role != *f.Role {
+			continue
+		}
+		if f.Status != nil && u.Status != *f.Status {
+			continue
+		}
+		out = append(out, *u)
+	}
+	return domain.Page[domain.User]{Items: out, Total: int64(len(out)), Page: 1, PageSize: len(out)}, nil
+}
+
 func (r *fakeUserRepo) FindByID(_ context.Context, id string) (*domain.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -472,6 +488,18 @@ func (r *fakeCouponRepo) CreateRedemption(_ context.Context, red *domain.CouponR
 	defer r.mu.Unlock()
 	r.redemptions = append(r.redemptions, *red)
 	return nil
+}
+
+func (r *fakeCouponRepo) ListRedemptions(_ context.Context, couponID string, _ domain.CouponFilter) (domain.Page[domain.CouponRedemption], error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]domain.CouponRedemption, 0)
+	for _, red := range r.redemptions {
+		if red.CouponID == couponID {
+			out = append(out, red)
+		}
+	}
+	return domain.Page[domain.CouponRedemption]{Items: out, Total: int64(len(out)), Page: 1, PageSize: len(out)}, nil
 }
 
 type fakeVariantRepo struct {

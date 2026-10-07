@@ -24,6 +24,9 @@ export interface Setting {
 export interface Site {
   publicUrl: string;
   hero: { title: string; subtitle: string; image: string; ctaUrl: string };
+  announcement: { message: string; url: string };
+  features: { title: string; text: string }[];
+  tagline: string;
 }
 
 export interface Category {
@@ -179,6 +182,16 @@ export interface Coupon {
   active: boolean;
 }
 
+export interface CouponRedemption {
+  id: string;
+  orderId: string;
+  orderNo: string;
+  userId: string;
+  userEmail: string;
+  discountCents: number;
+  createdAt: string;
+}
+
 export interface ShippingMethod {
   id: string;
   code: string;
@@ -258,4 +271,15 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
+}
+
+export interface Customer {
+  id: string;
+  email: string;
+  phone: string;
+  name: string;
+  role: string;
+  status: "active" | "disabled";
+  emailVerified: boolean;
+  createdAt: string;
 }

@@ -59,9 +59,21 @@ export function HomePage() {
 
         <div className="relative mt-12 grid gap-4 sm:grid-cols-3">
           {[
-            { icon: Zap, title: t("home.fastCheckout"), text: t("home.fastCheckoutText") },
-            { icon: ShieldCheck, title: t("home.secure"), text: t("home.secureText") },
-            { icon: PackageSearch, title: t("home.eventDriven"), text: t("home.eventDrivenText") },
+            {
+              icon: Zap,
+              title: site?.features?.[0]?.title?.trim() || t("home.fastCheckout"),
+              text: site?.features?.[0]?.text?.trim() || t("home.fastCheckoutText"),
+            },
+            {
+              icon: ShieldCheck,
+              title: site?.features?.[1]?.title?.trim() || t("home.secure"),
+              text: site?.features?.[1]?.text?.trim() || t("home.secureText"),
+            },
+            {
+              icon: PackageSearch,
+              title: site?.features?.[2]?.title?.trim() || t("home.eventDriven"),
+              text: site?.features?.[2]?.text?.trim() || t("home.eventDrivenText"),
+            },
           ].map(({ icon: Icon, title, text }) => (
             <div key={title} className="bg-background/60 rounded-lg border p-4 backdrop-blur">
               <Icon className="size-5" />

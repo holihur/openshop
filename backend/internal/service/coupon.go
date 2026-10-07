@@ -73,6 +73,11 @@ func (s *CouponService) List(ctx context.Context, f domain.CouponFilter) (domain
 	return s.coupons.List(ctx, f)
 }
 
+// ListRedemptions returns a coupon's usage history.
+func (s *CouponService) ListRedemptions(ctx context.Context, couponID string, f domain.CouponFilter) (domain.Page[domain.CouponRedemption], error) {
+	return s.coupons.ListRedemptions(ctx, couponID, f)
+}
+
 // UpdateCouponInput carries partial updates; nil fields are left unchanged.
 type UpdateCouponInput struct {
 	Description      *string

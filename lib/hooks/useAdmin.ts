@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { errorMessage } from "@lib/errors";
 import { api } from "@lib/api";
 import { t, useI18n } from "@lib/i18n";
-import type { AuditLog, Category, Coupon, CurrenciesResponse, Dashboard, ExchangeRate, Order, Product, Review, Setting, Variant } from "@lib/types";
+import type { AuditLog, Category, Coupon, CouponRedemption, CurrenciesResponse, Customer, Dashboard, ExchangeRate, Order, Product, Review, Setting, Variant } from "@lib/types";
 
 function qs(params: Record<string, string | number | undefined>): string {
   const sp = new URLSearchParams();
@@ -356,6 +356,55 @@ export function useUpdateSettings() {
     onSuccess: (items) => {
       toast.success(t("toast.settingsSaved"));
       queryClient.setQueryData(["admin", "settings"], items);
+    },
+    onError: (error: Error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useCouponRedemptions(couponId: string) {
+  return useQuery({
+    queryKey: ["admin", "coupon-redemptions", couponId],
+    queryFn: () => api.getPage<CouponRedemption[]>(`/ops/coupons/${couponId}/redemptions?pageSize=100`),
+    enabled: Boolean(couponId),
+  });
+}
+
+export function useAdminCustomers(
+  page = 1,
+  pageSize = 20,
+  filters: { keyword?: string; status?: string } = {},
+) {
+  return useQuery({
+    queryKey: ["admin", "customers", page, pageSize, filters],
+    queryFn: () => api.getPage<Customer[]>(`/ops/customers${qs({ page, pageSize, ...filters })}`),
+  });
+}
+
+export function useAdminCustomer(id: string) {
+  return useQuery({
+    queryKey: ["admin", "customer", id],
+    queryFn: () => api.get<Customer>(`/ops/customers/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+export function useCustomerOrders(customerId: string) {
+  return useQuery({
+    queryKey: ["admin", "customer-orders", customerId],
+    queryFn: () => api.getPage<Order[]>(`/ops/orders?userId=${customerId}&pageSize=20`),
+    enabled: Boolean(customerId),
+  });
+}
+
+export function useUpdateCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: { name?: string; status?: string } }) =>
+      api.patch<Customer>(`/ops/customers/${id}`, input),
+    onSuccess: () => {
+      toast.success(t("toast.customerUpdated"));
+      void queryClient.invalidateQueries({ queryKey: ["admin", "customers"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "customer"] });
     },
     onError: (error: Error) => toast.error(errorMessage(error)),
   });

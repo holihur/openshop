@@ -13,6 +13,7 @@ import {
   Store,
   Tags,
   Truck,
+  Users,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -33,6 +34,7 @@ const nav: { to: string; label: MessageKey; icon: LucideIcon; end?: boolean; per
   { to: "/products", label: "ops.products", icon: Boxes, perm: "products:read" },
   { to: "/categories", label: "ops.categories", icon: Tags, perm: "categories:write" },
   { to: "/orders", label: "ops.orders", icon: ShoppingCart, perm: "orders:read" },
+  { to: "/customers", label: "ops.customers", icon: Users, perm: "customers:read" },
   { to: "/coupons", label: "ops.coupons", icon: BadgePercent, perm: "coupons:read" },
   { to: "/reviews", label: "ops.reviews", icon: Star, perm: "reviews:read" },
   { to: "/returns", label: "ops.returns", icon: RotateCcw, perm: "returns:read" },

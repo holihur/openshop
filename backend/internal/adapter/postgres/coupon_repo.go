@@ -107,12 +107,55 @@ func (r *CouponRepository) CountRedemptions(ctx context.Context, couponID, userI
 func (r *CouponRepository) CreateRedemption(ctx context.Context, red *domain.CouponRedemption) error {
 	m := &couponRedemptionModel{
 		ID: red.ID, CouponID: red.CouponID, UserID: red.UserID,
-		OrderID: red.OrderID, CreatedAt: red.CreatedAt,
+		OrderID: red.OrderID, OrderNo: red.OrderNo, DiscountCents: red.DiscountCents,
+		CreatedAt: red.CreatedAt,
 	}
 	if err := r.db.session(ctx).Create(m).Error; err != nil {
 		return translate(err)
 	}
 	return nil
+}
+
+// ListRedemptions returns a coupon's usage history, newest first, with the
+// redeeming customer's email joined in for display.
+func (r *CouponRepository) ListRedemptions(ctx context.Context, couponID string, f domain.CouponFilter) (domain.Page[domain.CouponRedemption], error) {
+	page, size := normalizePage(f.Page, f.PageSize, 20)
+	q := r.db.session(ctx).Model(&couponRedemptionModel{}).Where("coupon_id = ?", couponID)
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return domain.Page[domain.CouponRedemption]{}, translate(err)
+	}
+	var models []couponRedemptionModel
+	if err := q.Order("created_at desc").Offset((page - 1) * size).Limit(size).Find(&models).Error; err != nil {
+		return domain.Page[domain.CouponRedemption]{}, translate(err)
+	}
+
+	userIDs := make([]string, 0, len(models))
+	for _, m := range models {
+		if m.UserID != "" {
+			userIDs = append(userIDs, m.UserID)
+		}
+	}
+	emails := map[string]string{}
+	if len(userIDs) > 0 {
+		var users []userModel
+		if err := r.db.session(ctx).Where("id IN ?", userIDs).Find(&users).Error; err == nil {
+			for _, u := range users {
+				emails[u.ID] = u.Email
+			}
+		}
+	}
+
+	out := make([]domain.CouponRedemption, 0, len(models))
+	for _, m := range models {
+		out = append(out, domain.CouponRedemption{
+			ID: m.ID, CouponID: m.CouponID, UserID: m.UserID, OrderID: m.OrderID,
+			OrderNo: m.OrderNo, DiscountCents: m.DiscountCents, CreatedAt: m.CreatedAt,
+			UserEmail: emails[m.UserID],
+		})
+	}
+	return domain.Page[domain.CouponRedemption]{Items: out, Total: total, Page: page, PageSize: size}, nil
 }
 
 var _ port.CouponRepository = (*CouponRepository)(nil)

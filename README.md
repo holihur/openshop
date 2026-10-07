@@ -444,6 +444,10 @@ is not present on the public storefront binary. All routes require an admin JWT.
 | `GET` | `/ops/audit-logs` | Audit trail (security and admin actions) |
 | `GET` | `/ops/settings` | List runtime settings with current/default values |
 | `PUT` | `/ops/settings` | Update runtime settings (applied without a restart) |
+| `GET` | `/ops/customers` | List customer accounts (search + status filter) |
+| `GET` | `/ops/customers/:id` | Get one customer |
+| `PATCH` | `/ops/customers/:id` | Rename or enable/disable a customer |
+| `GET` | `/ops/coupons/:id/redemptions` | A coupon's usage history |
 | `PUT` | `/ops/currencies/:code` | Set an exchange rate |
 | `POST` | `/ops/orders/:id/refund` | Refund part or all of a paid order (`amountCents`, `restock`) |
 | `POST` | `/ops/orders/:id/ship` | Mark a paid order shipped (tracking number) |
@@ -748,6 +752,13 @@ through unchanged, so product grids and detail pages emit `srcset` out of the bo
   resolves the request locale from `Accept-Language` (or `?locale=`) and returns
   the translated name with the base name as fallback. Operators edit the
   translations from the ops Categories page.
+- **The storefront is operator-configurable.** The homepage banner
+  (title/subtitle/image/CTA), the three feature cards, a site-wide announcement
+  and the footer tagline are runtime settings, exposed publicly via `GET /site`
+  and edited from the ops console — no redeploy.
+- **Customer management and coupon usage.** Ops can search customers, open a
+  profile (with order history) and enable/disable an account; each coupon has a
+  usage history showing who redeemed it, on which order and how much it saved.
 - **The ops console is fully navigable.** Lists are server-paginated with
   search/filter controls (products by keyword/category, orders by status, returns
   by status, audit by action) and detail views are deep-linkable routes

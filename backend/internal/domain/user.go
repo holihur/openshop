@@ -38,3 +38,12 @@ type User struct {
 func (u *User) IsAdmin() bool { return u.Role == RoleAdmin }
 
 func (u *User) CanLogin() bool { return u.Status == UserActive }
+
+// UserFilter selects a page of users for the ops console.
+type UserFilter struct {
+	Keyword  string
+	Role     *UserRole
+	Status   *UserStatus
+	Page     int
+	PageSize int
+}

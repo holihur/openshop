@@ -216,6 +216,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	shippingSvc := service.NewShippingService(shippingRepo, zoneRepo, ids, clock)
 	auditSvc := service.NewAuditService(auditRepo, ids, clock, log)
 	currencySvc := service.NewCurrencyService(currencyRepo, cfg.App.Currency, cache)
+	customerSvc := service.NewCustomerService(users, clock)
 
 	// Surface-specific services: only the binary that serves them builds them, so
 	// e.g. the ops binary never constructs cart/wishlist/address services.
@@ -243,7 +244,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Orders: orderSvc, Payments: paymentSvc,
 		Coupons: couponSvc, Reviews: reviewSvc, Shipping: shippingSvc, Audit: auditSvc,
-		Currency: currencySvc, Returns: returnSvc, Settings: settingsSvc, Storage: objectStore, IDs: ids, Logger: log,
+		Currency: currencySvc, Returns: returnSvc, Settings: settingsSvc, Customers: customerSvc, Storage: objectStore, IDs: ids, Logger: log,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
 			{Name: "postgres", Check: db.Ping},

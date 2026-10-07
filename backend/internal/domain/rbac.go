@@ -25,6 +25,8 @@ const (
 	PermAuditRead       Permission = "audit:read"
 	PermSettingsRead    Permission = "settings:read"
 	PermSettingsWrite   Permission = "settings:write"
+	PermCustomersRead   Permission = "customers:read"
+	PermCustomersWrite  Permission = "customers:write"
 )
 
 // allPermissions is the full catalogue, granted to the admin superuser role.
@@ -37,6 +39,7 @@ var allPermissions = []Permission{
 	PermReviewsRead, PermReviewsWrite,
 	PermAnalyticsRead, PermAuditRead,
 	PermSettingsRead, PermSettingsWrite,
+	PermCustomersRead, PermCustomersWrite,
 }
 
 // rolePermissions maps the non-superuser ops roles to their capabilities.
@@ -47,6 +50,7 @@ var rolePermissions = map[UserRole]map[Permission]bool{
 		PermOrdersRead, PermOrdersWrite, PermRefundsWrite,
 		PermReturnsRead, PermReturnsWrite,
 		PermReviewsRead, PermReviewsWrite,
+		PermCustomersRead, PermCustomersWrite,
 		PermAnalyticsRead,
 	),
 	// Catalog: merchandising, shipping configuration and storefront reviews.

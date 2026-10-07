@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"strings"
 
 	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/port"
@@ -68,6 +69,35 @@ func (r *UserRepository) FindByPhone(ctx context.Context, phone string) (*domain
 		return nil, translate(err)
 	}
 	return toUser(&m), nil
+}
+
+func (r *UserRepository) List(ctx context.Context, f domain.UserFilter) (domain.Page[domain.User], error) {
+	page, size := normalizePage(f.Page, f.PageSize, 20)
+	q := r.db.session(ctx).Model(&userModel{})
+	if f.Role != nil {
+		q = q.Where("role = ?", string(*f.Role))
+	}
+	if f.Status != nil {
+		q = q.Where("status = ?", string(*f.Status))
+	}
+	if kw := strings.TrimSpace(f.Keyword); kw != "" {
+		like := "%" + kw + "%"
+		q = q.Where("email ILIKE ? OR name ILIKE ? OR phone ILIKE ?", like, like, like)
+	}
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return domain.Page[domain.User]{}, translate(err)
+	}
+	var models []userModel
+	if err := q.Order("created_at desc").Offset((page - 1) * size).Limit(size).Find(&models).Error; err != nil {
+		return domain.Page[domain.User]{}, translate(err)
+	}
+	out := make([]domain.User, 0, len(models))
+	for i := range models {
+		out = append(out, *toUser(&models[i]))
+	}
+	return domain.Page[domain.User]{Items: out, Total: total, Page: page, PageSize: size}, nil
 }
 
 var _ port.UserRepository = (*UserRepository)(nil)

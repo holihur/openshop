@@ -8,17 +8,20 @@ import { Label } from "@lib/components/ui/label";
 import { Skeleton } from "@lib/components/ui/skeleton";
 import { useI18n } from "@lib/i18n";
 import type { MessageKey } from "@lib/i18n/messages";
+import { cn } from "@lib/utils";
 import { useSettings, useUpdateSettings } from "@lib/hooks/useAdmin";
 import type { Setting } from "@lib/types";
 
 const GROUP_ORDER = ["store", "checkout", "inventory", "auth", "security"];
 
-/** Runtime configuration: everything here applies without a restart. */
+/** Runtime configuration: a group sub-menu on the left, the group's settings on
+ * the right. Everything here applies without a restart. */
 export function SettingsPage() {
   const { t } = useI18n();
   const { data, isLoading } = useSettings();
   const save = useUpdateSettings();
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [activeGroup, setActiveGroup] = useState("");
 
   useEffect(() => {
     if (!data) return;
@@ -39,11 +42,18 @@ export function SettingsPage() {
     );
   }, [data]);
 
+  useEffect(() => {
+    if (!activeGroup && groups.length > 0) setActiveGroup(groups[0][0]);
+  }, [groups, activeGroup]);
+
   if (isLoading) {
     return <Skeleton className="h-64 w-full" />;
   }
 
   const changed = (data ?? []).filter((s) => draft[s.key] !== undefined && draft[s.key] !== s.value);
+  const groupChanged = (items: Setting[]) =>
+    items.some((s) => draft[s.key] !== undefined && draft[s.key] !== s.value);
+  const current = groups.find(([group]) => group === activeGroup);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -63,58 +73,86 @@ export function SettingsPage() {
         </Button>
       </div>
 
-      {groups.map(([group, items]) => (
-        <Card key={group}>
-          <CardHeader>
-            <CardTitle>{t(`settings.group.${group}` as MessageKey)}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {items.map((s) => (
-              <div key={s.key} className="grid gap-2 sm:grid-cols-[260px_1fr] sm:items-start">
-                <div>
-                  <Label htmlFor={s.key}>{t(`settings.key.${s.key}` as MessageKey)}</Label>
-                  <p className="text-muted-foreground text-xs">
-                    {t(`settings.desc.${s.key}` as MessageKey)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {s.type === "bool" ? (
-                    <input
-                      id={s.key}
-                      type="checkbox"
-                      className="size-4"
-                      checked={draft[s.key] === "true"}
-                      onChange={(e) =>
-                        setDraft((d) => ({ ...d, [s.key]: String(e.target.checked) }))
-                      }
-                    />
-                  ) : (
-                    <Input
-                      id={s.key}
-                      type={s.type === "int" ? "number" : "text"}
-                      min={s.min}
-                      max={s.max}
-                      value={draft[s.key] ?? ""}
-                      onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}
-                    />
+      <div className="flex flex-col gap-4 md:flex-row md:gap-6">
+        <nav className="md:w-48 md:shrink-0">
+          <ul className="flex gap-1 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
+            {groups.map(([group, items]) => (
+              <li key={group}>
+                <button
+                  type="button"
+                  onClick={() => setActiveGroup(group)}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-2 whitespace-nowrap rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
+                    activeGroup === group
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                   )}
-                  {s.value !== s.default && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDraft((d) => ({ ...d, [s.key]: s.default }))}
-                    >
-                      <RotateCcw className="size-4" />
-                      {t("ops.resetDefault")}
-                    </Button>
+                >
+                  {t(`settings.group.${group}` as MessageKey)}
+                  {groupChanged(items) && (
+                    <span className="bg-primary size-2 rounded-full" aria-hidden />
                   )}
-                </div>
-              </div>
+                </button>
+              </li>
             ))}
-          </CardContent>
-        </Card>
-      ))}
+          </ul>
+        </nav>
+
+        <div className="min-w-0 flex-1 space-y-4">
+          {current && (
+            <Card key={current[0]}>
+              <CardHeader>
+                <CardTitle>{t(`settings.group.${current[0]}` as MessageKey)}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {current[1].map((s) => (
+                  <div key={s.key} className="grid gap-2 sm:grid-cols-[260px_1fr] sm:items-start">
+                    <div>
+                      <Label htmlFor={s.key}>{t(`settings.key.${s.key}` as MessageKey)}</Label>
+                      <p className="text-muted-foreground text-xs">
+                        {t(`settings.desc.${s.key}` as MessageKey)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {s.type === "bool" ? (
+                        <input
+                          id={s.key}
+                          type="checkbox"
+                          className="size-4"
+                          checked={draft[s.key] === "true"}
+                          onChange={(e) =>
+                            setDraft((d) => ({ ...d, [s.key]: String(e.target.checked) }))
+                          }
+                        />
+                      ) : (
+                        <Input
+                          id={s.key}
+                          type={s.type === "int" ? "number" : "text"}
+                          min={s.min}
+                          max={s.max}
+                          value={draft[s.key] ?? ""}
+                          onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}
+                        />
+                      )}
+                      {s.value !== s.default && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDraft((d) => ({ ...d, [s.key]: s.default }))}
+                        >
+                          <RotateCcw className="size-4" />
+                          {t("ops.resetDefault")}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
     </form>
   );
 }

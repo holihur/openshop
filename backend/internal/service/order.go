@@ -335,7 +335,8 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 		if order.CouponID != "" {
 			if err := s.coupons.CreateRedemption(txCtx, &domain.CouponRedemption{
 				ID: s.ids.NewID(), CouponID: order.CouponID, UserID: in.UserID,
-				OrderID: order.ID, CreatedAt: now,
+				OrderID: order.ID, OrderNo: order.OrderNo, DiscountCents: order.DiscountCents,
+				CreatedAt: now,
 			}); err != nil {
 				return err
 			}

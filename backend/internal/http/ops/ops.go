@@ -120,6 +120,10 @@ func New(
 			admin.POST("/returns/:id/approve", middleware.RequirePermission(domain.PermReturnsWrite), fh.ApproveReturn)
 			admin.POST("/returns/:id/reject", middleware.RequirePermission(domain.PermReturnsWrite), fh.RejectReturn)
 
+			admin.GET("/customers", middleware.RequirePermission(domain.PermCustomersRead), fh.ListCustomers)
+			admin.GET("/customers/:id", middleware.RequirePermission(domain.PermCustomersRead), fh.GetCustomer)
+			admin.PATCH("/customers/:id", middleware.RequirePermission(domain.PermCustomersWrite), fh.UpdateCustomer)
+
 			admin.GET("/stats", middleware.RequirePermission(domain.PermAnalyticsRead), fh.Dashboard)
 			admin.GET("/inventory/low-stock", middleware.RequirePermission(domain.PermAnalyticsRead), fh.LowStock)
 			admin.GET("/audit-logs", middleware.RequirePermission(domain.PermAuditRead), fh.ListAuditLogs)
@@ -138,6 +142,7 @@ func New(
 			admin.PUT("/currencies/:code", middleware.RequirePermission(domain.PermCurrencyWrite), fh.SetCurrencyRate)
 
 			admin.GET("/coupons", middleware.RequirePermission(domain.PermCouponsRead), fh.ListCoupons)
+			admin.GET("/coupons/:id/redemptions", middleware.RequirePermission(domain.PermCouponsRead), fh.ListCouponRedemptions)
 			admin.POST("/coupons", middleware.RequirePermission(domain.PermCouponsWrite), fh.CreateCoupon)
 			admin.PATCH("/coupons/:id", middleware.RequirePermission(domain.PermCouponsWrite), fh.UpdateCoupon)
 

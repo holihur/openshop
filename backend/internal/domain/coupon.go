@@ -4,11 +4,15 @@ import "time"
 
 // CouponRedemption records that a user consumed a coupon on an order.
 type CouponRedemption struct {
-	ID        string
-	CouponID  string
-	UserID    string
-	OrderID   string
-	CreatedAt time.Time
+	ID            string
+	CouponID      string
+	UserID        string
+	OrderID       string
+	OrderNo       string
+	DiscountCents int64
+	CreatedAt     time.Time
+	// UserEmail is joined in for display; it is not stored on the redemption.
+	UserEmail string
 }
 
 type DiscountType string

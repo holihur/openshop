@@ -20,20 +20,21 @@ type ReadinessCheck struct {
 // Surface-specific services (cart/wishlist/address/account for the storefront,
 // analytics for ops) live on the surface handler that embeds this one.
 type Handler struct {
-	Auth     *service.AuthService
-	Catalog  *service.CatalogService
-	Orders   *service.OrderService
-	Payments *service.PaymentService
-	Coupons  *service.CouponService
-	Reviews  *service.ReviewService
-	Shipping *service.ShippingService
-	Audit    *service.AuditService
-	Currency *service.CurrencyService
-	Returns  *service.ReturnService
-	Settings *service.SettingsService
-	Storage  port.ObjectStorage
-	IDs      port.IDGenerator
-	Logger   port.Logger
-	Metrics  http.Handler
-	Checks   []ReadinessCheck
+	Auth      *service.AuthService
+	Catalog   *service.CatalogService
+	Orders    *service.OrderService
+	Payments  *service.PaymentService
+	Coupons   *service.CouponService
+	Reviews   *service.ReviewService
+	Shipping  *service.ShippingService
+	Audit     *service.AuditService
+	Currency  *service.CurrencyService
+	Returns   *service.ReturnService
+	Settings  *service.SettingsService
+	Customers *service.CustomerService
+	Storage   port.ObjectStorage
+	IDs       port.IDGenerator
+	Logger    port.Logger
+	Metrics   http.Handler
+	Checks    []ReadinessCheck
 }

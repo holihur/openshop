@@ -295,11 +295,13 @@ type couponModel struct {
 func (couponModel) TableName() string { return "coupons" }
 
 type couponRedemptionModel struct {
-	ID        string    `gorm:"type:uuid;primaryKey"`
-	CouponID  string    `gorm:"type:uuid;index;not null"`
-	UserID    string    `gorm:"type:uuid;index;not null"`
-	OrderID   string    `gorm:"type:uuid;not null"`
-	CreatedAt time.Time `gorm:"not null"`
+	ID            string    `gorm:"type:uuid;primaryKey"`
+	CouponID      string    `gorm:"type:uuid;index;not null"`
+	UserID        string    `gorm:"type:uuid;index;not null"`
+	OrderID       string    `gorm:"type:uuid;not null"`
+	OrderNo       string    `gorm:"size:64;not null;default:''"`
+	DiscountCents int64     `gorm:"not null;default:0"`
+	CreatedAt     time.Time `gorm:"not null"`
 }
 
 func (couponRedemptionModel) TableName() string { return "coupon_redemptions" }
