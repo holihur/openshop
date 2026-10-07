@@ -132,7 +132,7 @@ export function CartPage() {
     return (
       <div className="py-20 text-center">
         <ShoppingBag className="text-muted-foreground mx-auto size-10" />
-        <p className="mt-4 text-lg font-medium">{t("cart.emptyTitle")}</p>
+        <h1 className="mt-4 text-lg font-medium">{t("cart.emptyTitle")}</h1>
         <p className="text-muted-foreground">{t("cart.emptyHint")}</p>
         <Button className="mt-6" asChild>
           <Link to="/products">{t("cart.browse")}</Link>

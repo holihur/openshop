@@ -45,6 +45,18 @@ test("a narrow role only sees the sections it can access", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Audit" })).toHaveCount(0);
 });
 
+test("the ops console deep-links to product detail and categories", async ({ page }) => {
+  await signIn(page);
+  await page.getByRole("link", { name: "Products" }).click();
+  await page.locator('a[href^="/products/"]').first().click();
+  await expect(page).toHaveURL(/\/products\/[^/]+$/);
+  await expect(page.getByText("Edit product")).toBeVisible();
+
+  await page.getByRole("link", { name: "Categories" }).click();
+  await expect(page).toHaveURL(/\/categories$/);
+  await expect(page.getByText("New category")).toBeVisible();
+});
+
 test("switching language localises the console", async ({ page }) => {
   await signIn(page);
   await page.getByTestId("locale-switcher").selectOption("zh");

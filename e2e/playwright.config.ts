@@ -19,7 +19,16 @@ export default defineConfig({
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    // Full suite on Chromium, including accessibility scans.
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /mobile\.spec\.ts/ },
+    // Cross-browser coverage of the core flows (a11y is engine-independent).
+    { name: "firefox", use: { ...devices["Desktop Firefox"] }, testIgnore: [/mobile\.spec\.ts/, /a11y\.spec\.ts/] },
+    { name: "webkit", use: { ...devices["Desktop Safari"] }, testIgnore: [/mobile\.spec\.ts/, /a11y\.spec\.ts/] },
+    // Responsive layout on real mobile viewports.
+    { name: "mobile-chrome", use: { ...devices["Pixel 5"] }, testMatch: /mobile\.spec\.ts/ },
+    { name: "mobile-safari", use: { ...devices["iPhone 13"] }, testMatch: /mobile\.spec\.ts/ },
+  ],
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : [

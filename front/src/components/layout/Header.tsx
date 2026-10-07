@@ -151,9 +151,9 @@ export function Header() {
             </div>
           ) : (
             <Button size="sm" asChild>
-              <Link to="/login">
+              <Link to="/login" aria-label={t("nav.signIn")}>
                 <User className="size-4" />
-                {t("nav.signIn")}
+                <span className="hidden sm:inline">{t("nav.signIn")}</span>
               </Link>
             </Button>
           )}

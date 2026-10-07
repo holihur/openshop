@@ -137,8 +137,8 @@ jobs:
         run: make fe-build
       - name: Start NATS (JetStream)
         run: docker run -d --name nats -p 4222:4222 -p 8222:8222 nats:2-alpine -js -sd /data
-      - name: Install Playwright browser
-        run: pnpm --filter @openshop/e2e exec playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: pnpm --filter @openshop/e2e exec playwright install --with-deps chromium firefox webkit
       - name: Run E2E
         run: pnpm --filter @openshop/e2e test
       - name: Upload report on failure

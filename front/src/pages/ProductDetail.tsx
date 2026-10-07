@@ -133,10 +133,12 @@ export function ProductDetailPage() {
           </div>
           {gallery.length > 1 && (
             <div className="flex gap-2">
-              {gallery.map((src) => (
+              {gallery.map((src, index) => (
                 <button
                   key={src}
                   onClick={() => setActiveImage(src)}
+                  aria-label={`${product.title} image ${index + 1}`}
+                  aria-current={activeImage === src ? "true" : undefined}
                   className="bg-muted size-16 overflow-hidden rounded-md border"
                 >
                   <img src={src} alt="" className="size-full object-cover" />
@@ -215,6 +217,7 @@ export function ProductDetailPage() {
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label={t("cart.decrease")}
                 disabled={quantity <= 1}
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               >
@@ -224,6 +227,7 @@ export function ProductDetailPage() {
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label={t("cart.increase")}
                 disabled={quantity >= effectiveStock}
                 onClick={() => setQuantity((q) => q + 1)}
               >
