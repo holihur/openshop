@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
-import { Upload } from "lucide-react";
+import { Upload, X } from "lucide-react";
 
 import { Button } from "@lib/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@lib/components/ui/card";
@@ -18,10 +18,12 @@ interface FormState {
   weight: string; // grams
   status: string;
   categoryId: string;
-  coverImage: string;
+  // images[0] is the cover; the rest are the gallery.
+  images: string[];
 }
 
 function initialState(product?: Product): FormState {
+  const images = [product?.coverImage ?? "", ...(product?.images ?? [])].filter(Boolean);
   return {
     title: product?.title ?? "",
     description: product?.description ?? "",
@@ -30,7 +32,7 @@ function initialState(product?: Product): FormState {
     weight: product ? String(product.weightGrams ?? 0) : "0",
     status: product?.status ?? "draft",
     categoryId: product?.categoryId ?? "",
-    coverImage: product?.coverImage ?? "",
+    images: [...new Set(images)],
   };
 }
 
@@ -48,7 +50,8 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
     const file = e.target.files?.[0];
     if (!file) return;
     const res = await upload.mutateAsync(file);
-    set({ coverImage: res.url });
+    setForm((f) => ({ ...f, images: [...f.images, res.url] }));
+    e.target.value = "";
   }
 
   function onSubmit(e: FormEvent) {
@@ -62,7 +65,8 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
       weightGrams: Number.parseInt(form.weight || "0", 10),
       status: form.status,
       categoryId: form.categoryId || undefined,
-      coverImage: form.coverImage,
+      coverImage: form.images[0] ?? "",
+      images: form.images.slice(1),
     };
 
     if (product) {
@@ -168,18 +172,35 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
           </div>
 
           <div className="space-y-2 sm:col-span-2">
-            <Label>{t("ops.coverImage")}</Label>
-            <div className="flex items-center gap-3">
-              {form.coverImage && (
-                <img
-                  src={form.coverImage}
-                  alt="cover"
-                  className="bg-muted size-16 rounded-md border object-cover"
-                />
-              )}
+            <Label>{t("ops.images")}</Label>
+            <div className="flex flex-wrap items-center gap-3">
+              {form.images.map((src, index) => (
+                <div key={src} className="group relative">
+                  <img
+                    src={src}
+                    alt=""
+                    className="bg-muted size-20 rounded-md border object-cover"
+                  />
+                  {index === 0 && (
+                    <span className="bg-primary text-primary-foreground absolute bottom-1 left-1 rounded px-1 text-[10px]">
+                      {t("ops.cover")}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={t("common.delete")}
+                    onClick={() =>
+                      setForm((f) => ({ ...f, images: f.images.filter((_, i) => i !== index) }))
+                    }
+                    className="bg-background absolute -top-1 -right-1 rounded-full border p-0.5 opacity-0 group-hover:opacity-100"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
               <label className="border-input hover:bg-accent inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm">
                 <Upload className="size-4" />
-                {upload.isPending ? t("ops.uploading") : t("ops.uploadImage")}
+                {upload.isPending ? t("ops.uploading") : t("ops.addImage")}
                 <input type="file" accept="image/*" className="hidden" onChange={onFile} />
               </label>
             </div>
