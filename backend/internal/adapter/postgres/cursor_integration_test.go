@@ -31,6 +31,10 @@ func TestCursorPagination(t *testing.T) {
 	}
 	defer db.Close()
 
+	if err := db.AutoMigrate(); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
 	repo := NewProductRepository(db)
 	seen := map[string]bool{}
 	cursor := ""
