@@ -16,6 +16,13 @@ type createCategoryRequest struct {
 	Sort     int    `json:"sort"`
 }
 
+type updateCategoryRequest struct {
+	Name     *string `json:"name"`
+	Slug     *string `json:"slug"`
+	ParentID *string `json:"parentId"`
+	Sort     *int    `json:"sort"`
+}
+
 type createProductRequest struct {
 	CategoryID  string   `json:"categoryId"`
 	Title       string   `json:"title" binding:"required"`
@@ -78,6 +85,33 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 		return
 	}
 	response.Created(c, handler.ToCategoryView(*cat))
+}
+
+func (h *Handler) UpdateCategory(c *gin.Context) {
+	var req updateCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, handler.WrapBind(err))
+		return
+	}
+	cat, err := h.Catalog.UpdateCategory(c.Request.Context(), c.Param("id"), service.UpdateCategoryInput{
+		Name: req.Name, Slug: req.Slug, ParentID: req.ParentID, Sort: req.Sort,
+	})
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	h.RecordAudit(c, "category.update", "category", cat.ID, nil)
+	response.OK(c, handler.ToCategoryView(*cat))
+}
+
+// GetProduct returns one product with its variants (admin detail view).
+func (h *Handler) GetProduct(c *gin.Context) {
+	p, err := h.Catalog.GetProduct(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, handler.ToProductView(*p))
 }
 
 func (h *Handler) CreateProduct(c *gin.Context) {

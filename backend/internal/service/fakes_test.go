@@ -430,14 +430,14 @@ func (r *fakeCouponRepo) FindByCode(_ context.Context, code string) (*domain.Cou
 	return nil, domain.ErrNotFound
 }
 
-func (r *fakeCouponRepo) List(_ context.Context) ([]domain.Coupon, error) {
+func (r *fakeCouponRepo) List(_ context.Context, _ domain.CouponFilter) (domain.Page[domain.Coupon], error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	out := make([]domain.Coupon, 0, len(r.byCode))
 	for _, c := range r.byCode {
 		out = append(out, *c)
 	}
-	return out, nil
+	return domain.Page[domain.Coupon]{Items: out, Total: int64(len(out)), Page: 1, PageSize: len(out)}, nil
 }
 
 func (r *fakeCouponRepo) IncrementUsage(_ context.Context, id string) error {

@@ -72,16 +72,17 @@ func (h *Handler) CreateCoupon(c *gin.Context) {
 }
 
 func (h *Handler) ListCoupons(c *gin.Context) {
-	coupons, err := h.Coupons.List(c.Request.Context())
+	page, size := handler.ParsePage(c, 20)
+	coupons, err := h.Coupons.List(c.Request.Context(), domain.CouponFilter{Page: page, PageSize: size})
 	if err != nil {
 		response.Fail(c, err)
 		return
 	}
-	out := make([]handler.CouponView, 0, len(coupons))
-	for _, coupon := range coupons {
+	out := make([]handler.CouponView, 0, len(coupons.Items))
+	for _, coupon := range coupons.Items {
 		out = append(out, handler.ToCouponView(coupon))
 	}
-	response.OK(c, out)
+	response.Paginated(c, out, coupons.Total, coupons.Page, coupons.PageSize)
 }
 
 func (h *Handler) UpdateCoupon(c *gin.Context) {

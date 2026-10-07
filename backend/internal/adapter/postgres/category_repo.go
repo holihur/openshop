@@ -21,6 +21,19 @@ func (r *CategoryRepository) Create(ctx context.Context, c *domain.Category) err
 	return nil
 }
 
+func (r *CategoryRepository) Update(ctx context.Context, c *domain.Category) error {
+	res := r.db.session(ctx).Model(&categoryModel{}).Where("id = ?", c.ID).
+		Select("name", "slug", "parent_id", "sort", "updated_at").
+		Updates(fromCategory(c))
+	if res.Error != nil {
+		return translate(res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 func (r *CategoryRepository) List(ctx context.Context) ([]domain.Category, error) {
 	var models []categoryModel
 	if err := r.db.session(ctx).Order("sort asc, created_at asc").Find(&models).Error; err != nil {

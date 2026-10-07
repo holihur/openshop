@@ -97,8 +97,10 @@ func New(
 		)
 		{
 			admin.POST("/categories", middleware.RequirePermission(domain.PermCategoriesWrite), fh.CreateCategory)
+			admin.PATCH("/categories/:id", middleware.RequirePermission(domain.PermCategoriesWrite), fh.UpdateCategory)
 
 			admin.GET("/products", middleware.RequirePermission(domain.PermProductsRead), fh.ListProducts)
+			admin.GET("/products/:id", middleware.RequirePermission(domain.PermProductsRead), fh.GetProduct)
 			admin.POST("/products", middleware.RequirePermission(domain.PermProductsWrite), fh.CreateProduct)
 			admin.PATCH("/products/:id", middleware.RequirePermission(domain.PermProductsWrite), fh.UpdateProduct)
 			admin.GET("/products/:id/variants", middleware.RequirePermission(domain.PermProductsRead), fh.ListVariants)

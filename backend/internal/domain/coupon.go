@@ -18,6 +18,12 @@ const (
 	DiscountFixed   DiscountType = "fixed"
 )
 
+// CouponFilter selects a page of coupons for the ops console.
+type CouponFilter struct {
+	Page     int
+	PageSize int
+}
+
 // Coupon is a discount that can be applied at checkout. DiscountValue is a
 // percentage (0-100) for percent coupons or an amount in minor units for fixed
 // coupons.

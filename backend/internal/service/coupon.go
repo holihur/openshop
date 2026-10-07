@@ -69,8 +69,8 @@ func (s *CouponService) Create(ctx context.Context, in CreateCouponInput) (*doma
 	return c, nil
 }
 
-func (s *CouponService) List(ctx context.Context) ([]domain.Coupon, error) {
-	return s.coupons.List(ctx)
+func (s *CouponService) List(ctx context.Context, f domain.CouponFilter) (domain.Page[domain.Coupon], error) {
+	return s.coupons.List(ctx, f)
 }
 
 // UpdateCouponInput carries partial updates; nil fields are left unchanged.

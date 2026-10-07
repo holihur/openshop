@@ -28,6 +28,7 @@ type UserRepository interface {
 // CategoryRepository persists categories.
 type CategoryRepository interface {
 	Create(ctx context.Context, c *domain.Category) error
+	Update(ctx context.Context, c *domain.Category) error
 	List(ctx context.Context) ([]domain.Category, error)
 	FindByID(ctx context.Context, id string) (*domain.Category, error)
 }
@@ -102,7 +103,7 @@ type CouponRepository interface {
 	Update(ctx context.Context, c *domain.Coupon) error
 	FindByID(ctx context.Context, id string) (*domain.Coupon, error)
 	FindByCode(ctx context.Context, code string) (*domain.Coupon, error)
-	List(ctx context.Context) ([]domain.Coupon, error)
+	List(ctx context.Context, f domain.CouponFilter) (domain.Page[domain.Coupon], error)
 	// IncrementUsage atomically consumes one redemption. It returns
 	// ErrCouponExhausted when the global limit has been reached, which makes it
 	// correct under concurrency across any number of replicas.

@@ -81,6 +81,42 @@ func (s *CatalogService) CreateCategory(ctx context.Context, in CreateCategoryIn
 	return c, nil
 }
 
+type UpdateCategoryInput struct {
+	Name     *string
+	Slug     *string
+	ParentID *string
+	Sort     *int
+}
+
+func (s *CatalogService) UpdateCategory(ctx context.Context, id string, in UpdateCategoryInput) (*domain.Category, error) {
+	cat, err := s.categories.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if in.Name != nil {
+		name := strings.TrimSpace(*in.Name)
+		if name == "" {
+			return nil, fmt.Errorf("%w: name is required", domain.ErrInvalidArgument)
+		}
+		cat.Name = name
+	}
+	if in.Slug != nil && strings.TrimSpace(*in.Slug) != "" {
+		cat.Slug = slugify(*in.Slug)
+	}
+	if in.ParentID != nil {
+		cat.ParentID = *in.ParentID
+	}
+	if in.Sort != nil {
+		cat.Sort = *in.Sort
+	}
+	cat.UpdatedAt = s.clock.Now()
+	if err := s.categories.Update(ctx, cat); err != nil {
+		return nil, err
+	}
+	_ = s.cache.Delete(ctx, categoryCacheKey)
+	return cat, nil
+}
+
 type CreateProductInput struct {
 	CategoryID  string
 	Title       string

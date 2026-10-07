@@ -1,8 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { Pencil, Plus, RotateCcw, Truck } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { errorMessage } from "@lib/errors";
+import { Link, useNavigate } from "react-router-dom";
+import { Pencil, Plus } from "lucide-react";
 import { Button } from "@lib/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@lib/components/ui/card";
 import { Badge } from "@lib/components/ui/badge";
@@ -18,11 +16,10 @@ import {
   TableRow,
 } from "@lib/components/ui/table";
 import { ProductForm } from "@/components/admin/product-form";
-import { VariantsEditor } from "@/components/admin/variants-editor";
 import { OrderStatusBadge } from "@lib/components/order-status-badge";
 import { Pagination } from "@lib/components/pagination";
 import { useI18n } from "@lib/i18n";
-import { useAdminCoupons, useAdminOrders, useAdminProducts, useAdminReviews, useAuditLogs, useCreateCoupon, useCurrencies, useDashboard, useDeleteReviewAdmin, useSetCurrencyRate, useUpdateCoupon } from "@lib/hooks/useAdmin";
+import { useAdminCoupons, useAdminOrders, useAdminProducts, useAdminReviews, useAuditLogs, useCategories, useCreateCoupon, useCurrencies, useDashboard, useDeleteReviewAdmin, useSetCurrencyRate, useUpdateCoupon } from "@lib/hooks/useAdmin";
 import { useAdminReturns, useApproveReturn, useRejectReturn } from "@lib/hooks/useReturns";
 import {
   useAdminShippingMethods,
@@ -32,9 +29,8 @@ import {
   useSetShippingRate,
   useUpdateShippingMethod,
 } from "@lib/hooks/useShipping";
-import { api } from "@lib/api";
 import { formatDate, formatMoney } from "@lib/format";
-import type { AuditLog, Coupon, ExchangeRate, Order, Product, Review, ShippingMethod, ShippingZone } from "@lib/types";
+import type { AuditLog, Coupon, ExchangeRate, Review, ShippingMethod, ShippingZone } from "@lib/types";
 
 export function AdminCurrency() {
   const { t } = useI18n();
@@ -138,44 +134,62 @@ export function AdminCurrency() {
 
 export function AdminAudit() {
   const { t } = useI18n();
-  const { data, isLoading } = useAuditLogs();
-
-  if (isLoading) {
-    return <Skeleton className="h-64 w-full" />;
-  }
+  const [page, setPage] = useState(1);
+  const [action, setAction] = useState("");
+  const { data, isLoading } = useAuditLogs(page, 20, action);
 
   return (
-    <Card className="py-0">
-      <CardContent className="px-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("ops.time")}</TableHead>
-              <TableHead>{t("ops.actor")}</TableHead>
-              <TableHead>{t("ops.action")}</TableHead>
-              <TableHead>{t("ops.resource")}</TableHead>
-              <TableHead>{t("ops.ip")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data?.items.map((l: AuditLog) => (
-              <TableRow key={l.id}>
-                <TableCell className="text-muted-foreground whitespace-nowrap text-xs">
-                  {formatDate(l.createdAt)}
-                </TableCell>
-                <TableCell className="text-sm">{l.actorRole || "—"}</TableCell>
-                <TableCell className="font-mono text-xs">{l.action}</TableCell>
-                <TableCell className="text-muted-foreground text-xs">
-                  {l.resourceType}
-                  {l.resourceId ? ` · ${l.resourceId.slice(0, 8)}` : ""}
-                </TableCell>
-                <TableCell className="text-muted-foreground text-xs">{l.ip}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <Input
+        value={action}
+        onChange={(e) => {
+          setAction(e.target.value);
+          setPage(1);
+        }}
+        placeholder={t("ops.filterAction")}
+        className="max-w-xs"
+      />
+      <Card className="py-0">
+        <CardContent className="px-0">
+          {isLoading ? (
+            <div className="p-4">
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("ops.time")}</TableHead>
+                  <TableHead>{t("ops.actor")}</TableHead>
+                  <TableHead>{t("ops.action")}</TableHead>
+                  <TableHead>{t("ops.resource")}</TableHead>
+                  <TableHead>{t("ops.ip")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data?.items.map((l: AuditLog) => (
+                  <TableRow key={l.id}>
+                    <TableCell className="text-muted-foreground whitespace-nowrap text-xs">
+                      {formatDate(l.createdAt)}
+                    </TableCell>
+                    <TableCell className="text-sm">{l.actorRole || "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{l.action}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {l.resourceType}
+                      {l.resourceId ? ` · ${l.resourceId.slice(0, 8)}` : ""}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs">{l.ip}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+      {data && (
+        <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onChange={setPage} />
+      )}
+    </div>
   );
 }
 
@@ -313,7 +327,8 @@ export function AdminZones() {
 
 export function AdminReviews() {
   const { t } = useI18n();
-  const { data, isLoading } = useAdminReviews();
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useAdminReviews(page, 20);
   const remove = useDeleteReviewAdmin();
 
   if (isLoading) {
@@ -321,48 +336,55 @@ export function AdminReviews() {
   }
 
   return (
-    <Card className="py-0">
-      <CardContent className="px-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("ops.rating")}</TableHead>
-              <TableHead>{t("ops.review")}</TableHead>
-              <TableHead>{t("ops.product")}</TableHead>
-              <TableHead>{t("ops.date")}</TableHead>
-              <TableHead className="text-right">{t("common.actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data?.items.map((r: Review) => (
-              <TableRow key={r.id}>
-                <TableCell>{"★".repeat(r.rating)}</TableCell>
-                <TableCell className="max-w-md">
-                  {r.title && <span className="font-medium">{r.title}</span>}
-                  {r.body && <p className="text-muted-foreground text-sm">{r.body}</p>}
-                </TableCell>
-                <TableCell className="text-muted-foreground font-mono text-xs">
-                  {r.productId.slice(0, 8)}
-                </TableCell>
-                <TableCell className="text-muted-foreground text-sm">
-                  {formatDate(r.createdAt)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={remove.isPending}
-                    onClick={() => remove.mutate(r.id)}
-                  >
-                    {t("common.delete")}
-                  </Button>
-                </TableCell>
+    <div className="space-y-4">
+      <Card className="py-0">
+        <CardContent className="px-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("ops.rating")}</TableHead>
+                <TableHead>{t("ops.review")}</TableHead>
+                <TableHead>{t("ops.product")}</TableHead>
+                <TableHead>{t("ops.date")}</TableHead>
+                <TableHead className="text-right">{t("common.actions")}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {data?.items.map((r: Review) => (
+                <TableRow key={r.id}>
+                  <TableCell>{"★".repeat(r.rating)}</TableCell>
+                  <TableCell className="max-w-md">
+                    {r.title && <span className="font-medium">{r.title}</span>}
+                    {r.body && <p className="text-muted-foreground text-sm">{r.body}</p>}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground font-mono text-xs">
+                    <Link to={`/products/${r.productId}`} className="hover:underline">
+                      {r.productId.slice(0, 8)}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {formatDate(r.createdAt)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={remove.isPending}
+                      onClick={() => remove.mutate(r.id)}
+                    >
+                      {t("common.delete")}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      {data && (
+        <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onChange={setPage} />
+      )}
+    </div>
   );
 }
 
@@ -594,7 +616,8 @@ export function AdminDashboard() {
 
 export function AdminCoupons() {
   const { t } = useI18n();
-  const { data, isLoading } = useAdminCoupons();
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useAdminCoupons(page, 20);
   const create = useCreateCoupon();
   const update = useUpdateCoupon();
   const [code, setCode] = useState("");
@@ -700,7 +723,7 @@ export function AdminCoupons() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.map((c: Coupon) => (
+                {data?.items.map((c: Coupon) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-mono text-xs">{c.code}</TableCell>
                     <TableCell>
@@ -748,28 +771,30 @@ export function AdminCoupons() {
           )}
         </CardContent>
       </Card>
+      {data && (
+        <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onChange={setPage} />
+      )}
     </div>
   );
 }
 
 export function AdminProducts() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useAdminProducts(page, 50);
-  const [editing, setEditing] = useState<Product | null>(null);
+  const [keyword, setKeyword] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const { data: categories } = useCategories();
+  const { data, isLoading } = useAdminProducts(page, 20, { keyword, categoryId });
   const [creating, setCreating] = useState(false);
-
-  const showForm = creating || editing !== null;
-  const closeForm = () => {
-    setCreating(false);
-    setEditing(null);
-  };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-muted-foreground text-sm">{t("ops.productCount", { count: data?.total ?? 0 })}</p>
-        {!showForm && (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-muted-foreground text-sm">
+          {t("ops.productCount", { count: data?.total ?? 0 })}
+        </p>
+        {!creating && (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="size-4" />
             {t("ops.newProduct")}
@@ -777,12 +802,34 @@ export function AdminProducts() {
         )}
       </div>
 
-      {showForm && (
-        <div className="space-y-4">
-          <ProductForm product={editing ?? undefined} onDone={closeForm} />
-          {editing && <VariantsEditor productId={editing.id} />}
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          value={keyword}
+          onChange={(e) => {
+            setKeyword(e.target.value);
+            setPage(1);
+          }}
+          placeholder={t("ops.searchProducts")}
+          className="max-w-xs"
+        />
+        <select
+          value={categoryId}
+          onChange={(e) => {
+            setCategoryId(e.target.value);
+            setPage(1);
+          }}
+          className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+        >
+          <option value="">{t("ops.allCategories")}</option>
+          {categories?.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {creating && <ProductForm onDone={() => setCreating(false)} />}
 
       <Card className="py-0">
         <CardContent className="px-0">
@@ -805,7 +852,11 @@ export function AdminProducts() {
               <TableBody>
                 {data?.items.map((product) => (
                   <TableRow key={product.id}>
-                    <TableCell className="max-w-xs truncate font-medium">{product.title}</TableCell>
+                    <TableCell className="max-w-xs truncate font-medium">
+                      <Link to={`/products/${product.id}`} className="hover:underline">
+                        {product.title}
+                      </Link>
+                    </TableCell>
                     <TableCell>{formatMoney(product.priceCents, product.currency)}</TableCell>
                     <TableCell>{product.stock}</TableCell>
                     <TableCell>
@@ -814,14 +865,7 @@ export function AdminProducts() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setCreating(false);
-                          setEditing(product);
-                        }}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => navigate(`/products/${product.id}`)}>
                         <Pencil className="size-4" />
                         {t("common.edit")}
                       </Button>
@@ -834,20 +878,8 @@ export function AdminProducts() {
         </CardContent>
       </Card>
 
-      {data && data.total > data.pageSize && (
-        <div className="flex justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-            {t("common.previous")}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page * data.pageSize >= data.total}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            {t("common.next")}
-          </Button>
-        </div>
+      {data && (
+        <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onChange={setPage} />
       )}
     </div>
   );
@@ -856,37 +888,8 @@ export function AdminProducts() {
 export function AdminOrders() {
   const { t } = useI18n();
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useAdminOrders(page, 50);
-  const queryClient = useQueryClient();
-
-  const refund = useMutation({
-    mutationFn: ({ id, amountCents, restock }: { id: string; amountCents: number; restock: boolean }) =>
-      api.post<Order>(`/ops/orders/${id}/refund`, { reason: "admin refund", amountCents, restock }),
-    onSuccess: () => {
-      toast.success(t("ops.orderRefunded"));
-      void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
-    },
-    onError: (error: Error) => toast.error(errorMessage(error)),
-  });
-
-  const ship = useMutation({
-    mutationFn: ({ id, trackingNo }: { id: string; trackingNo: string }) =>
-      api.post<Order>(`/ops/orders/${id}/ship`, { trackingNo }),
-    onSuccess: () => {
-      toast.success(t("ops.orderShipped"));
-      void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
-    },
-    onError: (error: Error) => toast.error(errorMessage(error)),
-  });
-
-  const complete = useMutation({
-    mutationFn: (id: string) => api.post<Order>(`/ops/orders/${id}/complete`),
-    onSuccess: () => {
-      toast.success(t("ops.orderCompleted"));
-      void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
-    },
-    onError: (error: Error) => toast.error(errorMessage(error)),
-  });
+  const [status, setStatus] = useState("");
+  const { data, isLoading } = useAdminOrders(page, 20, status);
 
   if (isLoading) {
     return (
@@ -898,96 +901,74 @@ export function AdminOrders() {
   }
 
   return (
-    <Card className="py-0">
-      <CardContent className="px-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("orders.orderNo")}</TableHead>
-              <TableHead>{t("common.status")}</TableHead>
-              <TableHead>{t("ops.items")}</TableHead>
-              <TableHead>{t("orders.total")}</TableHead>
-              <TableHead>{t("orders.placed")}</TableHead>
-              <TableHead className="text-right">{t("common.actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data?.items.map((order) => (
-              <TableRow key={order.id}>
-                <TableCell className="font-mono text-xs">{order.orderNo}</TableCell>
-                <TableCell>
-                  <OrderStatusBadge status={order.status} />
-                </TableCell>
-                <TableCell>{order.items.length}</TableCell>
-                <TableCell>{formatMoney(order.totalCents, order.currency)}</TableCell>
-                <TableCell className="text-muted-foreground text-sm">
-                  {formatDate(order.createdAt)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    {order.status === "paid" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={ship.isPending}
-                        onClick={() => {
-                          const trackingNo = window.prompt(t("ops.trackingPrompt"), "");
-                          if (trackingNo !== null) ship.mutate({ id: order.id, trackingNo });
-                        }}
-                      >
-                        <Truck className="size-4" />
-                        {t("ops.ship")}
-                      </Button>
-                    )}
-                    {order.status === "shipped" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={complete.isPending}
-                        onClick={() => complete.mutate(order.id)}
-                      >
-                        {t("ops.complete")}
-                      </Button>
-                    )}
-                    {["paid", "shipped", "completed"].includes(order.status) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={refund.isPending}
-                        onClick={() => {
-                          const v = window.prompt(t("ops.refundPrompt"), "");
-                          if (v === null) return;
-                          const amountCents = Math.round(Number.parseFloat(v || "0") * 100);
-                          const restock = window.confirm(t("ops.refundRestock"));
-                          refund.mutate({ id: order.id, amountCents, restock });
-                        }}
-                      >
-                        <RotateCcw className="size-4" />
-                        {t("ops.refund")}
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
+    <div className="space-y-4">
+      <select
+        value={status}
+        onChange={(e) => {
+          setStatus(e.target.value);
+          setPage(1);
+        }}
+        className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+      >
+        <option value="">{t("ops.allStatuses")}</option>
+        {(["pending_payment", "paid", "shipped", "completed", "cancelled", "refunded"] as const).map((s) => (
+          <option key={s} value={s}>
+            {t(`status.${s}`)}
+          </option>
+        ))}
+      </select>
+      <Card className="py-0">
+        <CardContent className="px-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("orders.orderNo")}</TableHead>
+                <TableHead>{t("common.status")}</TableHead>
+                <TableHead>{t("ops.items")}</TableHead>
+                <TableHead>{t("orders.total")}</TableHead>
+                <TableHead>{t("orders.placed")}</TableHead>
+                <TableHead className="text-right">{t("common.actions")}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-      {data && data.total > data.pageSize && (
-        <Pagination
-          page={data.page}
-          pageSize={data.pageSize}
-          total={data.total}
-          onChange={setPage}
-        />
+            </TableHeader>
+            <TableBody>
+              {data?.items.map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell className="font-mono text-xs">
+                    <Link to={`/orders/${order.id}`} className="hover:underline">
+                      {order.orderNo}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <OrderStatusBadge status={order.status} />
+                  </TableCell>
+                  <TableCell>{order.items.length}</TableCell>
+                  <TableCell>{formatMoney(order.totalCents, order.currency)}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {formatDate(order.createdAt)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link to={`/orders/${order.id}`}>{t("ops.view")}</Link>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      {data && (
+        <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onChange={setPage} />
       )}
-    </Card>
+    </div>
   );
 }
 
 export function AdminReturns() {
   const { t } = useI18n();
-  const { data, isLoading } = useAdminReturns();
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState("");
+  const { data, isLoading } = useAdminReturns(page, 20, status);
   const approve = useApproveReturn();
   const reject = useRejectReturn();
 
@@ -1002,6 +983,22 @@ export function AdminReturns() {
   };
 
   return (
+    <div className="space-y-4">
+      <select
+        value={status}
+        onChange={(e) => {
+          setStatus(e.target.value);
+          setPage(1);
+        }}
+        className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+      >
+        <option value="">{t("ops.allStatuses")}</option>
+        {(["requested", "approved", "rejected"] as const).map((s) => (
+          <option key={s} value={s}>
+            {t(`return.${s}`)}
+          </option>
+        ))}
+      </select>
     <Card className="py-0">
       <CardContent className="px-0">
         <Table>
@@ -1017,7 +1014,11 @@ export function AdminReturns() {
           <TableBody>
             {data?.items.map((r) => (
               <TableRow key={r.id}>
-                <TableCell className="font-mono text-xs">{r.orderId.slice(0, 8)}</TableCell>
+                <TableCell className="font-mono text-xs">
+                  <Link to={`/orders/${r.orderId}`} className="hover:underline">
+                    {r.orderId.slice(0, 8)}
+                  </Link>
+                </TableCell>
                 <TableCell className="max-w-md">{r.reason}</TableCell>
                 <TableCell>
                   <Badge variant={variant[r.status] ?? "secondary"}>{t(`return.${r.status}`)}</Badge>
@@ -1053,5 +1054,9 @@ export function AdminReturns() {
         </Table>
       </CardContent>
     </Card>
+      {data && (
+        <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onChange={setPage} />
+      )}
+    </div>
   );
 }

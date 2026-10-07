@@ -6,8 +6,6 @@ import { errorMessage } from "@lib/errors";
 import { t } from "@lib/i18n";
 import type { ReturnRequest } from "@lib/types";
 
-const RETURNS_KEY = ["returns"] as const;
-
 /** A customer's own return requests for an order. */
 export function useOrderReturns(orderId: string) {
   return useQuery({
@@ -30,11 +28,13 @@ export function useRequestReturn(orderId: string) {
   });
 }
 
-/** Ops: all return requests. */
-export function useAdminReturns() {
+/** Ops: all return requests, paged and optionally filtered by status. */
+export function useAdminReturns(page = 1, pageSize = 20, status?: string) {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (status) params.set("status", status);
   return useQuery({
-    queryKey: RETURNS_KEY,
-    queryFn: () => api.getPage<ReturnRequest[]>("/ops/returns?pageSize=100"),
+    queryKey: ["returns", "admin", page, pageSize, status],
+    queryFn: () => api.getPage<ReturnRequest[]>(`/ops/returns?${params.toString()}`),
   });
 }
 
@@ -44,7 +44,7 @@ function useReturnDecision(action: "approve" | "reject") {
     mutationFn: (id: string) => api.post<ReturnRequest>(`/ops/returns/${id}/${action}`),
     onSuccess: () => {
       toast.success(t(action === "approve" ? "toast.returnApproved" : "toast.returnRejected"));
-      void queryClient.invalidateQueries({ queryKey: RETURNS_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["returns"] });
     },
     onError: (error: Error) => toast.error(errorMessage(error)),
   });

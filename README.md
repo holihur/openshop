@@ -430,7 +430,9 @@ is not present on the public storefront binary. All routes require an admin JWT.
 | Method | Path | Description |
 | --- | --- | --- |
 | `POST` | `/ops/categories` | Create a category |
+| `PATCH` | `/ops/categories/:id` | Rename or re-slug a category |
 | `POST` | `/ops/products` | Create a product |
+| `GET` | `/ops/products/:id` | Get one product (with variants) |
 | `PATCH` | `/ops/products/:id` | Update a product |
 | `POST` | `/ops/uploads` | Upload an image (multipart) |
 | `GET` | `/ops/orders` | List all orders |
@@ -535,7 +537,10 @@ console on the internal binary, the hashed JS assets and `GET /api/v1/version`.
 Set `OPS_BASE=` to skip the ops checks.
 
 Browser end-to-end tests (Playwright) boot both binaries and drive the storefront
-and the ops console:
+and the ops console across **Chromium, Firefox, WebKit and two mobile
+viewports** (Pixel 5, iPhone 13). The suite also runs **axe-core accessibility
+scans** (WCAG 2 A/AA) on the home, product, sign-in and ops dashboard pages,
+and asserts there is no horizontal overflow on mobile.
 
 ```bash
 make e2e        # or: pnpm --filter @openshop/e2e test
@@ -660,9 +665,9 @@ Honest gaps a buyer should know about:
   order is refunded and the merchant asks to restock, because a refund alone
   does not imply the goods came back. Customers can request a return (RMA) for a
   delivered order, which ops approves or rejects.
-- **No automated end-to-end or frontend tests.** Coverage is service unit tests,
-  one adapter integration test and a shell smoke test; there is no browser E2E
-  suite.
+- **No component-level frontend tests.** The SPAs are covered by browser E2E
+  (multi-browser + axe accessibility) and TypeScript, but there is no jsdom /
+  Vitest component suite.
 - **Email/SMS default to log drivers.** Real delivery needs SMTP/SMS
   credentials; the sandbox payment provider must be replaced for real charges.
 - **Invoice PDFs use built-in fonts.** The dependency-free renderer uses
@@ -722,6 +727,11 @@ through unchanged, so product grids and detail pages emit `srcset` out of the bo
 - **Discounts are integers too.** Percent coupons use integer math and caps so
   rounding never produces fractional money; the discount can never exceed the
   subtotal.
+- **The ops console is fully navigable.** Lists are server-paginated with
+  search/filter controls (products by keyword/category, orders by status, returns
+  by status, audit by action) and detail views are deep-linkable routes
+  (`/orders/:id`, `/products/:id`), so a URL can be shared, refreshed and
+  bookmarked. Categories are managed in the console rather than seeded only.
 - **Indexed search with a fallback.** Products carry a generated `tsvector`
   column with a GIN index; queries also fall back to a substring match so CJK
   and partial words still work.

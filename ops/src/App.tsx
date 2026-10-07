@@ -5,6 +5,9 @@ import { OpsLayout } from "@/components/OpsLayout";
 import { DashboardPage } from "@/pages/Dashboard";
 import { ProductsPage } from "@/pages/Products";
 import { OrdersPage } from "@/pages/Orders";
+import { OrderDetailPage } from "@/pages/OrderDetail";
+import { ProductDetailPage } from "@/pages/ProductDetail";
+import { CategoriesPage } from "@/pages/Categories";
 import { CouponsPage } from "@/pages/Coupons";
 import { ReviewsPage } from "@/pages/Reviews";
 import { ReturnsPage } from "@/pages/Returns";
@@ -21,7 +24,10 @@ export default function App() {
         <Route element={<OpsLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="products" element={<ProductsPage />} />
+          <Route path="products/:id" element={<ProductDetailPage />} />
+          <Route path="categories" element={<CategoriesPage />} />
           <Route path="orders" element={<OrdersPage />} />
+          <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="coupons" element={<CouponsPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="returns" element={<ReturnsPage />} />

@@ -60,16 +60,22 @@ func (r *CouponRepository) FindByCode(ctx context.Context, code string) (*domain
 	return toCoupon(&m), nil
 }
 
-func (r *CouponRepository) List(ctx context.Context) ([]domain.Coupon, error) {
+func (r *CouponRepository) List(ctx context.Context, f domain.CouponFilter) (domain.Page[domain.Coupon], error) {
+	page, size := normalizePage(f.Page, f.PageSize, 20)
+	q := r.db.session(ctx).Model(&couponModel{})
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return domain.Page[domain.Coupon]{}, translate(err)
+	}
 	var models []couponModel
-	if err := r.db.session(ctx).Order("created_at desc").Find(&models).Error; err != nil {
-		return nil, translate(err)
+	if err := q.Order("created_at desc").Offset((page - 1) * size).Limit(size).Find(&models).Error; err != nil {
+		return domain.Page[domain.Coupon]{}, translate(err)
 	}
 	out := make([]domain.Coupon, 0, len(models))
 	for i := range models {
 		out = append(out, *toCoupon(&models[i]))
 	}
-	return out, nil
+	return domain.Page[domain.Coupon]{Items: out, Total: total, Page: page, PageSize: size}, nil
 }
 
 // IncrementUsage atomically consumes one redemption. The WHERE guard makes the

@@ -10,6 +10,7 @@ import {
   ShoppingCart,
   Star,
   Store,
+  Tags,
   Truck,
   Wallet,
   type LucideIcon,
@@ -29,6 +30,7 @@ const storefrontURL = import.meta.env.VITE_STOREFRONT_URL ?? "http://localhost:8
 const nav: { to: string; label: MessageKey; icon: LucideIcon; end?: boolean; perm?: string }[] = [
   { to: "/", label: "ops.dashboard", icon: BarChart3, end: true, perm: "analytics:read" },
   { to: "/products", label: "ops.products", icon: Boxes, perm: "products:read" },
+  { to: "/categories", label: "ops.categories", icon: Tags, perm: "categories:write" },
   { to: "/orders", label: "ops.orders", icon: ShoppingCart, perm: "orders:read" },
   { to: "/coupons", label: "ops.coupons", icon: BadgePercent, perm: "coupons:read" },
   { to: "/reviews", label: "ops.reviews", icon: Star, perm: "reviews:read" },
