@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
+import { errorMessage } from "@lib/errors";
 import { api } from "@lib/api";
 import { t } from "@lib/i18n";
 import type { AuditLog, Category, Coupon, CurrenciesResponse, Dashboard, ExchangeRate, Order, Product, Review, Variant } from "@lib/types";
@@ -71,7 +71,7 @@ export function useSetCurrencyRate() {
       toast.success(t("toast.exchangeRateSaved"));
       void queryClient.invalidateQueries({ queryKey: ["currencies"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 
@@ -102,7 +102,7 @@ export function useCreateCoupon() {
       toast.success(t("toast.couponCreated"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "coupons"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 
@@ -115,7 +115,7 @@ export function useUpdateCoupon() {
       toast.success(t("toast.couponUpdated"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "coupons"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 
@@ -134,7 +134,7 @@ export function useDeleteReviewAdmin() {
       toast.success(t("toast.reviewRemoved"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "reviews"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 
@@ -152,7 +152,7 @@ export function useCreateProduct() {
       toast.success(t("toast.productCreated"));
       invalidateCatalog(queryClient);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 
@@ -165,14 +165,14 @@ export function useUpdateProduct() {
       toast.success(t("toast.productUpdated"));
       invalidateCatalog(queryClient);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 
 export function useUploadImage() {
   return useMutation({
     mutationFn: (file: File) => api.upload<{ key: string; url: string }>("/ops/uploads", file),
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 
@@ -207,7 +207,7 @@ export function useCreateVariant(productId: string) {
       toast.success(t("toast.variantAdded"));
       invalidateVariants(queryClient, productId);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 
@@ -219,6 +219,6 @@ export function useUpdateVariant(productId: string) {
     onSuccess: () => {
       invalidateVariants(queryClient, productId);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }

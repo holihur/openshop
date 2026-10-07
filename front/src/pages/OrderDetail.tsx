@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, Download } from "lucide-react";
-
+import { errorMessage } from "@lib/errors";
 import { Button } from "@lib/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@lib/components/ui/card";
 import { Separator } from "@lib/components/ui/separator";
@@ -37,7 +37,7 @@ export function OrderDetailPage() {
       if (payment.redirectUrl) window.location.href = payment.redirectUrl;
       else void navigate(`/orders/${id}`);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 
   const cancel = useMutation({
@@ -47,7 +47,7 @@ export function OrderDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ["order", id] });
       void queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 
   const confirmReceipt = useMutation({
@@ -57,7 +57,7 @@ export function OrderDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ["order", id] });
       void queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 
   const [downloading, setDownloading] = useState(false);
@@ -67,7 +67,7 @@ export function OrderDetailPage() {
     try {
       await api.download(`/orders/${order.id}/invoice`, `invoice-${order.orderNo}.pdf`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t("orders.invoiceFailed"));
+      toast.error(errorMessage(error));
     } finally {
       setDownloading(false);
     }

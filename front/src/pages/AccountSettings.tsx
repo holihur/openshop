@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Download, KeyRound, Trash2 } from "lucide-react";
-
+import { errorMessage } from "@lib/errors";
 import { Button } from "@lib/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lib/components/ui/card";
 import { Input } from "@lib/components/ui/input";
@@ -29,7 +29,7 @@ export function AccountSettingsPage() {
       await logout();
       navigate("/login", { replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("account.changeFailed"));
+      toast.error(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -47,7 +47,7 @@ export function AccountSettingsPage() {
       URL.revokeObjectURL(url);
       toast.success(t("account.exported"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("account.exportFailed"));
+      toast.error(errorMessage(err));
     }
   }
 
@@ -61,7 +61,7 @@ export function AccountSettingsPage() {
       toast.success(t("account.deleted"));
       navigate("/", { replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("account.deletionFailed"));
+      toast.error(errorMessage(err));
     }
   }
 

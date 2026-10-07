@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { MailWarning } from "lucide-react";
 import { toast } from "sonner";
-
+import { errorMessage } from "@lib/errors";
 import { Button } from "@lib/components/ui/button";
 import { api } from "@lib/api";
 import { useAuth } from "@lib/auth";
@@ -24,7 +24,7 @@ export function EmailVerificationBanner() {
       setSent(true);
       toast.success(t("banner.sentToast"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("banner.sendFailed"));
+      toast.error(errorMessage(err));
     } finally {
       setBusy(false);
     }

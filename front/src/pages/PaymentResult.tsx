@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-
+import { errorMessage } from "@lib/errors";
 import { Button } from "@lib/components/ui/button";
 import { Card, CardContent } from "@lib/components/ui/card";
 import { api } from "@lib/api";
@@ -40,7 +40,7 @@ export function PaymentResultPage() {
       .catch((err: Error) => {
         if (!cancelled) {
           setState("error");
-          setMessage(err.message);
+          setMessage(errorMessage(err));
         }
       });
     return () => {

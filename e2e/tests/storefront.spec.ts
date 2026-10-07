@@ -43,4 +43,10 @@ test("switching language localises the storefront", async ({ page }) => {
   await page.getByTestId("locale-switcher").selectOption("zh");
   await page.goto("/login");
   await expect(page.getByText("欢迎回来")).toBeVisible();
+
+  // Errors are localised by the backend's stable code.
+  await page.getByLabel("邮箱或手机号").fill("customer@openshop.local");
+  await page.getByLabel("密码").fill("wrong-password");
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(page.getByText("请重新登录")).toBeVisible();
 });

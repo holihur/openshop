@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
+import { errorMessage } from "@lib/errors";
 import { api } from "@lib/api";
 import { t } from "@lib/i18n";
 import type { ShippingMethod, ShippingZone } from "@lib/types";
@@ -39,7 +39,7 @@ export function useCreateShippingMethod() {
       void queryClient.invalidateQueries({ queryKey: ["admin", "shipping-methods"] });
       void queryClient.invalidateQueries({ queryKey: ["shipping-methods"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 
@@ -52,7 +52,7 @@ export function useUpdateShippingMethod() {
       void queryClient.invalidateQueries({ queryKey: ["admin", "shipping-methods"] });
       void queryClient.invalidateQueries({ queryKey: ["shipping-methods"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 
@@ -72,7 +72,7 @@ export function useCreateShippingZone() {
       toast.success(t("toast.zoneCreated"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "shipping-zones"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 
@@ -84,6 +84,6 @@ export function useSetShippingRate() {
       input: { flatRateCents: number; freeThresholdCents: number; perKgCents: number };
     }) => api.put(`/ops/shipping-zones/${zoneId}/rates/${methodId}`, input),
     onSuccess: () => toast.success(t("toast.rateSaved")),
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }

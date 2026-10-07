@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
+import { errorMessage } from "@lib/errors";
 import { api } from "@lib/api";
 import { t } from "@lib/i18n";
 import { useAuth } from "@lib/auth";
@@ -41,6 +41,6 @@ export function useToggleWishlist() {
       else toast.success(res.saved ? t("toast.savedToWishlist") : t("toast.removedFromWishlist"));
       void queryClient.invalidateQueries({ queryKey: WISHLIST_KEY });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }

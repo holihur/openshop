@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
+import { errorMessage } from "@lib/errors";
 import { Button } from "@lib/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@lib/components/ui/card";
 import { Separator } from "@lib/components/ui/separator";
@@ -37,7 +37,7 @@ export function GuestOrderPage() {
       if (payment.redirectUrl) window.location.href = payment.redirectUrl;
       else void invalidate();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 
   const cancel = useMutation({
@@ -46,7 +46,7 @@ export function GuestOrderPage() {
       toast.success(t("orders.cancelled"));
       void invalidate();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 
   const confirmReceipt = useMutation({
@@ -55,7 +55,7 @@ export function GuestOrderPage() {
       toast.success(t("orders.receiptConfirmed"));
       void invalidate();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 
   if (isLoading) {

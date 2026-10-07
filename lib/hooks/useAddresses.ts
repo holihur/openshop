@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
+import { errorMessage } from "@lib/errors";
 import { api } from "@lib/api";
 import { t } from "@lib/i18n";
 import { useAuth } from "@lib/auth";
@@ -36,7 +36,7 @@ function useAddressMutation<TArgs>(fn: (args: TArgs) => Promise<unknown>, messag
       if (message) toast.success(message);
       void queryClient.invalidateQueries({ queryKey: ADDRESSES_KEY });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 

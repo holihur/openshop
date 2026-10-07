@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
+import { errorMessage } from "@lib/errors";
 import { api } from "@lib/api";
 import { t } from "@lib/i18n";
 import { useAuth } from "@lib/auth";
@@ -29,7 +29,7 @@ function useCartMutation<TArgs>(
       queryClient.setQueryData(CART_KEY, cart);
       if (successMessage) toast.success(successMessage);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 

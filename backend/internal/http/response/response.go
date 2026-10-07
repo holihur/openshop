@@ -87,6 +87,10 @@ func classify(err error) (int, string, string) {
 		return http.StatusConflict, "order_not_payable", "order is not payable"
 	case errors.Is(err, domain.ErrOrderNotRefundable):
 		return http.StatusConflict, "order_not_refundable", "order is not refundable"
+	case errors.Is(err, domain.ErrOrderNotShippable):
+		return http.StatusConflict, "order_not_shippable", "order is not shippable"
+	case errors.Is(err, domain.ErrOrderNotCompletable):
+		return http.StatusConflict, "order_not_completable", "order is not completable"
 	case errors.Is(err, domain.ErrCouponExhausted):
 		return http.StatusConflict, "coupon_exhausted", "coupon usage limit reached"
 	case errors.Is(err, domain.ErrPaymentFailed):
@@ -117,6 +121,10 @@ func statusFor(code string) int {
 	case "order_not_payable":
 		return http.StatusConflict
 	case "order_not_refundable":
+		return http.StatusConflict
+	case "order_not_shippable":
+		return http.StatusConflict
+	case "order_not_completable":
 		return http.StatusConflict
 	case "coupon_exhausted":
 		return http.StatusConflict

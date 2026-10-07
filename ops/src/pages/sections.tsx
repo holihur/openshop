@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Pencil, Plus, RotateCcw, Truck } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
+import { errorMessage } from "@lib/errors";
 import { Button } from "@lib/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@lib/components/ui/card";
 import { Badge } from "@lib/components/ui/badge";
@@ -865,7 +865,7 @@ export function AdminOrders() {
       toast.success(t("ops.orderRefunded"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 
   const ship = useMutation({
@@ -875,7 +875,7 @@ export function AdminOrders() {
       toast.success(t("ops.orderShipped"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 
   const complete = useMutation({
@@ -884,7 +884,7 @@ export function AdminOrders() {
       toast.success(t("ops.orderCompleted"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 
   if (isLoading) {

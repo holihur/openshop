@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-
+import { errorMessage } from "@lib/errors";
 import { Button } from "@lib/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lib/components/ui/card";
 import { Input } from "@lib/components/ui/input";
@@ -28,7 +28,7 @@ export function ResetPasswordPage() {
       toast.success(t("auth.resetTitle"));
       navigate("/login", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.unexpectedError"));
+      setError(errorMessage(err));
     } finally {
       setSubmitting(false);
     }

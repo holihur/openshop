@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingBag, Tag, Trash2, X } from "lucide-react";
 import { useState } from "react";
-
+import { errorMessage } from "@lib/errors";
 import { Button } from "@lib/components/ui/button";
 import { Input } from "@lib/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@lib/components/ui/card";
@@ -68,7 +68,7 @@ export function CartPage() {
     },
     onError: (error: Error) => {
       setApplied(null);
-      toast.error(error.message);
+      toast.error(errorMessage(error));
     },
   });
 
@@ -116,7 +116,7 @@ export function CartPage() {
         navigate(`/orders/${order.id}`);
       }
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 
   if (isLoading) {

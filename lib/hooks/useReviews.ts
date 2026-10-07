@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
+import { errorMessage } from "@lib/errors";
 import { api } from "@lib/api";
 import { t } from "@lib/i18n";
 import type { Review } from "@lib/types";
@@ -23,7 +23,7 @@ export function useAddReview(productId: string) {
       void queryClient.invalidateQueries({ queryKey: ["reviews", productId] });
       void queryClient.invalidateQueries({ queryKey: ["product", productId] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
 
@@ -36,6 +36,6 @@ export function useDeleteReview(productId: string) {
       void queryClient.invalidateQueries({ queryKey: ["reviews", productId] });
       void queryClient.invalidateQueries({ queryKey: ["product", productId] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ShieldCheck } from "lucide-react";
-
+import { errorMessage } from "@lib/errors";
 import { Button } from "@lib/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lib/components/ui/card";
 import { Input } from "@lib/components/ui/input";
@@ -29,7 +29,7 @@ export function OpsLoginPage() {
       await login(identifier, password);
       navigate(from, { replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Sign in failed");
+      toast.error(errorMessage(err));
     } finally {
       setBusy(false);
     }
