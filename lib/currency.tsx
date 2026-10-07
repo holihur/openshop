@@ -59,10 +59,22 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     [rateMicro],
   );
 
-  const available = useMemo(
-    () => [base, ...(data?.rates ?? []).map((r) => r.currency)],
-    [base, data],
-  );
+  const available = useMemo(() => {
+    // Only 3-letter ISO codes are valid; normalize case and drop junk.
+    const codes = [base, ...(data?.rates ?? []).map((r) => r.currency)].map((c) =>
+      (c || "").toUpperCase(),
+    );
+    return [...new Set(codes.filter((c) => /^[A-Z]{3}$/.test(c)))];
+  }, [base, data]);
+
+  // If the stored/selected currency is no longer offered (or was invalid),
+  // fall back to the base currency so formatting never breaks.
+  useEffect(() => {
+    if (data && currency && !available.includes(currency)) {
+      setCurrencyState(base);
+      localStorage.setItem(CURRENCY_KEY, base);
+    }
+  }, [data, available, currency, base]);
 
   const value = useMemo<CurrencyContextValue>(
     () => ({ base, currency: currency || base, rateMicro, available, setCurrency, convert }),

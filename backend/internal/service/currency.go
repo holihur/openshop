@@ -44,6 +44,9 @@ func (s *CurrencyService) SetRate(ctx context.Context, currency string, rateMicr
 	if code == "" {
 		return nil, fmt.Errorf("%w: currency is required", domain.ErrInvalidArgument)
 	}
+	if len(code) != 3 || !isAlphaUpper(code) {
+		return nil, fmt.Errorf("%w: currency must be a 3-letter ISO code", domain.ErrInvalidArgument)
+	}
 	if code == s.base {
 		return nil, fmt.Errorf("%w: cannot set a rate for the base currency", domain.ErrInvalidArgument)
 	}
@@ -76,3 +79,12 @@ func (s *CurrencyService) Rate(ctx context.Context, from, to string) (int64, err
 }
 
 var _ port.ExchangeRates = (*CurrencyService)(nil)
+
+func isAlphaUpper(s string) bool {
+	for _, r := range s {
+		if r < 'A' || r > 'Z' {
+			return false
+		}
+	}
+	return true
+}

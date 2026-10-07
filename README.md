@@ -748,6 +748,16 @@ through unchanged, so product grids and detail pages emit `srcset` out of the bo
   effect without a restart or redeploy. Only what is needed to boot — database/
   Redis/NATS addresses, listen addresses, secrets, storage credentials — stays
   in the environment.
+- **Pluggable, operator-selectable payment gateways.** The active gateway is a
+  runtime setting (`payment.default_provider`); every gateway implements
+  `port.PaymentProvider`, so the service layer is gateway-agnostic. Stripe ships
+  as a dependency-free Checkout adapter (hosted page + local webhook signature
+  verification); its secret key and webhook secret stay in the environment,
+  never in the settings table. Adding Alipay/WeChat Pay is a new adapter, not a
+  service change.
+- **Money formatting never crashes the UI.** Currency codes are validated as
+  3-letter ISO codes at the API, and the storefront uppercases and falls back
+  gracefully, so a bad or removed currency can never blank the page.
 - **Localized catalog.** Categories carry per-locale names (`names`); the API
   resolves the request locale from `Accept-Language` (or `?locale=`) and returns
   the translated name with the base name as fallback. Operators edit the

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/port"
@@ -20,6 +21,7 @@ type PaymentService struct {
 	clock    port.Clock
 	logger   port.Logger
 	metrics  port.Metrics
+	settings *SettingsService
 }
 
 func NewPaymentService(
@@ -32,13 +34,14 @@ func NewPaymentService(
 	clock port.Clock,
 	logger port.Logger,
 	metrics port.Metrics,
+	settings *SettingsService,
 ) *PaymentService {
 	if metrics == nil {
 		metrics = port.NopMetrics{}
 	}
 	return &PaymentService{
 		payments: payments, refunds: refunds, orders: orders, registry: registry, orderSvc: orderSvc,
-		ids: ids, clock: clock, logger: logger, metrics: metrics,
+		ids: ids, clock: clock, logger: logger, metrics: metrics, settings: settings,
 	}
 }
 
@@ -66,7 +69,7 @@ func (s *PaymentService) Create(ctx context.Context, in CreatePaymentInput) (*Cr
 		return nil, domain.ErrOrderNotPayable
 	}
 
-	provider, err := s.provider(in.ProviderName)
+	provider, err := s.provider(ctx, in.ProviderName)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +108,7 @@ func (s *PaymentService) Create(ctx context.Context, in CreatePaymentInput) (*Cr
 // HandleWebhook verifies and applies a provider callback. Duplicate callbacks
 // are ignored, which matters because brokers deliver at least once.
 func (s *PaymentService) HandleWebhook(ctx context.Context, providerName string, headers map[string]string, body []byte) error {
-	provider, err := s.provider(providerName)
+	provider, err := s.provider(ctx, providerName)
 	if err != nil {
 		return err
 	}
@@ -187,7 +190,7 @@ func (s *PaymentService) Refund(ctx context.Context, in RefundInput) (*domain.Or
 	if err != nil {
 		return nil, err
 	}
-	provider, err := s.provider(payment.Provider)
+	provider, err := s.provider(ctx, payment.Provider)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +225,12 @@ func (s *PaymentService) Refund(ctx context.Context, in RefundInput) (*domain.Or
 	return updated, nil
 }
 
-func (s *PaymentService) provider(name string) (port.PaymentProvider, error) {
+func (s *PaymentService) provider(ctx context.Context, name string) (port.PaymentProvider, error) {
+	// No explicit provider: use the one configured in the ops console, falling
+	// back to the startup default.
+	if name == "" && s.settings != nil {
+		name = strings.TrimSpace(s.settings.String(ctx, "payment.default_provider"))
+	}
 	if name == "" {
 		if p := s.registry.Default(); p != nil {
 			return p, nil
@@ -237,7 +245,7 @@ func (s *PaymentService) provider(name string) (port.PaymentProvider, error) {
 // without a real gateway. It enforces ownership and only works for providers
 // that implement port.SandboxProvider.
 func (s *PaymentService) Simulate(ctx context.Context, userID, providerName, providerRef string) error {
-	provider, err := s.provider(providerName)
+	provider, err := s.provider(ctx, providerName)
 	if err != nil {
 		return err
 	}

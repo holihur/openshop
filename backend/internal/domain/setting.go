@@ -72,6 +72,12 @@ var SettingDefs = []SettingDef{
 		Default: "50", Description: "Per-IP requests per second", Min: 1, Max: 1000000},
 	{Key: "security.rate_limit_user_rps", Group: "security", Type: SettingInt,
 		Default: "100", Description: "Per-authenticated-user requests per second", Min: 1, Max: 1000000},
+	{Key: "payment.default_provider", Group: "payment", Type: SettingString,
+		Default: "mock", Description: "Active payment gateway (mock, stripe)"},
+	{Key: "payment.stripe_public_key", Group: "payment", Type: SettingString,
+		Default: "", Description: "Stripe publishable key (public)"},
+	{Key: "payment.stripe_return_url", Group: "payment", Type: SettingString,
+		Default: "", Description: "Where Stripe returns the shopper after payment"},
 }
 
 // SettingDefByKey returns the definition for a key.

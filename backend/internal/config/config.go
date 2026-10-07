@@ -95,6 +95,10 @@ type JWTConfig struct {
 type PaymentConfig struct {
 	DefaultProvider string
 	MockReturnURL   string
+	// StripeSecretKey and StripeWebhookSecret are secrets and stay in the
+	// environment (never in the settings table).
+	StripeSecretKey     string
+	StripeWebhookSecret string
 }
 
 type StorageConfig struct {
@@ -201,8 +205,10 @@ func Load() (*Config, error) {
 			DenyListCheck: envBool("JWT_DENYLIST", true),
 		},
 		Payment: PaymentConfig{
-			DefaultProvider: env("PAYMENT_PROVIDER", "mock"),
-			MockReturnURL:   env("PAYMENT_MOCK_RETURN_URL", "http://localhost:5173/payment/result"),
+			DefaultProvider:     env("PAYMENT_PROVIDER", "mock"),
+			MockReturnURL:       env("PAYMENT_MOCK_RETURN_URL", "http://localhost:5173/payment/result"),
+			StripeSecretKey:     env("STRIPE_SECRET_KEY", ""),
+			StripeWebhookSecret: env("STRIPE_WEBHOOK_SECRET", ""),
 		},
 		Storage: StorageConfig{
 			Driver:    env("STORAGE_DRIVER", "local"),

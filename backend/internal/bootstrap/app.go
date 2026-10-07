@@ -62,6 +62,16 @@ const (
 
 // allowedRole maps a surface to the role its sessions are restricted to: the
 // storefront only signs in customers, ops only administrators.
+// paymentProviders registers the payment adapters. Stripe is only registered
+// when a secret key is configured; the key itself stays in the environment.
+func paymentProviders(cfg *config.Config) []port.PaymentProvider {
+	providers := []port.PaymentProvider{payment.NewMock(cfg.Payment.MockReturnURL, cfg.JWT.Secret)}
+	if cfg.Payment.StripeSecretKey != "" {
+		providers = append(providers, payment.NewStripe(cfg.Payment.StripeSecretKey, cfg.Payment.StripeWebhookSecret))
+	}
+	return providers
+}
+
 func allowedRoles(s Surface) []domain.UserRole {
 	if s == SurfaceOps {
 		return []domain.UserRole{domain.RoleAdmin, domain.RoleSupport, domain.RoleCatalog, domain.RoleFinance}
@@ -150,9 +160,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	ids := security.NewUUIDGenerator()
 	clock := port.SystemClock{}
 
-	payments := payment.NewRegistry(cfg.Payment.DefaultProvider,
-		payment.NewMock(cfg.Payment.MockReturnURL, cfg.JWT.Secret),
-	)
+	payments := payment.NewRegistry(cfg.Payment.DefaultProvider, paymentProviders(cfg)...)
 
 	objectStore, err := storage.New(ctx, cfg.Storage)
 	if err != nil {
@@ -203,6 +211,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		"auth.email_verify_url":           cfg.App.VerifyEmailURL,
 		"security.rate_limit_rps":         strconv.Itoa(cfg.HTTP.RateLimitRPS),
 		"security.rate_limit_user_rps":    strconv.Itoa(cfg.HTTP.RateLimitUserRPS),
+		"payment.default_provider":        cfg.Payment.DefaultProvider,
 	})
 
 	// --- services ---
@@ -238,7 +247,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	returnSvc := service.NewReturnService(returnRepo, orders, ids, clock)
 	retentionRepo := postgres.NewRetentionRepository(db)
 	orderSvc := service.NewOrderService(orders, users, products, couponRepo, variantRepo, addressRepo, shippingRepo, zoneRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, invoice.NewPDFRenderer(), settingsSvc, cfg.App.Currency)
-	paymentSvc := service.NewPaymentService(paymentRepo, refundRepo, orders, payments, orderSvc, ids, clock, log, promMetrics)
+	paymentSvc := service.NewPaymentService(paymentRepo, refundRepo, orders, payments, orderSvc, ids, clock, log, promMetrics, settingsSvc)
 
 	// --- HTTP surface ---
 	h := &handler.Handler{
