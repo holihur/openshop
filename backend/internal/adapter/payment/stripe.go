@@ -155,6 +155,15 @@ func (s *Stripe) verify(header string, body []byte) error {
 	if ts == "" || len(sigs) == 0 {
 		return errors.New("stripe: invalid signature header")
 	}
+	// Reject stale (or future-dated) signatures so a captured webhook cannot be
+	// replayed indefinitely.
+	tsSeconds, err := strconv.ParseInt(ts, 10, 64)
+	if err != nil {
+		return errors.New("stripe: invalid signature timestamp")
+	}
+	if delta := time.Since(time.Unix(tsSeconds, 0)); delta > 5*time.Minute || delta < -5*time.Minute {
+		return errors.New("stripe: signature timestamp outside the 5 minute tolerance")
+	}
 	mac := hmac.New(sha256.New, []byte(s.webhookSecret))
 	mac.Write([]byte(ts))
 	mac.Write([]byte("."))

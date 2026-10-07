@@ -98,11 +98,14 @@ func New(
 		api.GET("/currencies", fh.ListCurrencies)
 
 		// Auth.
-		api.POST("/auth/register", fh.Register)
-		api.POST("/auth/login", fh.Login)
+		// Sign-in and password endpoints get a tighter per-IP limit than the global
+		// one, since they are the natural target for credential stuffing.
+		authLimit := middleware.RateLimit(limiter, handler.SettingLimit(settings, "security.auth_rate_limit_rps"))
+		api.POST("/auth/register", authLimit, fh.Register)
+		api.POST("/auth/login", authLimit, fh.Login)
 		api.POST("/auth/refresh", fh.Refresh)
-		api.POST("/auth/password/forgot", fh.ForgotPassword)
-		api.POST("/auth/password/reset", fh.ResetPassword)
+		api.POST("/auth/password/forgot", authLimit, fh.ForgotPassword)
+		api.POST("/auth/password/reset", authLimit, fh.ResetPassword)
 		api.POST("/auth/email/verify", fh.VerifyEmail)
 		api.POST("/auth/email/resend", fh.ResendVerification)
 

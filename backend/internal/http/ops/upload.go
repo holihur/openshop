@@ -1,7 +1,10 @@
 package ops
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"net/http"
 	"path/filepath"
 	"strings"
 
@@ -13,11 +16,16 @@ import (
 
 const maxUploadBytes = 10 << 20 // 10 MiB
 
-var allowedImageTypes = map[string]string{
-	"image/jpeg": ".jpg",
-	"image/png":  ".png",
-	"image/webp": ".webp",
-	"image/gif":  ".gif",
+// allowedImageExts is the authoritative allow-list. The extension decides the
+// stored content type; the client-declared type is only cross-checked. SVG is
+// deliberately absent: it can carry script when opened directly, and uploads
+// are served from the storefront origin.
+var allowedImageExts = map[string]string{
+	".jpg":  "image/jpeg",
+	".jpeg": "image/jpeg",
+	".png":  "image/png",
+	".webp": "image/webp",
+	".gif":  "image/gif",
 }
 
 // UploadImage stores an image through the ObjectStorage port. Because storage
@@ -29,8 +37,8 @@ func (h *Handler) UploadImage(c *gin.Context) {
 		response.Fail(c, fmt.Errorf("%w: file is required", domain.ErrInvalidArgument))
 		return
 	}
-	if fileHeader.Size > maxUploadBytes {
-		response.Fail(c, fmt.Errorf("%w: file exceeds 10MiB", domain.ErrInvalidArgument))
+	if fileHeader.Size <= 0 || fileHeader.Size > maxUploadBytes {
+		response.Fail(c, fmt.Errorf("%w: file must be between 1 byte and 10MiB", domain.ErrInvalidArgument))
 		return
 	}
 
@@ -41,18 +49,31 @@ func (h *Handler) UploadImage(c *gin.Context) {
 	}
 	defer f.Close()
 
-	contentType := fileHeader.Header.Get("Content-Type")
-	ext, ok := allowedImageTypes[contentType]
+	// The extension is the allow-list; anything else (including .html and .svg)
+	// is rejected so an upload can never be served as an executable document.
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	contentType, ok := allowedImageExts[ext]
 	if !ok {
-		ext = strings.ToLower(filepath.Ext(fileHeader.Filename))
-		if ext == "" {
-			response.Fail(c, fmt.Errorf("%w: unsupported image type", domain.ErrInvalidArgument))
-			return
-		}
+		response.Fail(c, fmt.Errorf("%w: only JPEG, PNG, WebP and GIF images are allowed", domain.ErrInvalidArgument))
+		return
 	}
 
+	// Sniff the leading bytes and require them to match the claimed type, so a
+	// renamed file cannot smuggle a different format past the extension check.
+	head := make([]byte, 512)
+	n, err := io.ReadFull(f, head)
+	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+		response.Fail(c, err)
+		return
+	}
+	if detected := http.DetectContentType(head[:n]); detected != contentType {
+		response.Fail(c, fmt.Errorf("%w: file content is %s, not %s", domain.ErrInvalidArgument, detected, contentType))
+		return
+	}
+	body := io.MultiReader(bytes.NewReader(head[:n]), f)
+
 	key := "uploads/" + h.IDs.NewID() + ext
-	url, err := h.Storage.Put(c.Request.Context(), key, f, fileHeader.Size, contentType)
+	url, err := h.Storage.Put(c.Request.Context(), key, body, fileHeader.Size, contentType)
 	if err != nil {
 		response.Fail(c, err)
 		return

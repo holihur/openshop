@@ -36,6 +36,13 @@ func mediaHandler(dir string) http.Handler {
 
 		width := parseWidth(r.URL.Query().Get("w"))
 		serveOriginal := func() {
+			// Uploads are attacker-influenced content served from the storefront
+			// origin: never let a browser sniff or execute them.
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
+			if !isRaster(full) {
+				w.Header().Set("Content-Disposition", "attachment")
+			}
 			req := r.Clone(r.Context())
 			req.URL.Path = "/" + strings.TrimPrefix(clean, "/")
 			fileServer.ServeHTTP(w, req)
@@ -51,6 +58,7 @@ func mediaHandler(dir string) http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "image/jpeg")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		http.ServeContent(w, r, filepath.Base(full), modTime(full), bytes.NewReader(data))
 	})

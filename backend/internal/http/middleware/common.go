@@ -73,10 +73,19 @@ func CORS(origins []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
 		if origin != "" {
-			if _, ok := allowed[origin]; ok || wildcard {
+			switch {
+			case wildcard:
+				// Reflecting an arbitrary origin together with credentials would let
+				// any website make authenticated cross-origin calls, so a wildcard
+				// never carries credentials.
+				c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+				c.Writer.Header().Set("Vary", "Origin")
+			case allowedOrigin(allowed, origin):
 				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 				c.Writer.Header().Set("Vary", "Origin")
 				c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
+			if wildcard || allowedOrigin(allowed, origin) {
 				c.Writer.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
 				c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization,Content-Type,X-Request-Id")
 				c.Writer.Header().Set("Access-Control-Max-Age", "86400")
@@ -88,6 +97,11 @@ func CORS(origins []string) gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+func allowedOrigin(allowed map[string]struct{}, origin string) bool {
+	_, ok := allowed[origin]
+	return ok
 }
 
 // RateLimit implements a sliding-window limiter backed by the shared rate

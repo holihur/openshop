@@ -56,7 +56,7 @@ func (s *NotificationService) Notify(ctx context.Context, in NotifyInput) error 
 	}
 	return s.repo.Create(ctx, &domain.Notification{
 		ID: s.ids.NewID(), UserID: in.UserID, Type: ntype, Title: in.Title,
-		Body: in.Body, Link: in.Link, Data: data, CreatedAt: s.clock.Now(),
+		Body: in.Body, Link: safeLink(in.Link), Data: data, CreatedAt: s.clock.Now(),
 	})
 }
 
@@ -87,6 +87,17 @@ func (s *NotificationService) Broadcast(ctx context.Context, title, body, link s
 		return 0, domain.ErrInvalidArgument
 	}
 	return s.repo.Broadcast(ctx, &domain.Notification{
-		Type: domain.NotificationSystem, Title: title, Body: body, Link: link, CreatedAt: s.clock.Now(),
+		Type: domain.NotificationSystem, Title: title, Body: body, Link: safeLink(link), CreatedAt: s.clock.Now(),
 	})
+}
+
+// safeLink keeps only same-origin relative paths. A notification link is
+// rendered as a navigation target by the client, so an absolute or
+// javascript: URL would otherwise become a cross-site scripting vector.
+func safeLink(link string) string {
+	link = strings.TrimSpace(link)
+	if link == "" || !strings.HasPrefix(link, "/") || strings.HasPrefix(link, "//") {
+		return ""
+	}
+	return link
 }

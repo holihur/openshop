@@ -117,6 +117,8 @@ var SettingDefs = []SettingDef{
 		Default: "total", Description: "Commission base: total or subtotal"},
 	{Key: "security.rate_limit_rps", Group: "security", Type: SettingInt,
 		Default: "50", Description: "Per-IP requests per second", Min: 1, Max: 1000000},
+	{Key: "security.auth_rate_limit_rps", Group: "security", Type: SettingInt,
+		Default: "10", Description: "Per-IP requests per second on sign-in and password endpoints", Min: 1, Max: 1000000},
 	{Key: "security.rate_limit_user_rps", Group: "security", Type: SettingInt,
 		Default: "100", Description: "Per-authenticated-user requests per second", Min: 1, Max: 1000000},
 	{Key: "payment.default_provider", Group: "payment", Type: SettingString,

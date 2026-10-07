@@ -5,7 +5,9 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/holihur/openshop/internal/domain"
 )
@@ -14,7 +16,7 @@ func TestStripeParseWebhookVerifiesSignature(t *testing.T) {
 	provider := NewStripe("sk_test", "whsec_test")
 	body := []byte(`{"type":"checkout.session.completed","data":{"object":{"id":"cs_1","amount_total":1234,"client_reference_id":"ORD-1"}}}`)
 
-	ts := "1700000000"
+	ts := strconv.FormatInt(time.Now().Unix(), 10)
 	mac := hmac.New(sha256.New, []byte("whsec_test"))
 	mac.Write([]byte(ts))
 	mac.Write([]byte("."))

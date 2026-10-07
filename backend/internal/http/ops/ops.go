@@ -73,7 +73,8 @@ func New(
 		})
 
 		// The console signs in against the same auth service.
-		api.POST("/auth/login", fh.Login)
+		// A tighter per-IP limit guards the console's sign-in too.
+		api.POST("/auth/login", middleware.RateLimit(limiter, handler.SettingLimit(settings, "security.auth_rate_limit_rps")), fh.Login)
 		api.POST("/auth/refresh", fh.Refresh)
 
 		// A few storefront reads the console needs (category picker, currency

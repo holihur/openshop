@@ -272,8 +272,13 @@ func Load() (*Config, error) {
 	}
 
 	if cfg.App.Env == "production" {
-		if cfg.JWT.Secret == "dev-insecure-change-me" {
-			return nil, fmt.Errorf("JWT_SECRET must be set in production")
+		if cfg.JWT.Secret == "dev-insecure-change-me" || len(cfg.JWT.Secret) < 32 {
+			return nil, fmt.Errorf("JWT_SECRET must be set to a random value of at least 32 characters in production")
+		}
+		for _, origin := range cfg.HTTP.CORSOrigins {
+			if origin == "*" {
+				return nil, fmt.Errorf("HTTP_CORS_ORIGINS must not be * in production")
+			}
 		}
 	}
 	return cfg, nil
