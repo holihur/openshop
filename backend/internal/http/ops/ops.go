@@ -99,10 +99,14 @@ func New(
 			admin.POST("/uploads", fh.UploadImage)
 
 			admin.GET("/orders", fh.ListOrders)
+			admin.GET("/orders/:id", fh.GetOrder)
 			admin.GET("/orders/:id/invoice", fh.DownloadInvoice)
 			admin.POST("/orders/:id/refund", fh.RefundOrder)
 			admin.POST("/orders/:id/ship", fh.ShipOrder)
 			admin.POST("/orders/:id/complete", fh.CompleteOrder)
+			admin.GET("/returns", fh.ListReturns)
+			admin.POST("/returns/:id/approve", fh.ApproveReturn)
+			admin.POST("/returns/:id/reject", fh.RejectReturn)
 
 			admin.GET("/stats", fh.Dashboard)
 			admin.GET("/inventory/low-stock", fh.LowStock)

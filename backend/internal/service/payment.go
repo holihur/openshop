@@ -12,6 +12,7 @@ import (
 // registry returns, so adding a gateway is a configuration change.
 type PaymentService struct {
 	payments port.PaymentRepository
+	refunds  port.RefundRepository
 	orders   port.OrderRepository
 	registry port.PaymentRegistry
 	orderSvc *OrderService
@@ -23,6 +24,7 @@ type PaymentService struct {
 
 func NewPaymentService(
 	payments port.PaymentRepository,
+	refunds port.RefundRepository,
 	orders port.OrderRepository,
 	registry port.PaymentRegistry,
 	orderSvc *OrderService,
@@ -35,7 +37,7 @@ func NewPaymentService(
 		metrics = port.NopMetrics{}
 	}
 	return &PaymentService{
-		payments: payments, orders: orders, registry: registry, orderSvc: orderSvc,
+		payments: payments, refunds: refunds, orders: orders, registry: registry, orderSvc: orderSvc,
 		ids: ids, clock: clock, logger: logger, metrics: metrics,
 	}
 }
@@ -145,10 +147,20 @@ func (s *PaymentService) HandleWebhook(ctx context.Context, providerName string,
 	return nil
 }
 
-// Refund reverses a paid order through its provider and returns the stock. It
-// is idempotent: refunding an already-refunded order is a no-op.
-func (s *PaymentService) Refund(ctx context.Context, orderID, reason string) (*domain.Order, error) {
-	order, err := s.orders.FindByID(ctx, orderID)
+// RefundInput describes a (possibly partial) refund. AmountCents <= 0 refunds
+// the remaining balance; Restock returns inventory to the catalog.
+type RefundInput struct {
+	OrderID     string
+	AmountCents int64
+	Reason      string
+	Restock     bool
+}
+
+// Refund reverses part or all of a paid order through its provider. Restocking
+// is opt-in because a refund does not imply the goods came back. It is
+// idempotent: refunding an already fully-refunded order is a no-op.
+func (s *PaymentService) Refund(ctx context.Context, in RefundInput) (*domain.Order, error) {
+	order, err := s.orders.FindByID(ctx, in.OrderID)
 	if err != nil {
 		return nil, err
 	}
@@ -158,34 +170,56 @@ func (s *PaymentService) Refund(ctx context.Context, orderID, reason string) (*d
 	if order.PaymentID == "" {
 		return nil, domain.ErrOrderNotRefundable
 	}
+	remaining := order.RemainingRefundableCents()
+	if remaining <= 0 {
+		return order, nil // already fully refunded
+	}
+
+	amount := in.AmountCents
+	if amount <= 0 {
+		amount = remaining
+	}
+	if amount > remaining {
+		return nil, fmt.Errorf("%w: refund exceeds the remaining balance", domain.ErrInvalidArgument)
+	}
 
 	payment, err := s.payments.FindByID(ctx, order.PaymentID)
 	if err != nil {
 		return nil, err
 	}
-	if payment.Status == domain.PaymentRefunded {
-		return s.orderSvc.MarkRefunded(ctx, orderID, payment.ID)
-	}
-
 	provider, err := s.provider(payment.Provider)
 	if err != nil {
 		return nil, err
 	}
 	if err := provider.Refund(ctx, port.RefundRequest{
 		ProviderRef: payment.ProviderRef,
-		AmountCents: payment.AmountCents,
-		Reason:      reason,
+		AmountCents: amount,
+		Reason:      in.Reason,
 	}); err != nil {
 		return nil, fmt.Errorf("refund: %w", err)
 	}
 
-	payment.Status = domain.PaymentRefunded
-	payment.UpdatedAt = s.clock.Now()
-	if err := s.payments.Update(ctx, payment); err != nil {
+	record := &domain.Refund{
+		ID: s.ids.NewID(), OrderID: order.ID, PaymentID: payment.ID,
+		AmountCents: amount, Reason: in.Reason, Restock: in.Restock, CreatedAt: s.clock.Now(),
+	}
+	if err := s.refunds.Create(ctx, record); err != nil {
 		return nil, err
 	}
+
+	updated, err := s.orderSvc.ApplyRefund(ctx, order.ID, amount, in.Restock, payment.ID)
+	if err != nil {
+		return nil, err
+	}
+	if updated.FullyRefunded() {
+		payment.Status = domain.PaymentRefunded
+		payment.UpdatedAt = s.clock.Now()
+		if err := s.payments.Update(ctx, payment); err != nil {
+			return nil, err
+		}
+	}
 	s.metrics.Counter("openshop_payments_refunded_total", 1, map[string]string{"provider": provider.Name()})
-	return s.orderSvc.MarkRefunded(ctx, orderID, payment.ID)
+	return updated, nil
 }
 
 func (s *PaymentService) provider(name string) (port.PaymentProvider, error) {

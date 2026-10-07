@@ -7,6 +7,7 @@ import { ProductsPage } from "@/pages/Products";
 import { OrdersPage } from "@/pages/Orders";
 import { CouponsPage } from "@/pages/Coupons";
 import { ReviewsPage } from "@/pages/Reviews";
+import { ReturnsPage } from "@/pages/Returns";
 import { ShippingPage } from "@/pages/Shipping";
 import { AuditPage } from "@/pages/Audit";
 import { CurrencyPage } from "@/pages/Currency";
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="orders" element={<OrdersPage />} />
           <Route path="coupons" element={<CouponsPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
+          <Route path="returns" element={<ReturnsPage />} />
           <Route path="shipping" element={<ShippingPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="currency" element={<CurrencyPage />} />

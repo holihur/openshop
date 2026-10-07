@@ -124,6 +124,8 @@ func New(
 			authed.GET("/orders/:id/invoice", fh.DownloadInvoice)
 			authed.POST("/orders/:id/cancel", fh.CancelOrder)
 			authed.POST("/orders/:id/complete", fh.ConfirmReceipt)
+			authed.POST("/orders/:id/returns", fh.RequestReturn)
+			authed.GET("/orders/:id/returns", fh.ListOrderReturns)
 
 			authed.POST("/payments", middleware.Idempotency(cache, 24*time.Hour), fh.CreatePayment)
 			authed.POST("/payments/simulate", fh.SimulatePayment)

@@ -23,6 +23,7 @@ import { OrderStatusBadge } from "@lib/components/order-status-badge";
 import { Pagination } from "@lib/components/pagination";
 import { useI18n } from "@lib/i18n";
 import { useAdminCoupons, useAdminOrders, useAdminProducts, useAdminReviews, useAuditLogs, useCreateCoupon, useCurrencies, useDashboard, useDeleteReviewAdmin, useSetCurrencyRate, useUpdateCoupon } from "@lib/hooks/useAdmin";
+import { useAdminReturns, useApproveReturn, useRejectReturn } from "@lib/hooks/useReturns";
 import {
   useAdminShippingMethods,
   useAdminShippingZones,
@@ -859,8 +860,8 @@ export function AdminOrders() {
   const queryClient = useQueryClient();
 
   const refund = useMutation({
-    mutationFn: (orderId: string) =>
-      api.post<Order>(`/ops/orders/${orderId}/refund`, { reason: "admin refund" }),
+    mutationFn: ({ id, amountCents, restock }: { id: string; amountCents: number; restock: boolean }) =>
+      api.post<Order>(`/ops/orders/${id}/refund`, { reason: "admin refund", amountCents, restock }),
     onSuccess: () => {
       toast.success(t("ops.orderRefunded"));
       void queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
@@ -953,7 +954,13 @@ export function AdminOrders() {
                         variant="ghost"
                         size="sm"
                         disabled={refund.isPending}
-                        onClick={() => refund.mutate(order.id)}
+                        onClick={() => {
+                          const v = window.prompt(t("ops.refundPrompt"), "");
+                          if (v === null) return;
+                          const amountCents = Math.round(Number.parseFloat(v || "0") * 100);
+                          const restock = window.confirm(t("ops.refundRestock"));
+                          refund.mutate({ id: order.id, amountCents, restock });
+                        }}
                       >
                         <RotateCcw className="size-4" />
                         {t("ops.refund")}
@@ -974,6 +981,77 @@ export function AdminOrders() {
           onChange={setPage}
         />
       )}
+    </Card>
+  );
+}
+
+export function AdminReturns() {
+  const { t } = useI18n();
+  const { data, isLoading } = useAdminReturns();
+  const approve = useApproveReturn();
+  const reject = useRejectReturn();
+
+  if (isLoading) {
+    return <Skeleton className="h-64 w-full" />;
+  }
+
+  const variant: Record<string, "warning" | "success" | "destructive"> = {
+    requested: "warning",
+    approved: "success",
+    rejected: "destructive",
+  };
+
+  return (
+    <Card className="py-0">
+      <CardContent className="px-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("orders.orderNo")}</TableHead>
+              <TableHead>{t("ops.refundReason")}</TableHead>
+              <TableHead>{t("common.status")}</TableHead>
+              <TableHead>{t("ops.date")}</TableHead>
+              <TableHead className="text-right">{t("common.actions")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data?.items.map((r) => (
+              <TableRow key={r.id}>
+                <TableCell className="font-mono text-xs">{r.orderId.slice(0, 8)}</TableCell>
+                <TableCell className="max-w-md">{r.reason}</TableCell>
+                <TableCell>
+                  <Badge variant={variant[r.status] ?? "secondary"}>{t(`return.${r.status}`)}</Badge>
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm">
+                  {formatDate(r.createdAt)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {r.status === "requested" ? (
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={approve.isPending}
+                        onClick={() => approve.mutate(r.id)}
+                      >
+                        {t("ops.approve")}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={reject.isPending}
+                        onClick={() => reject.mutate(r.id)}
+                      >
+                        {t("ops.reject")}
+                      </Button>
+                    </div>
+                  ) : null}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
     </Card>
   );
 }

@@ -403,6 +403,8 @@ retries safe.
 | `GET` | `/orders/:id/invoice` | ✔ | Download the order invoice as PDF |
 | `POST` | `/orders/:id/cancel` | ✔ | Cancel & release stock |
 | `POST` | `/orders/:id/complete` | ✔ | Confirm receipt of a shipped order |
+| `POST` | `/orders/:id/returns` | ✔ | Request a return for a delivered order |
+| `GET` | `/orders/:id/returns` | ✔ | List your return requests for an order |
 | `GET` | `/addresses` | ✔ | List shipping addresses |
 | `POST` | `/addresses` | ✔ | Create an address |
 | `PATCH` | `/addresses/:id` | ✔ | Update an address |
@@ -434,9 +436,12 @@ is not present on the public storefront binary. All routes require an admin JWT.
 | `GET` | `/ops/inventory/low-stock` | Products/variants at or below the threshold |
 | `GET` | `/ops/audit-logs` | Audit trail (security and admin actions) |
 | `PUT` | `/ops/currencies/:code` | Set an exchange rate |
-| `POST` | `/ops/orders/:id/refund` | Refund a paid order (restores stock) |
+| `POST` | `/ops/orders/:id/refund` | Refund part or all of a paid order (`amountCents`, `restock`) |
 | `POST` | `/ops/orders/:id/ship` | Mark a paid order shipped (tracking number) |
 | `POST` | `/ops/orders/:id/complete` | Mark a shipped order completed |
+| `GET` | `/ops/returns` | List return requests |
+| `POST` | `/ops/returns/:id/approve` | Approve a return request |
+| `POST` | `/ops/returns/:id/reject` | Reject a return request |
 | `GET` | `/ops/orders/:id/invoice` | Download any order's invoice as PDF |
 | `GET` | `/ops/shipping-methods` | List shipping methods |
 | `POST` | `/ops/shipping-methods` | Create a shipping method |
@@ -646,8 +651,11 @@ Honest gaps a buyer should know about:
 - **Single base currency for pricing.** Products are priced in the store base
   currency; other currencies are converted at checkout. Per-currency price lists
   are not supported.
-- **Refunds always return stock.** Refunding a shipped order restores inventory,
-  which assumes the goods came back. A returns workflow is not modelled.
+- **Refunds are partial and restocking is opt-in.** An order can be refunded in
+  parts (`orders.refunded_cents`); inventory is returned only when the whole
+  order is refunded and the merchant asks to restock, because a refund alone
+  does not imply the goods came back. Customers can request a return (RMA) for a
+  delivered order, which ops approves or rejects.
 - **No automated end-to-end or frontend tests.** Coverage is service unit tests,
   one adapter integration test and a shell smoke test; there is no browser E2E
   suite.
@@ -675,6 +683,9 @@ so neither realm can mint a token for the other.
 - **Shared i18n, no runtime dependency.** `lib/i18n` provides a tiny provider
 with typed message keys, `{var}` interpolation, `localStorage` persistence and
 `<html lang>` sync; `en`/`zh` catalogs live in one file and both SPAs share them.
+- **Responsive images without a CDN.** Uploads are served by a handler that
+resizes raster images on demand (`?w=NNN`, disk-cached JPEG) and passes SVGs
+through unchanged, so product grids and detail pages emit `srcset` out of the box.
 - **Money as integers.** Prices are stored in minor units (`price_cents`) to
   avoid floating-point drift.
 - **UUID primary keys.** Any replica can generate ids without a central

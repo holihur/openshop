@@ -73,6 +73,21 @@ type PaymentRepository interface {
 	FindByProviderRef(ctx context.Context, provider, ref string) (*domain.Payment, error)
 }
 
+// RefundRepository persists partial refunds against an order.
+type RefundRepository interface {
+	Create(ctx context.Context, r *domain.Refund) error
+	ListByOrder(ctx context.Context, orderID string) ([]domain.Refund, error)
+}
+
+// ReturnRepository persists return requests (RMA).
+type ReturnRepository interface {
+	Create(ctx context.Context, r *domain.ReturnRequest) error
+	FindByID(ctx context.Context, id string) (*domain.ReturnRequest, error)
+	ListByOrder(ctx context.Context, orderID string) ([]domain.ReturnRequest, error)
+	List(ctx context.Context, f domain.ReturnFilter) (domain.Page[domain.ReturnRequest], error)
+	Update(ctx context.Context, r *domain.ReturnRequest) error
+}
+
 // CouponRepository persists coupons and their redemptions. IncrementUsage is
 // the distributed-safe guard that enforces global usage limits.
 type CouponRepository interface {

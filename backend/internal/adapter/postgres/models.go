@@ -169,6 +169,7 @@ type orderModel struct {
 	CouponID           uuidString `gorm:"type:uuid;index"`
 	CouponCode         string     `gorm:"size:64;not null;default:''"`
 	TotalCents         int64      `gorm:"not null"`
+	RefundedCents      int64      `gorm:"not null;default:0"`
 	ShippingCents      int64      `gorm:"not null;default:0"`
 	TaxCents           int64      `gorm:"not null;default:0"`
 	ShippingMethodID   uuidString `gorm:"type:uuid;index"`
@@ -201,6 +202,60 @@ type orderItemModel struct {
 }
 
 func (orderItemModel) TableName() string { return "order_items" }
+
+type refundModel struct {
+	ID          string     `gorm:"type:uuid;primaryKey"`
+	OrderID     string     `gorm:"type:uuid;index;not null"`
+	PaymentID   uuidString `gorm:"type:uuid;index"`
+	AmountCents int64      `gorm:"not null"`
+	Reason      string     `gorm:"size:512;not null;default:''"`
+	Restock     bool       `gorm:"not null;default:false"`
+	CreatedAt   time.Time  `gorm:"not null"`
+}
+
+func (refundModel) TableName() string { return "refunds" }
+
+func toRefund(m *refundModel) *domain.Refund {
+	return &domain.Refund{
+		ID: m.ID, OrderID: m.OrderID, PaymentID: string(m.PaymentID),
+		AmountCents: m.AmountCents, Reason: m.Reason, Restock: m.Restock, CreatedAt: m.CreatedAt,
+	}
+}
+
+func fromRefund(r *domain.Refund) *refundModel {
+	return &refundModel{
+		ID: r.ID, OrderID: r.OrderID, PaymentID: uuidString(r.PaymentID),
+		AmountCents: r.AmountCents, Reason: r.Reason, Restock: r.Restock, CreatedAt: r.CreatedAt,
+	}
+}
+
+type returnModel struct {
+	ID        string     `gorm:"type:uuid;primaryKey"`
+	OrderID   string     `gorm:"type:uuid;index;not null"`
+	UserID    uuidString `gorm:"type:uuid;index"`
+	Reason    string     `gorm:"size:512;not null;default:''"`
+	Status    string     `gorm:"size:32;index;not null;default:'requested'"`
+	CreatedAt time.Time  `gorm:"not null"`
+	UpdatedAt time.Time  `gorm:"not null"`
+}
+
+func (returnModel) TableName() string { return "return_requests" }
+
+func toReturn(m *returnModel) *domain.ReturnRequest {
+	return &domain.ReturnRequest{
+		ID: m.ID, OrderID: m.OrderID, UserID: string(m.UserID),
+		Reason: m.Reason, Status: domain.ReturnStatus(m.Status),
+		CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
+	}
+}
+
+func fromReturn(r *domain.ReturnRequest) *returnModel {
+	return &returnModel{
+		ID: r.ID, OrderID: r.OrderID, UserID: uuidString(r.UserID),
+		Reason: r.Reason, Status: string(r.Status),
+		CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+	}
+}
 
 type paymentModel struct {
 	ID            string     `gorm:"type:uuid;primaryKey"`
@@ -401,6 +456,7 @@ func toOrder(m *orderModel) *domain.Order {
 		GuestEmail: m.GuestEmail, GuestPhone: m.GuestPhone, AccessToken: m.AccessToken,
 		Currency: m.Currency, SubtotalCents: m.SubtotalCents, DiscountCents: m.DiscountCents,
 		CouponID: string(m.CouponID), CouponCode: m.CouponCode, TotalCents: m.TotalCents,
+		RefundedCents: m.RefundedCents,
 		ShippingCents: m.ShippingCents, TaxCents: m.TaxCents,
 		ShippingMethodID: string(m.ShippingMethodID), ShippingMethodName: m.ShippingMethodName,
 		Items: items, PaymentID: string(m.PaymentID),

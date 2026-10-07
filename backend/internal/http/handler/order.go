@@ -32,6 +32,7 @@ type OrderView struct {
 	TaxCents        int64           `json:"taxCents"`
 	ShippingMethod  string          `json:"shippingMethod,omitempty"`
 	TotalCents      int64           `json:"totalCents"`
+	RefundedCents   int64           `json:"refundedCents"`
 	Items           []OrderItemView `json:"items"`
 	PaymentID       string          `json:"paymentId"`
 	ShippingAddress *AddressView    `json:"shippingAddress,omitempty"`
@@ -108,9 +109,10 @@ func ToOrderView(o domain.Order) OrderView {
 		SubtotalCents: o.SubtotalCents, DiscountCents: o.DiscountCents, CouponCode: o.CouponCode,
 		ShippingCents: o.ShippingCents, TaxCents: o.TaxCents, ShippingMethod: o.ShippingMethodName,
 		TotalCents: o.TotalCents, Items: items, PaymentID: o.PaymentID,
-		TrackingNo: o.TrackingNo,
-		ExpiresAt:  o.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
-		CreatedAt:  o.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		RefundedCents: o.RefundedCents,
+		TrackingNo:    o.TrackingNo,
+		ExpiresAt:     o.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt:     o.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}
 	// The guest access token is only attached by Checkout, never on reads.
 	if o.ShippingAddress != nil {

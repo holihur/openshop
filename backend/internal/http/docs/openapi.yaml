@@ -667,7 +667,41 @@ paths:
   /ops/orders/{id}/refund:
     post:
       tags: [Ops]
-      summary: Refund a paid order and return its stock
+      summary: Refund part or all of a paid order
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+                amountCents: { type: integer, format: int64, description: "Blank/0 refunds the remaining balance" }
+                restock: { type: boolean, description: "Return inventory when the order becomes fully refunded" }
+      responses:
+        "200":
+          description: The refunded order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Order" }
+        "409": { $ref: "#/components/responses/Error" }
+  /orders/{id}/returns:
+    get:
+      tags: [Orders]
+      summary: List the caller's return requests for an order
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Return requests }
+    post:
+      tags: [Orders]
+      summary: Request a return for a delivered order
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
@@ -679,15 +713,33 @@ paths:
               properties:
                 reason: { type: string }
       responses:
-        "200":
-          description: The refunded order
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data: { $ref: "#/components/schemas/Order" }
+        "201": { description: The return request }
         "409": { $ref: "#/components/responses/Error" }
+  /ops/returns:
+    get:
+      tags: [Ops]
+      summary: List return requests
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Return requests }
+  /ops/returns/{id}/approve:
+    post:
+      tags: [Ops]
+      summary: Approve a return request
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: The approved return request }
+  /ops/returns/{id}/reject:
+    post:
+      tags: [Ops]
+      summary: Reject a return request
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: The rejected return request }
   /ops/products/{id}/variants:
     get:
       tags: [Ops]

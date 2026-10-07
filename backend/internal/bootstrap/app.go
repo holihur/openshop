@@ -174,6 +174,8 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	products := postgres.NewProductRepository(db)
 	orders := postgres.NewOrderRepository(db)
 	paymentRepo := postgres.NewPaymentRepository(db)
+	refundRepo := postgres.NewRefundRepository(db)
+	returnRepo := postgres.NewReturnRepository(db)
 	couponRepo := postgres.NewCouponRepository(db)
 	reviewRepo := postgres.NewReviewRepository(db)
 	variantRepo := postgres.NewVariantRepository(db)
@@ -216,14 +218,15 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		wishlistSvc = service.NewWishlistService(wishlistRepo, products)
 		accountSvc = service.NewAccountService(users, addressRepo, wishlistRepo, reviewRepo, orders, authSvc, log)
 	}
+	returnSvc := service.NewReturnService(returnRepo, orders, ids, clock)
 	orderSvc := service.NewOrderService(orders, users, products, couponRepo, variantRepo, addressRepo, shippingRepo, zoneRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, invoice.NewPDFRenderer(), cfg.App.TaxRateBps, cfg.App.OrderTTL, cfg.App.Currency)
-	paymentSvc := service.NewPaymentService(paymentRepo, orders, payments, orderSvc, ids, clock, log, promMetrics)
+	paymentSvc := service.NewPaymentService(paymentRepo, refundRepo, orders, payments, orderSvc, ids, clock, log, promMetrics)
 
 	// --- HTTP surface ---
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Orders: orderSvc, Payments: paymentSvc,
 		Coupons: couponSvc, Reviews: reviewSvc, Shipping: shippingSvc, Audit: auditSvc,
-		Currency: currencySvc, Storage: objectStore, IDs: ids, Logger: log,
+		Currency: currencySvc, Returns: returnSvc, Storage: objectStore, IDs: ids, Logger: log,
 		SiteURL: cfg.App.PublicSiteURL,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{

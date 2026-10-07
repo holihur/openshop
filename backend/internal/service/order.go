@@ -509,6 +509,60 @@ func (s *OrderService) MarkRefunded(ctx context.Context, orderID, paymentID stri
 	return out, nil
 }
 
+// ApplyRefund records a (possibly partial) refund against an order and marks it
+// refunded once fully refunded. Inventory is returned only when the whole order
+// is refunded and the caller asked to restock, because a refund alone does not
+// imply the goods came back. Serialised by a distributed lock so concurrent
+// refunds cannot overshoot the total.
+func (s *OrderService) ApplyRefund(ctx context.Context, orderID string, amountCents int64, restock bool, paymentID string) (*domain.Order, error) {
+	lock, err := s.locker.Acquire(ctx, "lock:order:"+orderID, 10*time.Second, 3*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = lock.Release(ctx) }()
+
+	var out *domain.Order
+	err = s.tx.WithinTx(ctx, func(txCtx context.Context) error {
+		o, err := s.orders.FindByID(txCtx, orderID)
+		if err != nil {
+			return err
+		}
+		if !o.Refundable() {
+			return domain.ErrOrderNotRefundable
+		}
+		if amountCents <= 0 || amountCents > o.RemainingRefundableCents() {
+			return fmt.Errorf("%w: invalid refund amount", domain.ErrInvalidArgument)
+		}
+
+		o.RefundedCents += amountCents
+		o.PaymentID = paymentID
+		o.UpdatedAt = s.clock.Now()
+		full := o.FullyRefunded()
+		if full {
+			o.Status = domain.OrderRefunded
+			if restock {
+				if err := s.releaseStock(txCtx, o); err != nil {
+					return err
+				}
+			}
+		}
+		if err := s.orders.Update(txCtx, o); err != nil {
+			return err
+		}
+		out = o
+		s.metrics.Counter("openshop_orders_refunded_total", 1, map[string]string{"currency": o.Currency})
+		if full {
+			return s.enqueue(txCtx, SubjectOrderRefunded, o)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	s.invalidateProducts(ctx, out)
+	return out, nil
+}
+
 // MarkShipped transitions a paid order to shipped and records the tracking
 // number. Idempotent and serialised by a distributed lock.
 func (s *OrderService) MarkShipped(ctx context.Context, orderID, trackingNo string) (*domain.Order, error) {

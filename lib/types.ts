@@ -106,6 +106,7 @@ export interface Order {
   taxCents: number;
   shippingMethod?: string;
   totalCents: number;
+  refundedCents: number;
   items: OrderItem[];
   paymentId: string;
   shippingAddress?: Address;
@@ -116,6 +117,15 @@ export interface Order {
   paidAt?: string;
   createdAt: string;
   accessToken?: string;
+}
+
+export interface ReturnRequest {
+  id: string;
+  orderId: string;
+  userId: string;
+  reason: string;
+  status: "requested" | "approved" | "rejected";
+  createdAt: string;
 }
 
 export interface Review {

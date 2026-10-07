@@ -50,8 +50,11 @@ type Order struct {
 	ShippingMethodID   string
 	ShippingMethodName string
 	TotalCents         int64
-	Items              []OrderItem
-	PaymentID          string
+	// RefundedCents accumulates partial refunds; the order is fully refunded
+	// once it reaches TotalCents.
+	RefundedCents int64
+	Items         []OrderItem
+	PaymentID     string
 	// ShippingAddress is a snapshot taken at checkout (nil for digital orders).
 	ShippingAddress *Address
 	TrackingNo      string
@@ -80,6 +83,19 @@ func (o *Order) Refundable() bool {
 	default:
 		return false
 	}
+}
+
+// RemainingRefundableCents is the amount still refundable on the order.
+func (o *Order) RemainingRefundableCents() int64 {
+	if o.RefundedCents >= o.TotalCents {
+		return 0
+	}
+	return o.TotalCents - o.RefundedCents
+}
+
+// FullyRefunded reports whether the whole order has been refunded.
+func (o *Order) FullyRefunded() bool {
+	return o.TotalCents > 0 && o.RefundedCents >= o.TotalCents
 }
 
 func (o *Order) Shippable() bool { return o.Status == OrderPaid }

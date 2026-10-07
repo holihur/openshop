@@ -5,23 +5,40 @@ import (
 
 	"github.com/holihur/openshop/internal/http/handler"
 	"github.com/holihur/openshop/internal/http/response"
+	"github.com/holihur/openshop/internal/service"
 )
 
 type refundRequest struct {
-	Reason string `json:"reason"`
+	Reason      string `json:"reason"`
+	AmountCents int64  `json:"amountCents"`
+	Restock     bool   `json:"restock"`
 }
 
-// RefundOrder reverses a paid order through its payment provider (admin only).
+// RefundOrder reverses part or all of a paid order through its payment provider
+// (admin only). AmountCents <= 0 refunds the remaining balance; Restock returns
+// inventory when the order becomes fully refunded.
 func (h *Handler) RefundOrder(c *gin.Context) {
 	var req refundRequest
 	_ = c.ShouldBindJSON(&req)
 
-	order, err := h.Payments.Refund(c.Request.Context(), c.Param("id"), req.Reason)
+	order, err := h.Payments.Refund(c.Request.Context(), service.RefundInput{
+		OrderID: c.Param("id"), AmountCents: req.AmountCents, Reason: req.Reason, Restock: req.Restock,
+	})
 	if err != nil {
 		response.Fail(c, err)
 		return
 	}
 	h.RecordAudit(c, "order.refund", "order", order.ID, nil)
+	response.OK(c, handler.ToOrderView(*order))
+}
+
+// GetOrder returns a single order (admin only).
+func (h *Handler) GetOrder(c *gin.Context) {
+	order, err := h.Orders.Get(c.Request.Context(), "", c.Param("id"), true)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
 	response.OK(c, handler.ToOrderView(*order))
 }
 

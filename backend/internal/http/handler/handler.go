@@ -29,6 +29,7 @@ type Handler struct {
 	Shipping *service.ShippingService
 	Audit    *service.AuditService
 	Currency *service.CurrencyService
+	Returns  *service.ReturnService
 	Storage  port.ObjectStorage
 	SiteURL  string
 	IDs      port.IDGenerator

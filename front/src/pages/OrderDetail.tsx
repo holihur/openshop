@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Download } from "lucide-react";
 import { errorMessage } from "@lib/errors";
 import { Button } from "@lib/components/ui/button";
+import { Badge } from "@lib/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@lib/components/ui/card";
 import { Separator } from "@lib/components/ui/separator";
 import { Skeleton } from "@lib/components/ui/skeleton";
@@ -12,6 +13,7 @@ import { OrderStatusBadge } from "@lib/components/order-status-badge";
 import { api } from "@lib/api";
 import { formatDate, formatMoney } from "@lib/format";
 import { useI18n } from "@lib/i18n";
+import { useOrderReturns, useRequestReturn } from "@lib/hooks/useReturns";
 import type { Order, Payment } from "@lib/types";
 
 export function OrderDetailPage() {
@@ -61,6 +63,10 @@ export function OrderDetailPage() {
   });
 
   const [downloading, setDownloading] = useState(false);
+  const { data: returns } = useOrderReturns(id);
+  const requestReturn = useRequestReturn(id);
+  const openReturn = returns?.find((r) => r.status === "requested" || r.status === "approved");
+  const latestReturn = returns?.[0];
   async function downloadInvoice() {
     if (!order) return;
     setDownloading(true);
@@ -134,6 +140,21 @@ export function OrderDetailPage() {
               {confirmReceipt.isPending ? t("orders.confirming") : t("orders.confirmReceipt")}
             </Button>
           )}
+          {order.status === "completed" && !openReturn && (
+            <Button
+              variant="outline"
+              disabled={requestReturn.isPending}
+              onClick={() => {
+                const reason = window.prompt(t("orders.returnReason"), "");
+                if (reason !== null) requestReturn.mutate(reason);
+              }}
+            >
+              {t("orders.requestReturn")}
+            </Button>
+          )}
+          {latestReturn && (
+            <Badge variant="secondary">{t(`return.${latestReturn.status}`)}</Badge>
+          )}
           <Button variant="outline" disabled={downloading} onClick={downloadInvoice}>
             <Download className="size-4" />
             {t("orders.invoice")}
@@ -206,6 +227,12 @@ export function OrderDetailPage() {
               <span>{t("cart.total")}</span>
               <span>{formatMoney(order.totalCents, order.currency)}</span>
             </div>
+            {order.refundedCents > 0 && (
+              <div className="flex justify-between text-sm text-emerald-600">
+                <span>{t("orders.refunded")}</span>
+                <span>-{formatMoney(order.refundedCents, order.currency)}</span>
+              </div>
+            )}
 
             {order.shippingAddress && (
               <>
