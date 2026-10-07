@@ -283,7 +283,11 @@ running them; it builds `front`/`ops` and copies them into the module.
 Demo credentials created by the seed:
 
 - Storefront (customers): `customer@openshop.local` / `customer12345`
-- Ops console (admins): `admin@openshop.local` / `admin12345`
+- Ops console (superuser): `admin@openshop.local` / `admin12345`
+- Ops console (narrow RBAC roles):
+  - `support@openshop.local` / `support12345` — orders, returns, reviews
+  - `catalog@openshop.local` / `catalog12345` — products, shipping, currency
+  - `finance@openshop.local` / `finance12345` — refunds, currency, audit
 
 ### Make targets
 
@@ -702,8 +706,14 @@ through unchanged, so product grids and detail pages emit `srcset` out of the bo
 - **At-least-once, never lost.** Events go through the transactional outbox, so
   they are committed with the business write and relayed with retries; consumers
   are idempotent.
-- **Idempotent writes.** Checkout and payment accept an `Idempotency-Key`; the
-  first outcome is cached and replayed, and concurrent duplicates get `409`.
+- **Idempotent writes.** Checkout, payment and every mutating ops route accept
+  an `Idempotency-Key`; the first outcome is cached and replayed, and concurrent
+  duplicates get `409`.
+- **Fine-grained RBAC on the ops API.** The console is not all-or-nothing:
+  roles (`admin`, `support`, `catalog`, `finance`) map to permissions
+  (`orders:write`, `refunds:write`, `products:write`, `audit:read`, …) checked
+  per route. `/auth/me` returns the caller's permissions so the sidebar hides
+  sections they cannot use; the API enforces it regardless.
 - **Read-your-writes for stock.** Checkout evicts the product cache
   synchronously (and the event consumer does so again as a safety net), so the
   catalog reflects reservations immediately.
@@ -715,6 +725,14 @@ through unchanged, so product grids and detail pages emit `srcset` out of the bo
 - **Indexed search with a fallback.** Products carry a generated `tsvector`
   column with a GIN index; queries also fall back to a substring match so CJK
   and partial words still work.
+- **Cursor pagination for deep listings.** `GET /products?cursor=` uses keyset
+  pagination on `(created_at, id)` — stable under concurrent writes and O(1) at
+  any depth, unlike `OFFSET`. Offset paging (`?page=`) remains for the UI and
+  simple clients.
+- **Bounded append-only tables.** Published outbox events and audit logs are
+  pruned by a leader-locked retention worker (`OUTBOX_RETENTION`,
+  `AUDIT_RETENTION`), with a BRIN index on `created_at` so time-range scans stay
+  cheap as the tables grow.
 - **One checkout path for simple and variant products.** When a product has
   variants, inventory and price live on the variant; otherwise on the product.
   Checkout resolves the purchasable unit, so both share the same atomic

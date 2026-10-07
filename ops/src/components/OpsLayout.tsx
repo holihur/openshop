@@ -26,16 +26,16 @@ import { useAuth } from "@lib/auth";
 // intranet), so the link is configurable at build time.
 const storefrontURL = import.meta.env.VITE_STOREFRONT_URL ?? "http://localhost:8080";
 
-const nav: { to: string; label: MessageKey; icon: LucideIcon; end?: boolean }[] = [
-  { to: "/", label: "ops.dashboard", icon: BarChart3, end: true },
-  { to: "/products", label: "ops.products", icon: Boxes },
-  { to: "/orders", label: "ops.orders", icon: ShoppingCart },
-  { to: "/coupons", label: "ops.coupons", icon: BadgePercent },
-  { to: "/reviews", label: "ops.reviews", icon: Star },
-  { to: "/returns", label: "ops.returns", icon: RotateCcw },
-  { to: "/shipping", label: "ops.shipping", icon: Truck },
-  { to: "/currency", label: "ops.currency", icon: Wallet },
-  { to: "/audit", label: "ops.audit", icon: ScrollText },
+const nav: { to: string; label: MessageKey; icon: LucideIcon; end?: boolean; perm?: string }[] = [
+  { to: "/", label: "ops.dashboard", icon: BarChart3, end: true, perm: "analytics:read" },
+  { to: "/products", label: "ops.products", icon: Boxes, perm: "products:read" },
+  { to: "/orders", label: "ops.orders", icon: ShoppingCart, perm: "orders:read" },
+  { to: "/coupons", label: "ops.coupons", icon: BadgePercent, perm: "coupons:read" },
+  { to: "/reviews", label: "ops.reviews", icon: Star, perm: "reviews:read" },
+  { to: "/returns", label: "ops.returns", icon: RotateCcw, perm: "returns:read" },
+  { to: "/shipping", label: "ops.shipping", icon: Truck, perm: "shipping:read" },
+  { to: "/currency", label: "ops.currency", icon: Wallet, perm: "currency:write" },
+  { to: "/audit", label: "ops.audit", icon: ScrollText, perm: "audit:read" },
 ];
 
 /** Chrome for the operations console: sidebar navigation, storefront link and sign-out. */
@@ -43,6 +43,11 @@ export function OpsLayout() {
   const { user, logout } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
+
+  // Hide sections the caller cannot access. A missing permissions list (older
+  // token) is treated permissively; the API enforces access regardless.
+  const can = (perm?: string) => !perm || !user?.permissions || user.permissions.includes(perm);
+  const items = nav.filter((item) => can(item.perm));
 
   async function onLogout() {
     await logout();
@@ -77,7 +82,7 @@ export function OpsLayout() {
       <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
         <aside className="hidden w-52 shrink-0 md:block">
           <nav className="sticky top-20 space-y-1">
-            {nav.map(({ to, label, icon: Icon, end }) => (
+            {items.map(({ to, label, icon: Icon, end }) => (
               <NavLink
                 key={to}
                 to={to}

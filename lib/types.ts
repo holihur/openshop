@@ -1,10 +1,14 @@
+export type UserRole = "customer" | "admin" | "support" | "catalog" | "finance";
+
 export interface User {
   id: string;
   email: string;
   phone: string;
   name: string;
-  role: "customer" | "admin";
+  role: UserRole;
   emailVerified: boolean;
+  /** Fine-grained ops capabilities; present for ops roles only. */
+  permissions?: string[];
 }
 
 export interface Category {

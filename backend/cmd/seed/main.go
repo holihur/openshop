@@ -65,6 +65,32 @@ func main() {
 		fmt.Println("created admin:", adminEmail, "password: admin12345")
 	}
 
+	// Ops staff with narrower RBAC roles (support, catalog, finance).
+	staff := []struct {
+		email, password, name string
+		role                  domain.UserRole
+	}{
+		{"support@openshop.local", "support12345", "Support Agent", domain.RoleSupport},
+		{"catalog@openshop.local", "catalog12345", "Catalog Manager", domain.RoleCatalog},
+		{"finance@openshop.local", "finance12345", "Finance Officer", domain.RoleFinance},
+	}
+	for _, s := range staff {
+		if _, err := users.FindByEmail(ctx, s.email); errors.Is(err, domain.ErrNotFound) {
+			hash, err := hasher.Hash(s.password)
+			if err != nil {
+				fatal("hash", err)
+			}
+			if err := users.Create(ctx, &domain.User{
+				ID: ids.NewID(), Email: s.email, PasswordHash: hash, Name: s.name,
+				Role: s.role, Status: domain.UserActive,
+				EmailVerified: true, EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now,
+			}); err != nil {
+				fatal("create staff", err)
+			}
+			fmt.Println("created ops user:", s.email, "password:", s.password, "role:", s.role)
+		}
+	}
+
 	// Demo customer (storefront realm).
 	customerEmail := "customer@openshop.local"
 	if _, err := users.FindByEmail(ctx, customerEmail); errors.Is(err, domain.ErrNotFound) {

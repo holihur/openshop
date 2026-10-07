@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/port"
 	"github.com/holihur/openshop/internal/service"
 )
@@ -40,6 +41,33 @@ func Auth(tokens port.TokenIssuer, auth *service.AuthService, optional bool) gin
 		c.Set(ctxUserID, claims.Subject)
 		c.Set(ctxRole, claims.Role)
 		c.Set(ctxClaims, claims)
+		c.Next()
+	}
+}
+
+// RequireOps guards an endpoint behind an operations role.
+func RequireOps() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !domain.IsOpsRole(Role(c)) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error": gin.H{"code": "forbidden", "message": "operations role required"},
+			})
+			return
+		}
+		c.Next()
+	}
+}
+
+// RequirePermission guards an endpoint behind a fine-grained permission. It must
+// run after Auth so the role is available on the context.
+func RequirePermission(perm domain.Permission) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !domain.HasPermission(Role(c), perm) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error": gin.H{"code": "forbidden", "message": "missing permission: " + string(perm)},
+			})
+			return
+		}
 		c.Next()
 	}
 }

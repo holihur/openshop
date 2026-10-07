@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/http/middleware"
 	"github.com/holihur/openshop/internal/http/response"
 	"github.com/holihur/openshop/internal/service"
@@ -29,12 +30,13 @@ type changePasswordRequest struct {
 }
 
 type UserView struct {
-	ID            string `json:"id"`
-	Email         string `json:"email"`
-	Phone         string `json:"phone"`
-	Name          string `json:"name"`
-	Role          string `json:"role"`
-	EmailVerified bool   `json:"emailVerified"`
+	ID            string   `json:"id"`
+	Email         string   `json:"email"`
+	Phone         string   `json:"phone"`
+	Name          string   `json:"name"`
+	Role          string   `json:"role"`
+	EmailVerified bool     `json:"emailVerified"`
+	Permissions   []string `json:"permissions,omitempty"`
 }
 
 type AuthView struct {
@@ -107,7 +109,7 @@ func (h *Handler) Me(c *gin.Context) {
 	}
 	response.OK(c, UserView{
 		ID: user.ID, Email: user.Email, Phone: user.Phone, Name: user.Name, Role: string(user.Role),
-		EmailVerified: user.EmailVerified,
+		EmailVerified: user.EmailVerified, Permissions: permissionStrings(user.Role),
 	})
 }
 
@@ -144,11 +146,24 @@ func maskIdentifier(id string) string {
 	return "***"
 }
 
+func permissionStrings(role domain.UserRole) []string {
+	perms := domain.Permissions(role)
+	if len(perms) == 0 {
+		return nil
+	}
+	out := make([]string, len(perms))
+	for i, p := range perms {
+		out[i] = string(p)
+	}
+	return out
+}
+
 func ToAuthView(res *service.AuthResult) AuthView {
 	return AuthView{
 		User: UserView{
 			ID: res.User.ID, Email: res.User.Email, Phone: res.User.Phone,
 			Name: res.User.Name, Role: string(res.User.Role), EmailVerified: res.User.EmailVerified,
+			Permissions: permissionStrings(res.User.Role),
 		},
 		AccessToken:  res.AccessToken,
 		RefreshToken: res.RefreshToken,

@@ -34,6 +34,17 @@ test("the ops console rejects a customer account (realm isolation)", async ({ pa
   await expect(page).toHaveURL(/\/login$/);
 });
 
+test("a narrow role only sees the sections it can access", async ({ page }) => {
+  await signIn(page, "support@openshop.local", "support12345");
+  // Support handles fulfilment, so orders and returns are visible...
+  await expect(page.getByRole("link", { name: "Orders" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Returns" })).toBeVisible();
+  // ...but the catalog, shipping and audit sections are hidden.
+  await expect(page.getByRole("link", { name: "Products" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Shipping" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Audit" })).toHaveCount(0);
+});
+
 test("switching language localises the console", async ({ page }) => {
   await signIn(page);
   await page.getByTestId("locale-switcher").selectOption("zh");

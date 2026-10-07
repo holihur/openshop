@@ -7,10 +7,12 @@ package ops
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/holihur/openshop/internal/config"
+	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/http/docs"
 	"github.com/holihur/openshop/internal/http/handler"
 	"github.com/holihur/openshop/internal/http/middleware"
@@ -25,6 +27,7 @@ func New(
 	tokens port.TokenIssuer,
 	auth *service.AuthService,
 	limiter port.RateLimiter,
+	cache port.Cache,
 	metrics port.Metrics,
 	tracer port.Tracer,
 	shared *handler.Handler,
@@ -84,50 +87,55 @@ func New(
 			authed.POST("/auth/password/change", fh.ChangePassword)
 		}
 
-		// Operations API: admin-only.
+		// Operations API: ops roles only, each route gated by a permission.
+		// Idempotency makes mutating retries safe (a no-op without the header).
 		admin := api.Group("/ops")
-		admin.Use(middleware.Auth(tokens, auth, false), middleware.RequireAdmin())
+		admin.Use(
+			middleware.Auth(tokens, auth, false),
+			middleware.RequireOps(),
+			middleware.Idempotency(cache, 24*time.Hour),
+		)
 		{
-			admin.POST("/categories", fh.CreateCategory)
+			admin.POST("/categories", middleware.RequirePermission(domain.PermCategoriesWrite), fh.CreateCategory)
 
-			admin.GET("/products", fh.ListProducts)
-			admin.POST("/products", fh.CreateProduct)
-			admin.PATCH("/products/:id", fh.UpdateProduct)
-			admin.GET("/products/:id/variants", fh.ListVariants)
-			admin.POST("/products/:id/variants", fh.CreateVariant)
-			admin.PATCH("/variants/:id", fh.UpdateVariant)
-			admin.POST("/uploads", fh.UploadImage)
+			admin.GET("/products", middleware.RequirePermission(domain.PermProductsRead), fh.ListProducts)
+			admin.POST("/products", middleware.RequirePermission(domain.PermProductsWrite), fh.CreateProduct)
+			admin.PATCH("/products/:id", middleware.RequirePermission(domain.PermProductsWrite), fh.UpdateProduct)
+			admin.GET("/products/:id/variants", middleware.RequirePermission(domain.PermProductsRead), fh.ListVariants)
+			admin.POST("/products/:id/variants", middleware.RequirePermission(domain.PermProductsWrite), fh.CreateVariant)
+			admin.PATCH("/variants/:id", middleware.RequirePermission(domain.PermProductsWrite), fh.UpdateVariant)
+			admin.POST("/uploads", middleware.RequirePermission(domain.PermProductsWrite), fh.UploadImage)
 
-			admin.GET("/orders", fh.ListOrders)
-			admin.GET("/orders/:id", fh.GetOrder)
-			admin.GET("/orders/:id/invoice", fh.DownloadInvoice)
-			admin.POST("/orders/:id/refund", fh.RefundOrder)
-			admin.POST("/orders/:id/ship", fh.ShipOrder)
-			admin.POST("/orders/:id/complete", fh.CompleteOrder)
-			admin.GET("/returns", fh.ListReturns)
-			admin.POST("/returns/:id/approve", fh.ApproveReturn)
-			admin.POST("/returns/:id/reject", fh.RejectReturn)
+			admin.GET("/orders", middleware.RequirePermission(domain.PermOrdersRead), fh.ListOrders)
+			admin.GET("/orders/:id", middleware.RequirePermission(domain.PermOrdersRead), fh.GetOrder)
+			admin.GET("/orders/:id/invoice", middleware.RequirePermission(domain.PermOrdersRead), fh.DownloadInvoice)
+			admin.POST("/orders/:id/refund", middleware.RequirePermission(domain.PermRefundsWrite), fh.RefundOrder)
+			admin.POST("/orders/:id/ship", middleware.RequirePermission(domain.PermOrdersWrite), fh.ShipOrder)
+			admin.POST("/orders/:id/complete", middleware.RequirePermission(domain.PermOrdersWrite), fh.CompleteOrder)
+			admin.GET("/returns", middleware.RequirePermission(domain.PermReturnsRead), fh.ListReturns)
+			admin.POST("/returns/:id/approve", middleware.RequirePermission(domain.PermReturnsWrite), fh.ApproveReturn)
+			admin.POST("/returns/:id/reject", middleware.RequirePermission(domain.PermReturnsWrite), fh.RejectReturn)
 
-			admin.GET("/stats", fh.Dashboard)
-			admin.GET("/inventory/low-stock", fh.LowStock)
-			admin.GET("/audit-logs", fh.ListAuditLogs)
+			admin.GET("/stats", middleware.RequirePermission(domain.PermAnalyticsRead), fh.Dashboard)
+			admin.GET("/inventory/low-stock", middleware.RequirePermission(domain.PermAnalyticsRead), fh.LowStock)
+			admin.GET("/audit-logs", middleware.RequirePermission(domain.PermAuditRead), fh.ListAuditLogs)
 
-			admin.GET("/shipping-methods", fh.AdminListShippingMethods)
-			admin.POST("/shipping-methods", fh.CreateShippingMethod)
-			admin.PATCH("/shipping-methods/:id", fh.UpdateShippingMethod)
-			admin.GET("/shipping-zones", fh.ListShippingZones)
-			admin.POST("/shipping-zones", fh.CreateShippingZone)
-			admin.PATCH("/shipping-zones/:id", fh.UpdateShippingZone)
-			admin.PUT("/shipping-zones/:zoneId/rates/:methodId", fh.SetShippingRate)
+			admin.GET("/shipping-methods", middleware.RequirePermission(domain.PermShippingRead), fh.AdminListShippingMethods)
+			admin.POST("/shipping-methods", middleware.RequirePermission(domain.PermShippingWrite), fh.CreateShippingMethod)
+			admin.PATCH("/shipping-methods/:id", middleware.RequirePermission(domain.PermShippingWrite), fh.UpdateShippingMethod)
+			admin.GET("/shipping-zones", middleware.RequirePermission(domain.PermShippingRead), fh.ListShippingZones)
+			admin.POST("/shipping-zones", middleware.RequirePermission(domain.PermShippingWrite), fh.CreateShippingZone)
+			admin.PATCH("/shipping-zones/:id", middleware.RequirePermission(domain.PermShippingWrite), fh.UpdateShippingZone)
+			admin.PUT("/shipping-zones/:zoneId/rates/:methodId", middleware.RequirePermission(domain.PermShippingWrite), fh.SetShippingRate)
 
-			admin.PUT("/currencies/:code", fh.SetCurrencyRate)
+			admin.PUT("/currencies/:code", middleware.RequirePermission(domain.PermCurrencyWrite), fh.SetCurrencyRate)
 
-			admin.GET("/coupons", fh.ListCoupons)
-			admin.POST("/coupons", fh.CreateCoupon)
-			admin.PATCH("/coupons/:id", fh.UpdateCoupon)
+			admin.GET("/coupons", middleware.RequirePermission(domain.PermCouponsRead), fh.ListCoupons)
+			admin.POST("/coupons", middleware.RequirePermission(domain.PermCouponsWrite), fh.CreateCoupon)
+			admin.PATCH("/coupons/:id", middleware.RequirePermission(domain.PermCouponsWrite), fh.UpdateCoupon)
 
-			admin.GET("/reviews", fh.ListAllReviews)
-			admin.DELETE("/reviews/:id", fh.DeleteReview)
+			admin.GET("/reviews", middleware.RequirePermission(domain.PermReviewsRead), fh.ListAllReviews)
+			admin.DELETE("/reviews/:id", middleware.RequirePermission(domain.PermReviewsWrite), fh.DeleteReview)
 		}
 	}
 

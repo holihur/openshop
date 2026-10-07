@@ -7,6 +7,9 @@ type UserRole string
 const (
 	RoleCustomer UserRole = "customer"
 	RoleAdmin    UserRole = "admin"
+	RoleSupport  UserRole = "support"
+	RoleCatalog  UserRole = "catalog"
+	RoleFinance  UserRole = "finance"
 )
 
 type UserStatus string

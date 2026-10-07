@@ -61,11 +61,11 @@ const (
 
 // allowedRole maps a surface to the role its sessions are restricted to: the
 // storefront only signs in customers, ops only administrators.
-func allowedRole(s Surface) domain.UserRole {
+func allowedRoles(s Surface) []domain.UserRole {
 	if s == SurfaceOps {
-		return domain.RoleAdmin
+		return []domain.UserRole{domain.RoleAdmin, domain.RoleSupport, domain.RoleCatalog, domain.RoleFinance}
 	}
-	return domain.RoleCustomer
+	return []domain.UserRole{domain.RoleCustomer}
 }
 
 // HTTPDeps are the wired dependencies a surface package (internal/http/front
@@ -192,7 +192,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	authSvc := service.NewAuthService(users, hasher, tokens, cache, ids, clock, mailer, service.AuthConfig{
 		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL, ResetBaseURL: cfg.App.PasswordResetURL,
 		VerifyBaseURL: cfg.App.VerifyEmailURL, RequireEmailVerification: cfg.App.RequireEmailVerification,
-		AllowedRole: allowedRole(surface),
+		AllowedRoles: allowedRoles(surface),
 	})
 	catalogSvc := service.NewCatalogService(categories, products, variantRepo, cache, ids, clock, cfg.App.Currency)
 	couponSvc := service.NewCouponService(couponRepo, ids, clock)

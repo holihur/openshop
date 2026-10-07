@@ -48,7 +48,9 @@ type AuthService struct {
 	resetBaseURL             string
 	verifyBaseURL            string
 	requireEmailVerification bool
-	// allowedRole, when set, restricts this surface's sessions to one role so
+	// allowedRoles, when non-empty, restricts this surface's sessions to those
+	// roles so a storefront token cannot be used on ops and vice versa.
+	allowedRoles []domain.UserRole
 	// the storefront only signs in customers and ops only signs in admins.
 	allowedRole domain.UserRole
 }
@@ -62,8 +64,9 @@ type AuthConfig struct {
 	VerifyBaseURL string
 	// RequireEmailVerification blocks login until the email is verified.
 	RequireEmailVerification bool
-	// AllowedRole restricts this surface to one role (empty allows any).
-	AllowedRole domain.UserRole
+	// AllowedRoles restricts this surface's sessions to a set of roles so the
+	// storefront and the ops console cannot be crossed (empty allows any).
+	AllowedRoles []domain.UserRole
 }
 
 func NewAuthService(
@@ -80,7 +83,7 @@ func NewAuthService(
 		users: users, hasher: hasher, tokens: tokens, cache: cache, ids: ids, clock: clock, mailer: mailer,
 		accessTTL: cfg.AccessTTL, refreshTTL: cfg.RefreshTTL, resetBaseURL: cfg.ResetBaseURL,
 		verifyBaseURL: cfg.VerifyBaseURL, requireEmailVerification: cfg.RequireEmailVerification,
-		allowedRole: cfg.AllowedRole,
+		allowedRoles: cfg.AllowedRoles,
 	}
 }
 
@@ -169,7 +172,7 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (*AuthResult, er
 	if !user.CanLogin() {
 		return nil, fmt.Errorf("%w: account is not active", domain.ErrForbidden)
 	}
-	if s.allowedRole != "" && user.Role != s.allowedRole {
+	if !s.roleAllowed(user.Role) {
 		// Wrong surface for this account (e.g. an admin on the storefront).
 		return nil, domain.ErrUnauthorized
 	}
@@ -219,7 +222,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthRe
 	if !user.CanLogin() {
 		return nil, domain.ErrForbidden
 	}
-	if s.allowedRole != "" && user.Role != s.allowedRole {
+	if !s.roleAllowed(user.Role) {
 		// A refresh token from the other surface cannot mint a token here.
 		return nil, domain.ErrUnauthorized
 	}
@@ -267,6 +270,19 @@ func (s *AuthService) IsRevoked(ctx context.Context, jti string) (bool, error) {
 
 func (s *AuthService) Me(ctx context.Context, userID string) (*domain.User, error) {
 	return s.users.FindByID(ctx, userID)
+}
+
+// roleAllowed reports whether a user role may hold a session on this surface.
+func (s *AuthService) roleAllowed(role domain.UserRole) bool {
+	if len(s.allowedRoles) == 0 {
+		return true
+	}
+	for _, r := range s.allowedRoles {
+		if r == role {
+			return true
+		}
+	}
+	return false
 }
 
 // issue mints an access/refresh pair. An empty family starts a new session.
