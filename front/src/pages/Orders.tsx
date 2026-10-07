@@ -46,8 +46,8 @@ export function OrdersPage() {
         {data.items.map((order) => (
           <Card key={order.id}>
             <CardContent className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <Link to={`/orders/${order.id}`} className="font-medium hover:underline">
                     {order.orderNo}
                   </Link>

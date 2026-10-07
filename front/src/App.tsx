@@ -34,9 +34,11 @@ export default function App() {
         <Route path="verify-email" element={<VerifyEmailPage />} />
         <Route path="guest/orders/:token" element={<GuestOrderPage />} />
         <Route path="payment/result" element={<PaymentResultPage />} />
+        {/* The cart is public: anonymous shoppers can add items and check out
+            as a guest, so it must not sit behind the auth guard. */}
+        <Route path="cart" element={<CartPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="cart" element={<CartPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="account/addresses" element={<AddressesPage />} />

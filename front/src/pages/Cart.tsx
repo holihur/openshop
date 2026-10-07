@@ -158,7 +158,7 @@ export function CartPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-3">
           {cart.items.map((item) => (
-            <Card key={item.productId} className="flex-row items-center gap-4 p-4">
+            <Card key={item.productId} className="flex-row flex-wrap items-center gap-4 p-4">
               <Link to={`/products/${item.productId}`} className="shrink-0">
                 <div className="bg-muted size-20 overflow-hidden rounded-md">
                   {item.coverImage ? (
@@ -182,6 +182,7 @@ export function CartPage() {
                   variant="ghost"
                   size="icon"
                   className="size-8"
+                  aria-label={t("cart.decrease")}
                   disabled={item.quantity <= 1 || updateItem.isPending}
                   onClick={() =>
                     updateItem.mutate({ productId: item.productId, variantId: item.variantId, quantity: item.quantity - 1 })
@@ -194,6 +195,7 @@ export function CartPage() {
                   variant="ghost"
                   size="icon"
                   className="size-8"
+                  aria-label={t("cart.increase")}
                   disabled={updateItem.isPending}
                   onClick={() =>
                     updateItem.mutate({ productId: item.productId, variantId: item.variantId, quantity: item.quantity + 1 })
@@ -205,6 +207,7 @@ export function CartPage() {
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label={t("cart.remove")}
                 disabled={removeItem.isPending}
                 onClick={() => removeItem.mutate({ productId: item.productId, variantId: item.variantId })}
               >

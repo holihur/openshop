@@ -14,6 +14,17 @@ test("browse the catalog and open a product", async ({ page }) => {
   await expect(page).toHaveURL(/\/products\/[^/]+$/);
 });
 
+test("a guest can add to cart and reach checkout", async ({ page }) => {
+  await page.goto("/products");
+  await page.locator('a[href^="/products/"]').first().click();
+  await expect(page).toHaveURL(/\/products\/[^/]+$/);
+  await page.getByRole("button", { name: "Add to cart" }).click();
+  await page.goto("/cart");
+  await expect(page.getByRole("heading", { name: "Your cart" })).toBeVisible();
+  // Anonymous shoppers get the guest checkout form (email + address).
+  await expect(page.getByText("Delivery details")).toBeVisible();
+});
+
 test("a customer can sign in from the storefront", async ({ page }) => {
   await page.goto("/login");
   await page.getByLabel("Email or phone").fill("customer@openshop.local");

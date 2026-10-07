@@ -775,6 +775,12 @@ through unchanged, so product grids and detail pages emit `srcset` out of the bo
 - **Guest checkout shares one cart path.** The cart owner is a *subject* — a
   user id or an `X-Guest-Id` — and guest orders are authorised by an unguessable
   access token, so guests reuse the same inventory, coupon and payment logic.
+  The storefront exposes this end to end: anonymous shoppers get a cart keyed by
+  a stable per-browser guest id, the cart page is public, and checkout collects
+  an email and shipping address without requiring an account.
+- **Responsive from 320px up.** The storefront adapts across small, medium and
+  large screens: the header collapses to a menu below `lg`, product grids are
+  fluid (1/2/3/4 columns), and cart and order cards wrap instead of overflowing.
 - **Multi-currency settles server-side.** Catalog prices are previewed in the
   chosen currency from exchange rates; checkout converts unit prices, fixed
   coupons and shipping, then stores the order in that currency.

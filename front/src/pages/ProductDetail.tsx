@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ImageOff, Minus, Plus, ShoppingCart } from "lucide-react";
 
@@ -11,7 +11,6 @@ import { ReviewsSection } from "@/components/reviews-section";
 import { WishlistButton } from "@lib/components/wishlist-button";
 import { api } from "@lib/api";
 import { useAddToCart } from "@lib/hooks/useCart";
-import { useAuth } from "@lib/auth";
 import { useI18n } from "@lib/i18n";
 import { useSeo } from "@lib/hooks/useSeo";
 import { usePrice } from "@lib/hooks/usePrice";
@@ -21,11 +20,9 @@ import type { Product, Variant } from "@lib/types";
 
 export function ProductDetailPage() {
   const { id = "" } = useParams();
-  const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [variantId, setVariantId] = useState<string>("");
-  const { user } = useAuth();
   const { t } = useI18n();
   const addToCart = useAddToCart();
   const price = usePrice();
@@ -239,20 +236,16 @@ export function ProductDetailPage() {
               className="flex-1"
               size="lg"
               disabled={outOfStock || addToCart.isPending}
-              onClick={() => {
-                if (!user) {
-                  navigate("/login", { state: { from: `/products/${product.id}` } });
-                  return;
-                }
+              onClick={() =>
                 addToCart.mutate({
                   productId: product.id,
                   variantId: selected?.id,
                   quantity,
-                });
-              }}
+                })
+              }
             >
               <ShoppingCart className="size-4" />
-              {user ? t("product.addToCart") : t("product.signInToBuy")}
+              {t("product.addToCart")}
             </Button>
           </div>
         </div>

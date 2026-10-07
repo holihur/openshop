@@ -109,11 +109,22 @@ export function ProductsPage() {
         <Button type="submit">{t("common.search")}</Button>
       </form>
 
-      <ProductGrid
-        products={data?.items}
-        loading={isLoading}
-        emptyMessage={t("products.empty")}
-      />
+      {!isLoading && data && (
+        <p className="text-muted-foreground text-sm">
+          {t("products.resultCount", { count: data.total })}
+        </p>
+      )}
+
+      {!isLoading && data && data.items.length === 0 && (keyword || categoryId) ? (
+        <div className="rounded-lg border border-dashed py-16 text-center">
+          <p className="text-muted-foreground">{t("products.empty")}</p>
+          <Button variant="link" onClick={() => update({ keyword: "", categoryId: "" })}>
+            {t("products.clearFilters")}
+          </Button>
+        </div>
+      ) : (
+        <ProductGrid products={data?.items} loading={isLoading} emptyMessage={t("products.empty")} />
+      )}
 
       {data && (
         <Pagination

@@ -57,6 +57,8 @@ export const en = {
   "nav.addresses": "Addresses",
   "nav.settings": "Settings",
   "nav.signIn": "Sign in",
+  "nav.openMenu": "Open menu",
+  "nav.closeMenu": "Close menu",
   "nav.register": "Register",
   "nav.account": "Account",
   "footer.tagline": "A horizontally scalable commerce platform.",
@@ -127,6 +129,7 @@ export const en = {
   // product
   "product.addToCart": "Add to cart",
   "product.add": "Add",
+  "product.lowStock": "Only {count} left",
   "product.added": "Added to cart",
   "product.outOfStock": "Out of stock",
   "product.inStock": "{count} in stock",
@@ -340,6 +343,8 @@ export const en = {
   "products.sortPriceAsc": "Price: low to high",
   "products.sortPriceDesc": "Price: high to low",
   "products.empty": "No products match your filters.",
+  "products.resultCount": "{count} products",
+  "products.clearFilters": "Clear filters",
   "products.seoDesc": "Browse the full OpenShop catalog.",
 
   // product detail
@@ -576,6 +581,8 @@ export const zh: Record<MessageKey, string> = {
   "nav.addresses": "收货地址",
   "nav.settings": "设置",
   "nav.signIn": "登录",
+  "nav.openMenu": "打开菜单",
+  "nav.closeMenu": "关闭菜单",
   "nav.register": "注册",
   "nav.account": "账户",
   "footer.tagline": "一个可水平扩展的电商平台。",
@@ -643,6 +650,7 @@ export const zh: Record<MessageKey, string> = {
 
   "product.addToCart": "加入购物车",
   "product.add": "加入",
+  "product.lowStock": "仅剩 {count} 件",
   "product.added": "已加入购物车",
   "product.outOfStock": "缺货",
   "product.inStock": "库存 {count}",
@@ -846,6 +854,8 @@ export const zh: Record<MessageKey, string> = {
   "products.sortPriceAsc": "价格从低到高",
   "products.sortPriceDesc": "价格从高到低",
   "products.empty": "没有符合筛选条件的商品。",
+  "products.resultCount": "共 {count} 件商品",
+  "products.clearFilters": "清除筛选",
   "products.seoDesc": "浏览 OpenShop 全部商品。",
 
   "product.back": "返回",

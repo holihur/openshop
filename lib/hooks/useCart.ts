@@ -8,12 +8,13 @@ import type { Cart } from "@lib/types";
 
 const CART_KEY = ["cart"] as const;
 
+// The cart is keyed by the signed-in user, or by the browser's guest id, so an
+// anonymous shopper still has a cart (and can check out as a guest).
 export function useCart() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: CART_KEY,
+    queryKey: ["cart", user?.id ?? "guest"],
     queryFn: () => api.get<Cart>("/cart"),
-    enabled: Boolean(user),
     staleTime: 10_000,
   });
 }
@@ -26,7 +27,7 @@ function useCartMutation<TArgs>(
   return useMutation({
     mutationFn: fn,
     onSuccess: (cart) => {
-      queryClient.setQueryData(CART_KEY, cart);
+      queryClient.setQueriesData({ queryKey: CART_KEY }, cart);
       if (successMessage) toast.success(successMessage);
     },
     onError: (error: Error) => toast.error(errorMessage(error)),

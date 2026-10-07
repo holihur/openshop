@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ImageOff, ShoppingCart } from "lucide-react";
+import { ImageOff, ShoppingCart, Star } from "lucide-react";
 
 import { Button } from "@lib/components/ui/button";
 import { Card, CardContent, CardFooter } from "@lib/components/ui/card";
@@ -7,17 +7,16 @@ import { Badge } from "@lib/components/ui/badge";
 import { WishlistButton } from "@lib/components/wishlist-button";
 import { useAddToCart } from "@lib/hooks/useCart";
 import { usePrice } from "@lib/hooks/usePrice";
-import { useAuth } from "@lib/auth";
 import { useI18n } from "@lib/i18n";
 import { responsiveSrcSet } from "@lib/media";
 import type { Product } from "@lib/types";
 
 export function ProductCard({ product }: { product: Product }) {
   const addToCart = useAddToCart();
-  const { user } = useAuth();
   const { t } = useI18n();
   const price = usePrice();
   const outOfStock = product.stock <= 0;
+  const lowStock = !outOfStock && product.stock <= 5;
 
   return (
     <Card className="group overflow-hidden pt-0">
@@ -27,7 +26,7 @@ export function ProductCard({ product }: { product: Product }) {
             <img
               src={product.coverImage}
               srcSet={responsiveSrcSet(product.coverImage)}
-              sizes="(max-width: 640px) 100vw, 33vw"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               alt={product.title}
               loading="lazy"
               decoding="async"
@@ -38,11 +37,15 @@ export function ProductCard({ product }: { product: Product }) {
               <ImageOff className="size-8" />
             </div>
           )}
-          {outOfStock && (
+          {outOfStock ? (
             <Badge variant="secondary" className="absolute top-2 left-2">
               {t("product.outOfStock")}
             </Badge>
-          )}
+          ) : lowStock ? (
+            <Badge variant="warning" className="absolute top-2 left-2">
+              {t("product.lowStock", { count: product.stock })}
+            </Badge>
+          ) : null}
           <WishlistButton productId={product.id} className="absolute top-2 right-2" />
         </div>
       </Link>
@@ -50,15 +53,28 @@ export function ProductCard({ product }: { product: Product }) {
         <Link to={`/products/${product.id}`}>
           <h3 className="line-clamp-2 font-medium hover:underline">{product.title}</h3>
         </Link>
-        <p className="text-muted-foreground mt-1 line-clamp-2 text-sm">
-          {product.description}
-        </p>
+        {product.reviewCount ? (
+          <div className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
+            <Star className="size-3 fill-amber-500 text-amber-500" />
+            <span>{product.rating?.toFixed(1)}</span>
+            <span>·</span>
+            <span>
+              {product.reviewCount === 1
+                ? t("product.reviewOne")
+                : t("product.reviewsCount", { count: product.reviewCount })}
+            </span>
+          </div>
+        ) : (
+          <p className="text-muted-foreground mt-1 line-clamp-2 text-sm">
+            {product.description}
+          </p>
+        )}
       </CardContent>
       <CardFooter className="justify-between gap-2">
         <span className="text-lg font-semibold">{price(product.priceCents)}</span>
         <Button
           size="sm"
-          disabled={outOfStock || !user || addToCart.isPending}
+          disabled={outOfStock || addToCart.isPending}
           onClick={() => addToCart.mutate({ productId: product.id })}
         >
           <ShoppingCart className="size-4" />
