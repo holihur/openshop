@@ -78,3 +78,43 @@ func New(cfg config.MailConfig, logger port.Logger) port.Mailer {
 	}
 	return NewLog(logger)
 }
+
+// Settings is the subset of the settings service the dynamic mailer needs.
+type Settings interface {
+	String(ctx context.Context, key string) string
+	Int(ctx context.Context, key string) int
+}
+
+// Dynamic resolves the mail transport from runtime settings on every send, so
+// operators can switch drivers or change the relay from the ops console without
+// a restart. The SMTP password stays in the environment.
+type Dynamic struct {
+	settings Settings
+	pass     string
+	logger   port.Logger
+}
+
+func NewDynamic(settings Settings, pass string, logger port.Logger) *Dynamic {
+	return &Dynamic{settings: settings, pass: pass, logger: logger}
+}
+
+func (d *Dynamic) Send(ctx context.Context, msg port.Email) error {
+	driver := strings.ToLower(strings.TrimSpace(d.settings.String(ctx, "mail.driver")))
+	if driver == "" {
+		driver = "log"
+	}
+	if driver != "smtp" {
+		d.logger.Info("email sent (log driver)", "to", msg.To, "subject", msg.Subject)
+		return nil
+	}
+	return NewSMTP(config.MailConfig{
+		Driver: "smtp",
+		From:   d.settings.String(ctx, "mail.from"),
+		Host:   d.settings.String(ctx, "mail.host"),
+		Port:   d.settings.Int(ctx, "mail.port"),
+		User:   d.settings.String(ctx, "mail.user"),
+		Pass:   d.pass,
+	}).Send(ctx, msg)
+}
+
+var _ port.Mailer = (*Dynamic)(nil)

@@ -13,6 +13,17 @@ const (
 	OrderRefunded       OrderStatus = "refunded"
 )
 
+// Invoiceable reports whether a tax invoice can be issued for an order. Only a
+// completed sale qualifies: a pending-payment or cancelled order never sold
+// anything, so there is nothing to invoice.
+func (s OrderStatus) Invoiceable() bool {
+	switch s {
+	case OrderPaid, OrderShipped, OrderCompleted, OrderRefunded:
+		return true
+	}
+	return false
+}
+
 type OrderItem struct {
 	ID          string
 	OrderID     string

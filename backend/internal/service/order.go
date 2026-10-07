@@ -99,6 +99,9 @@ func (s *OrderService) Invoice(ctx context.Context, orderID, requesterID string,
 	if !admin && order.UserID != requesterID {
 		return nil, domain.ErrForbidden
 	}
+	if !order.Status.Invoiceable() {
+		return nil, domain.ErrInvoiceUnavailable
+	}
 	if s.invoices == nil {
 		return nil, domain.ErrNotFound
 	}

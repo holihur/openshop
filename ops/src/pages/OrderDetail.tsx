@@ -82,16 +82,18 @@ export function OrderDetailPage() {
               {t("ops.refund")}
             </Button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              void api.download(`/ops/orders/${order.id}/invoice`, `invoice-${order.orderNo}.pdf`)
-            }
-          >
-            <Download className="size-4" />
-            {t("orders.invoice")}
-          </Button>
+          {["paid", "shipped", "completed", "refunded"].includes(order.status) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                void api.download(`/ops/orders/${order.id}/invoice`, `invoice-${order.orderNo}.pdf`)
+              }
+            >
+              <Download className="size-4" />
+              {t("orders.invoice")}
+            </Button>
+          )}
         </div>
       </div>
 

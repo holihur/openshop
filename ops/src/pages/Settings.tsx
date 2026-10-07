@@ -12,7 +12,7 @@ import { cn } from "@lib/utils";
 import { useSettings, useUpdateSettings } from "@lib/hooks/useAdmin";
 import type { Setting } from "@lib/types";
 
-const GROUP_ORDER = ["store", "checkout", "inventory", "auth", "security", "payment"];
+const GROUP_ORDER = ["store", "checkout", "inventory", "auth", "security", "payment", "mail"];
 
 /** Runtime configuration: a group sub-menu on the left, the group's settings on
  * the right. Everything here applies without a restart. */

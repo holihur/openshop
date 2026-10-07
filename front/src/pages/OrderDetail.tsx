@@ -156,10 +156,12 @@ export function OrderDetailPage() {
           {latestReturn && (
             <Badge variant="secondary">{t(`return.${latestReturn.status}`)}</Badge>
           )}
-          <Button variant="outline" disabled={downloading} onClick={downloadInvoice}>
-            <Download className="size-4" />
-            {t("orders.invoice")}
-          </Button>
+          {["paid", "shipped", "completed", "refunded"].includes(order.status) && (
+            <Button variant="outline" disabled={downloading} onClick={downloadInvoice}>
+              <Download className="size-4" />
+              {t("orders.invoice")}
+            </Button>
+          )}
         </div>
       </div>
 

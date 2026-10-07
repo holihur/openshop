@@ -78,6 +78,16 @@ var SettingDefs = []SettingDef{
 		Default: "", Description: "Stripe publishable key (public)"},
 	{Key: "payment.stripe_return_url", Group: "payment", Type: SettingString,
 		Default: "", Description: "Where Stripe returns the shopper after payment"},
+	{Key: "mail.driver", Group: "mail", Type: SettingString,
+		Default: "log", Description: "Mail transport: log (dev) or smtp"},
+	{Key: "mail.from", Group: "mail", Type: SettingString,
+		Default: "noreply@openshop.local", Description: "From address on outgoing email"},
+	{Key: "mail.host", Group: "mail", Type: SettingString,
+		Default: "", Description: "SMTP relay host"},
+	{Key: "mail.port", Group: "mail", Type: SettingInt,
+		Default: "587", Description: "SMTP relay port", Min: 1, Max: 65535},
+	{Key: "mail.user", Group: "mail", Type: SettingString,
+		Default: "", Description: "SMTP username (the password stays in the environment)"},
 }
 
 // SettingDefByKey returns the definition for a key.

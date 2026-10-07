@@ -23,6 +23,7 @@ var (
 	ErrTokenInvalid        = errors.New("invalid token")
 	ErrTokenExpired        = errors.New("token expired")
 	ErrEmailNotVerified    = errors.New("email not verified")
+	ErrInvoiceUnavailable  = errors.New("invoice is not available for this order")
 )
 
 // Error is a domain error carrying a stable machine-readable code alongside a

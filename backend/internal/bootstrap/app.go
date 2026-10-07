@@ -166,7 +166,6 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	mailer := mail.New(cfg.Mail, log)
 	smsSender := sms.New(cfg.SMS, log)
 	_ = smsSender // reserved for OTP / notification flows
 	promMetrics := metrics.New()
@@ -212,7 +211,14 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		"security.rate_limit_rps":         strconv.Itoa(cfg.HTTP.RateLimitRPS),
 		"security.rate_limit_user_rps":    strconv.Itoa(cfg.HTTP.RateLimitUserRPS),
 		"payment.default_provider":        cfg.Payment.DefaultProvider,
+		"mail.driver":                     cfg.Mail.Driver,
+		"mail.from":                       cfg.Mail.From,
+		"mail.host":                       cfg.Mail.Host,
+		"mail.port":                       strconv.Itoa(cfg.Mail.Port),
+		"mail.user":                       cfg.Mail.User,
 	})
+	// The mail transport is resolved from settings on every send.
+	mailer := mail.NewDynamic(settingsSvc, cfg.Mail.Pass, log)
 
 	// --- services ---
 	authSvc := service.NewAuthService(users, hasher, tokens, cache, ids, clock, mailer, service.AuthConfig{
