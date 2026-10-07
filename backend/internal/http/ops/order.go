@@ -1,0 +1,54 @@
+package ops
+
+import (
+	"github.com/gin-gonic/gin"
+
+	"github.com/holihur/openshop/internal/http/handler"
+	"github.com/holihur/openshop/internal/http/response"
+)
+
+type refundRequest struct {
+	Reason string `json:"reason"`
+}
+
+// RefundOrder reverses a paid order through its payment provider (admin only).
+func (h *Handler) RefundOrder(c *gin.Context) {
+	var req refundRequest
+	_ = c.ShouldBindJSON(&req)
+
+	order, err := h.Payments.Refund(c.Request.Context(), c.Param("id"), req.Reason)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	h.RecordAudit(c, "order.refund", "order", order.ID, nil)
+	response.OK(c, handler.ToOrderView(*order))
+}
+
+type shipRequest struct {
+	TrackingNo string `json:"trackingNo"`
+}
+
+// ShipOrder marks a paid order as shipped (admin only).
+func (h *Handler) ShipOrder(c *gin.Context) {
+	var req shipRequest
+	_ = c.ShouldBindJSON(&req)
+	order, err := h.Orders.MarkShipped(c.Request.Context(), c.Param("id"), req.TrackingNo)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	h.RecordAudit(c, "order.ship", "order", order.ID, map[string]string{"trackingNo": req.TrackingNo})
+	response.OK(c, handler.ToOrderView(*order))
+}
+
+// CompleteOrder closes a shipped order.
+func (h *Handler) CompleteOrder(c *gin.Context) {
+	order, err := h.Orders.MarkCompleted(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	h.RecordAudit(c, "order.complete", "order", order.ID, nil)
+	response.OK(c, handler.ToOrderView(*order))
+}

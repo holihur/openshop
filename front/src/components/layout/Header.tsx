@@ -9,9 +9,6 @@ import { useCurrency } from "@lib/currency";
 import { useCart } from "@lib/hooks/useCart";
 import { cn } from "@lib/utils";
 
-// The admin console is a separate (internal) deployment; link to it explicitly.
-const opsURL = import.meta.env.VITE_OPS_URL ?? "http://localhost:8081";
-
 function useTheme() {
   const [dark, setDark] = useState(
     () => localStorage.getItem("openshop.theme") === "dark",
@@ -105,16 +102,6 @@ export function Header() {
             >
               Settings
             </NavLink>
-          )}
-          {user?.role === "admin" && (
-            <a
-              href={opsURL}
-              className={cn(
-                "text-muted-foreground hover:text-foreground rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              )}
-            >
-              Admin
-            </a>
           )}
         </nav>
 

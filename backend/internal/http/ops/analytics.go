@@ -1,7 +1,9 @@
-package handler
+package ops
 
 import (
 	"github.com/gin-gonic/gin"
+
+	"github.com/holihur/openshop/internal/http/handler"
 
 	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/http/response"
@@ -18,16 +20,16 @@ type lowStockView struct {
 }
 
 type dashboardView struct {
-	RevenueCents      int64            `json:"revenueCents"`
-	RevenueByCurrency map[string]int64 `json:"revenueByCurrency,omitempty"`
-	LowStock          []lowStockView   `json:"lowStock"`
-	PaidOrders        int64            `json:"paidOrders"`
-	PendingOrders     int64            `json:"pendingOrders"`
-	CancelledOrders   int64            `json:"cancelledOrders"`
-	TotalOrders       int64            `json:"totalOrders"`
-	TotalProducts     int64            `json:"totalProducts"`
-	TotalUsers        int64            `json:"totalUsers"`
-	RecentOrders      []orderView      `json:"recentOrders"`
+	RevenueCents      int64               `json:"revenueCents"`
+	RevenueByCurrency map[string]int64    `json:"revenueByCurrency,omitempty"`
+	LowStock          []lowStockView      `json:"lowStock"`
+	PaidOrders        int64               `json:"paidOrders"`
+	PendingOrders     int64               `json:"pendingOrders"`
+	CancelledOrders   int64               `json:"cancelledOrders"`
+	TotalOrders       int64               `json:"totalOrders"`
+	TotalProducts     int64               `json:"totalProducts"`
+	TotalUsers        int64               `json:"totalUsers"`
+	RecentOrders      []handler.OrderView `json:"recentOrders"`
 }
 
 func toLowStockViews(items []domain.LowStockItem) []lowStockView {
@@ -47,9 +49,9 @@ func (h *Handler) Dashboard(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	recent := make([]orderView, 0, len(dashboard.RecentOrders))
+	recent := make([]handler.OrderView, 0, len(dashboard.RecentOrders))
 	for _, o := range dashboard.RecentOrders {
-		recent = append(recent, toOrderView(o))
+		recent = append(recent, handler.ToOrderView(o))
 	}
 	response.OK(c, dashboardView{
 		RevenueCents:      dashboard.RevenueCents,

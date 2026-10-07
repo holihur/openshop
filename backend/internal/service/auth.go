@@ -48,6 +48,9 @@ type AuthService struct {
 	resetBaseURL             string
 	verifyBaseURL            string
 	requireEmailVerification bool
+	// allowedRole, when set, restricts this surface's sessions to one role so
+	// the storefront only signs in customers and ops only signs in admins.
+	allowedRole domain.UserRole
 }
 
 type AuthConfig struct {
@@ -59,6 +62,8 @@ type AuthConfig struct {
 	VerifyBaseURL string
 	// RequireEmailVerification blocks login until the email is verified.
 	RequireEmailVerification bool
+	// AllowedRole restricts this surface to one role (empty allows any).
+	AllowedRole domain.UserRole
 }
 
 func NewAuthService(
@@ -75,6 +80,7 @@ func NewAuthService(
 		users: users, hasher: hasher, tokens: tokens, cache: cache, ids: ids, clock: clock, mailer: mailer,
 		accessTTL: cfg.AccessTTL, refreshTTL: cfg.RefreshTTL, resetBaseURL: cfg.ResetBaseURL,
 		verifyBaseURL: cfg.VerifyBaseURL, requireEmailVerification: cfg.RequireEmailVerification,
+		allowedRole: cfg.AllowedRole,
 	}
 }
 
@@ -163,6 +169,10 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (*AuthResult, er
 	if !user.CanLogin() {
 		return nil, fmt.Errorf("%w: account is not active", domain.ErrForbidden)
 	}
+	if s.allowedRole != "" && user.Role != s.allowedRole {
+		// Wrong surface for this account (e.g. an admin on the storefront).
+		return nil, domain.ErrUnauthorized
+	}
 	if !s.hasher.Compare(user.PasswordHash, in.Password) {
 		return nil, domain.ErrUnauthorized
 	}
@@ -208,6 +218,10 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthRe
 	}
 	if !user.CanLogin() {
 		return nil, domain.ErrForbidden
+	}
+	if s.allowedRole != "" && user.Role != s.allowedRole {
+		// A refresh token from the other surface cannot mint a token here.
+		return nil, domain.ErrUnauthorized
 	}
 	return s.issue(ctx, user, rec.Family)
 }

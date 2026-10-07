@@ -12,13 +12,16 @@ import (
 
 // JWTIssuer implements port.TokenIssuer with HMAC-signed JWTs. Tokens are
 // self-contained so any instance can verify them without shared session state.
+// The audience scopes tokens to a surface ("front" or "ops"), so a storefront
+// token is rejected by the ops binary and vice versa.
 type JWTIssuer struct {
-	secret []byte
-	issuer string
+	secret   []byte
+	issuer   string
+	audience string
 }
 
-func NewJWTIssuer(secret, issuer string) *JWTIssuer {
-	return &JWTIssuer{secret: []byte(secret), issuer: issuer}
+func NewJWTIssuer(secret, issuer, audience string) *JWTIssuer {
+	return &JWTIssuer{secret: []byte(secret), issuer: issuer, audience: audience}
 }
 
 type jwtClaims struct {
@@ -32,6 +35,7 @@ func (j *JWTIssuer) Issue(c port.TokenClaims) (string, error) {
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   c.Subject,
 			Issuer:    j.issuer,
+			Audience:  jwt.ClaimStrings{j.audience},
 			ID:        c.ID,
 			IssuedAt:  jwt.NewNumericDate(c.IssuedAt),
 			ExpiresAt: jwt.NewNumericDate(c.Expires),
@@ -47,7 +51,7 @@ func (j *JWTIssuer) Verify(raw string) (*port.TokenClaims, error) {
 			return nil, domain.ErrTokenInvalid
 		}
 		return j.secret, nil
-	}, jwt.WithIssuer(j.issuer))
+	}, jwt.WithIssuer(j.issuer), jwt.WithAudience(j.audience))
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, domain.ErrTokenExpired

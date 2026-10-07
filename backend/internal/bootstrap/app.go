@@ -24,8 +24,8 @@ import (
 	"github.com/holihur/openshop/internal/adapter/storage"
 	"github.com/holihur/openshop/internal/adapter/tracing"
 	"github.com/holihur/openshop/internal/config"
+	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/http/handler"
-	"github.com/holihur/openshop/internal/http/web"
 	"github.com/holihur/openshop/internal/port"
 	"github.com/holihur/openshop/internal/service"
 	"github.com/holihur/openshop/internal/version"
@@ -50,6 +50,24 @@ type App struct {
 	shutdownTracing func(context.Context) error
 }
 
+// Surface identifies which binary is being built, so only the services that
+// surface needs are constructed.
+type Surface string
+
+const (
+	SurfaceFront Surface = "front"
+	SurfaceOps   Surface = "ops"
+)
+
+// allowedRole maps a surface to the role its sessions are restricted to: the
+// storefront only signs in customers, ops only administrators.
+func allowedRole(s Surface) domain.UserRole {
+	if s == SurfaceOps {
+		return domain.RoleAdmin
+	}
+	return domain.RoleCustomer
+}
+
 // HTTPDeps are the wired dependencies a surface package (internal/http/front
 // or internal/http/ops) needs to build its engine. Injecting the builder keeps
 // each binary free of the other surface: the linker drops whatever is unused.
@@ -62,6 +80,13 @@ type HTTPDeps struct {
 	Limiter port.RateLimiter
 	Metrics port.Metrics
 	Tracer  port.Tracer
+
+	// Surface-specific services (nil for the other surface).
+	Cart      *service.CartService
+	Addresses *service.AddressService
+	Wishlist  *service.WishlistService
+	Account   *service.AccountService
+	Analytics *service.AnalyticsService
 }
 
 // Options selects the HTTP surface and whether background workers run. The
@@ -69,6 +94,8 @@ type HTTPDeps struct {
 type Options struct {
 	// BuildHTTP constructs the surface's HTTP handler. Required.
 	BuildHTTP func(HTTPDeps) http.Handler
+	// Surface selects which surface-specific services to construct.
+	Surface Surface
 	// RunWorkers starts the event consumers and scheduled jobs.
 	RunWorkers bool
 	// Addr overrides the listen address (defaults to cfg.HTTP.Addr).
@@ -78,7 +105,7 @@ type Options struct {
 // New builds the full dependency graph and returns a ready-to-run App.
 func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	log := logger.New(cfg.App.LogLevel, cfg.App.IsProduction(), cfg.App.Name, "instance", cfg.App.InstanceID)
-	log.Info("starting", "version", version.Version, "commit", version.Commit, "front_embedded", web.FrontBuilt(), "ops_embedded", web.OpsBuilt())
+	log.Info("starting", "version", version.Version, "commit", version.Commit)
 
 	// --- infrastructure (each behind a port) ---
 	db, err := postgres.Open(cfg.Postgres, log)
@@ -101,6 +128,13 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		return nil, err
 	}
 
+	// Normalise the surface so audience scoping and service selection are always
+	// well-defined; the storefront is the default.
+	surface := opts.Surface
+	if surface == "" {
+		surface = SurfaceFront
+	}
+
 	// --- secondary adapters ---
 	cache := redisadapter.NewCache(rdb)
 	locker := redisadapter.NewLocker(rdb)
@@ -108,7 +142,9 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	cartRepo := redisadapter.NewCartRepository(rdb, 30*24*time.Hour)
 
 	hasher := security.NewBcryptHasher()
-	tokens := security.NewJWTIssuer(cfg.JWT.Secret, cfg.JWT.Issuer)
+	// The audience scopes tokens to this binary: storefront tokens are rejected
+	// by the ops binary and vice versa.
+	tokens := security.NewJWTIssuer(cfg.JWT.Secret, cfg.JWT.Issuer, string(surface))
 	ids := security.NewUUIDGenerator()
 	clock := port.SystemClock{}
 
@@ -154,26 +190,40 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	authSvc := service.NewAuthService(users, hasher, tokens, cache, ids, clock, mailer, service.AuthConfig{
 		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL, ResetBaseURL: cfg.App.PasswordResetURL,
 		VerifyBaseURL: cfg.App.VerifyEmailURL, RequireEmailVerification: cfg.App.RequireEmailVerification,
+		AllowedRole: allowedRole(surface),
 	})
 	catalogSvc := service.NewCatalogService(categories, products, variantRepo, cache, ids, clock, cfg.App.Currency)
-	cartSvc := service.NewCartService(cartRepo, products, variantRepo)
 	couponSvc := service.NewCouponService(couponRepo, ids, clock)
 	reviewSvc := service.NewReviewService(reviewRepo, products, orders, cache, ids, clock)
-	addressSvc := service.NewAddressService(addressRepo, ids, clock)
-	analyticsSvc := service.NewAnalyticsService(analyticsRepo, cache, cfg.App.Currency, cfg.App.LowStockThreshold)
 	shippingSvc := service.NewShippingService(shippingRepo, zoneRepo, ids, clock)
 	auditSvc := service.NewAuditService(auditRepo, ids, clock, log)
-	wishlistSvc := service.NewWishlistService(wishlistRepo, products)
-	accountSvc := service.NewAccountService(users, addressRepo, wishlistRepo, reviewRepo, orders, authSvc, log)
 	currencySvc := service.NewCurrencyService(currencyRepo, cfg.App.Currency, cache)
+
+	// Surface-specific services: only the binary that serves them builds them, so
+	// e.g. the ops binary never constructs cart/wishlist/address services.
+	var (
+		cartSvc      *service.CartService
+		addressSvc   *service.AddressService
+		wishlistSvc  *service.WishlistService
+		accountSvc   *service.AccountService
+		analyticsSvc *service.AnalyticsService
+	)
+	if surface == SurfaceOps {
+		analyticsSvc = service.NewAnalyticsService(analyticsRepo, cache, cfg.App.Currency, cfg.App.LowStockThreshold)
+	} else {
+		cartSvc = service.NewCartService(cartRepo, products, variantRepo)
+		addressSvc = service.NewAddressService(addressRepo, ids, clock)
+		wishlistSvc = service.NewWishlistService(wishlistRepo, products)
+		accountSvc = service.NewAccountService(users, addressRepo, wishlistRepo, reviewRepo, orders, authSvc, log)
+	}
 	orderSvc := service.NewOrderService(orders, users, products, couponRepo, variantRepo, addressRepo, shippingRepo, zoneRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, invoice.NewPDFRenderer(), cfg.App.TaxRateBps, cfg.App.OrderTTL, cfg.App.Currency)
 	paymentSvc := service.NewPaymentService(paymentRepo, orders, payments, orderSvc, ids, clock, log, promMetrics)
 
 	// --- HTTP surface ---
 	h := &handler.Handler{
-		Auth: authSvc, Catalog: catalogSvc, Cart: cartSvc, Orders: orderSvc,
-		Payments: paymentSvc, Coupons: couponSvc, Reviews: reviewSvc, Addresses: addressSvc, Analytics: analyticsSvc, Shipping: shippingSvc, Audit: auditSvc, Wishlist: wishlistSvc, Currency: currencySvc, Account: accountSvc,
-		Storage: objectStore, IDs: ids, Logger: log,
+		Auth: authSvc, Catalog: catalogSvc, Orders: orderSvc, Payments: paymentSvc,
+		Coupons: couponSvc, Reviews: reviewSvc, Shipping: shippingSvc, Audit: auditSvc,
+		Currency: currencySvc, Storage: objectStore, IDs: ids, Logger: log,
 		SiteURL: cfg.App.PublicSiteURL,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
@@ -192,6 +242,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	engine := opts.BuildHTTP(HTTPDeps{
 		Config: cfg, Handler: h, Tokens: tokens, Auth: authSvc,
 		Cache: cache, Limiter: limiter, Metrics: promMetrics, Tracer: tracer,
+		Cart: cartSvc, Addresses: addressSvc, Wishlist: wishlistSvc, Account: accountSvc, Analytics: analyticsSvc,
 	})
 
 	app := &App{

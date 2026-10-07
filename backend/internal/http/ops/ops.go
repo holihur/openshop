@@ -14,7 +14,7 @@ import (
 	"github.com/holihur/openshop/internal/http/docs"
 	"github.com/holihur/openshop/internal/http/handler"
 	"github.com/holihur/openshop/internal/http/middleware"
-	"github.com/holihur/openshop/internal/http/web"
+	opsassets "github.com/holihur/openshop/internal/http/ops/assets"
 	"github.com/holihur/openshop/internal/port"
 	"github.com/holihur/openshop/internal/service"
 )
@@ -27,12 +27,14 @@ func New(
 	limiter port.RateLimiter,
 	metrics port.Metrics,
 	tracer port.Tracer,
-	h *handler.Handler,
+	shared *handler.Handler,
+	analytics *service.AnalyticsService,
 ) *gin.Engine {
 	if cfg.App.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	fh := &Handler{Handler: shared, Analytics: analytics}
 	r := gin.New()
 	r.RedirectTrailingSlash = false
 	if len(cfg.HTTP.TrustedProxies) > 0 {
@@ -43,89 +45,91 @@ func New(
 	r.Use(
 		middleware.RequestID(),
 		middleware.Tracing(tracer),
-		middleware.Recovery(h.Logger),
-		middleware.Logger(h.Logger),
+		middleware.Recovery(fh.Logger),
+		middleware.Logger(fh.Logger),
 		middleware.Metrics(metrics),
 		middleware.RateLimit(limiter, cfg.HTTP.RateLimitRPS),
 	)
 
-	if h.Metrics != nil {
-		r.GET("/metrics", gin.WrapH(h.Metrics))
+	if fh.Metrics != nil {
+		r.GET("/metrics", gin.WrapH(fh.Metrics))
 	}
-	r.GET("/healthz", h.Healthz)
-	r.GET("/readyz", h.Readyz)
+	r.GET("/healthz", fh.Healthz)
+	r.GET("/readyz", fh.Readyz)
 	r.GET("/docs", func(c *gin.Context) {
 		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(docs.SwaggerHTML))
 	})
 
 	api := r.Group("/api/v1")
 	{
-		api.GET("/version", h.Version)
+		api.GET("/version", fh.Version)
 		api.GET("/openapi.yaml", func(c *gin.Context) {
 			c.Data(http.StatusOK, "application/yaml", docs.OpenAPISpec)
 		})
 
 		// The console signs in against the same auth service.
-		api.POST("/auth/login", h.Login)
-		api.POST("/auth/refresh", h.Refresh)
+		api.POST("/auth/login", fh.Login)
+		api.POST("/auth/refresh", fh.Refresh)
 
 		// A few storefront reads the console needs (category picker, currency
 		// list). They are read-only and public on the storefront too.
-		api.GET("/categories", h.ListCategories)
-		api.GET("/currencies", h.ListCurrencies)
+		api.GET("/categories", fh.ListCategories)
+		api.GET("/currencies", fh.ListCurrencies)
 
 		authed := api.Group("")
 		authed.Use(middleware.Auth(tokens, auth, false))
 		{
-			authed.POST("/auth/logout", h.Logout)
-			authed.GET("/auth/me", h.Me)
-			authed.POST("/auth/password/change", h.ChangePassword)
+			authed.POST("/auth/logout", fh.Logout)
+			authed.GET("/auth/me", fh.Me)
+			authed.POST("/auth/password/change", fh.ChangePassword)
 		}
 
 		// Operations API: admin-only.
 		admin := api.Group("/ops")
 		admin.Use(middleware.Auth(tokens, auth, false), middleware.RequireAdmin())
 		{
-			admin.POST("/categories", h.CreateCategory)
+			admin.POST("/categories", fh.CreateCategory)
 
-			admin.GET("/products", h.ListProducts)
-			admin.POST("/products", h.CreateProduct)
-			admin.PATCH("/products/:id", h.UpdateProduct)
-			admin.GET("/products/:id/variants", h.ListVariants)
-			admin.POST("/products/:id/variants", h.CreateVariant)
-			admin.PATCH("/variants/:id", h.UpdateVariant)
-			admin.POST("/uploads", h.UploadImage)
+			admin.GET("/products", fh.ListProducts)
+			admin.POST("/products", fh.CreateProduct)
+			admin.PATCH("/products/:id", fh.UpdateProduct)
+			admin.GET("/products/:id/variants", fh.ListVariants)
+			admin.POST("/products/:id/variants", fh.CreateVariant)
+			admin.PATCH("/variants/:id", fh.UpdateVariant)
+			admin.POST("/uploads", fh.UploadImage)
 
-			admin.GET("/orders", h.ListOrders)
-			admin.GET("/orders/:id/invoice", h.DownloadInvoice)
-			admin.POST("/orders/:id/refund", h.RefundOrder)
-			admin.POST("/orders/:id/ship", h.ShipOrder)
-			admin.POST("/orders/:id/complete", h.CompleteOrder)
+			admin.GET("/orders", fh.ListOrders)
+			admin.GET("/orders/:id/invoice", fh.DownloadInvoice)
+			admin.POST("/orders/:id/refund", fh.RefundOrder)
+			admin.POST("/orders/:id/ship", fh.ShipOrder)
+			admin.POST("/orders/:id/complete", fh.CompleteOrder)
 
-			admin.GET("/stats", h.Dashboard)
-			admin.GET("/inventory/low-stock", h.LowStock)
-			admin.GET("/audit-logs", h.ListAuditLogs)
+			admin.GET("/stats", fh.Dashboard)
+			admin.GET("/inventory/low-stock", fh.LowStock)
+			admin.GET("/audit-logs", fh.ListAuditLogs)
 
-			admin.GET("/shipping-methods", h.AdminListShippingMethods)
-			admin.POST("/shipping-methods", h.CreateShippingMethod)
-			admin.PATCH("/shipping-methods/:id", h.UpdateShippingMethod)
-			admin.GET("/shipping-zones", h.ListShippingZones)
-			admin.POST("/shipping-zones", h.CreateShippingZone)
-			admin.PATCH("/shipping-zones/:id", h.UpdateShippingZone)
-			admin.PUT("/shipping-zones/:zoneId/rates/:methodId", h.SetShippingRate)
+			admin.GET("/shipping-methods", fh.AdminListShippingMethods)
+			admin.POST("/shipping-methods", fh.CreateShippingMethod)
+			admin.PATCH("/shipping-methods/:id", fh.UpdateShippingMethod)
+			admin.GET("/shipping-zones", fh.ListShippingZones)
+			admin.POST("/shipping-zones", fh.CreateShippingZone)
+			admin.PATCH("/shipping-zones/:id", fh.UpdateShippingZone)
+			admin.PUT("/shipping-zones/:zoneId/rates/:methodId", fh.SetShippingRate)
 
-			admin.PUT("/currencies/:code", h.SetCurrencyRate)
+			admin.PUT("/currencies/:code", fh.SetCurrencyRate)
 
-			admin.GET("/coupons", h.ListCoupons)
-			admin.POST("/coupons", h.CreateCoupon)
-			admin.PATCH("/coupons/:id", h.UpdateCoupon)
+			admin.GET("/coupons", fh.ListCoupons)
+			admin.POST("/coupons", fh.CreateCoupon)
+			admin.PATCH("/coupons/:id", fh.UpdateCoupon)
 
-			admin.GET("/reviews", h.ListAllReviews)
+			admin.GET("/reviews", fh.ListAllReviews)
+			admin.DELETE("/reviews/:id", fh.DeleteReview)
 		}
 	}
 
 	// The admin console is served at the root of this (internal) listener.
-	spa := web.Ops()
+	spa := opsassets.Handler()
+	fh.Logger.Info("ops surface ready", "spa_embedded", opsassets.Built())
 	r.NoRoute(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "not_found", "message": "route not found"}})

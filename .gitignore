@@ -18,10 +18,10 @@ node_modules/
 /lib/.vite/
 
 # Embedded SPA output (built by scripts/embed-frontend.sh; placeholders tracked)
-/backend/internal/http/web/front/dist/*
-!/backend/internal/http/web/front/dist/.gitkeep
-/backend/internal/http/web/ops/dist/*
-!/backend/internal/http/web/ops/dist/.gitkeep
+/backend/internal/http/front/assets/dist/*
+!/backend/internal/http/front/assets/dist/.gitkeep
+/backend/internal/http/ops/assets/dist/*
+!/backend/internal/http/ops/assets/dist/.gitkeep
 
 # Playwright
 /e2e/test-results/

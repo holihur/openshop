@@ -1,4 +1,4 @@
-package handler
+package front
 
 import (
 	"encoding/xml"

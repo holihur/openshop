@@ -6,7 +6,6 @@
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEST="$ROOT/backend/internal/http/web"
 
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "pnpm not found; skipping frontend embed (server will serve a placeholder)" >&2
@@ -15,7 +14,7 @@ fi
 
 embed_app() {
   app="$1"
-  out="$DEST/$app/dist"
+  out="$ROOT/backend/internal/http/$app/assets/dist"
   echo "building $app…"
   (cd "$ROOT" && pnpm --filter "@openshop/$app" build)
   rm -rf "$out"
@@ -29,4 +28,4 @@ embed_app() {
 embed_app front
 embed_app ops
 
-echo "embedded front and ops into $DEST"
+echo "embedded front and ops into $ROOT/backend/internal/http"

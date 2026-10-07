@@ -10,13 +10,6 @@ import (
 	"github.com/holihur/openshop/internal/service"
 )
 
-type registerRequest struct {
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
-	Password string `json:"password" binding:"required,min=8"`
-	Name     string `json:"name"`
-}
-
 type loginRequest struct {
 	Identifier string `json:"identifier" binding:"required"`
 	Password   string `json:"password" binding:"required"`
@@ -30,29 +23,12 @@ type logoutRequest struct {
 	RefreshToken string `json:"refreshToken"`
 }
 
-type forgotPasswordRequest struct {
-	Email string `json:"email" binding:"required,email"`
-}
-
-type resetPasswordRequest struct {
-	Token       string `json:"token" binding:"required"`
-	NewPassword string `json:"newPassword" binding:"required,min=8"`
-}
-
 type changePasswordRequest struct {
 	CurrentPassword string `json:"currentPassword" binding:"required"`
 	NewPassword     string `json:"newPassword" binding:"required,min=8"`
 }
 
-type verifyEmailRequest struct {
-	Token string `json:"token" binding:"required"`
-}
-
-type resendVerificationRequest struct {
-	Email string `json:"email" binding:"required,email"`
-}
-
-type userView struct {
+type UserView struct {
 	ID            string `json:"id"`
 	Email         string `json:"email"`
 	Phone         string `json:"phone"`
@@ -61,33 +37,18 @@ type userView struct {
 	EmailVerified bool   `json:"emailVerified"`
 }
 
-type authView struct {
-	User         userView `json:"user"`
+type AuthView struct {
+	User         UserView `json:"user"`
 	AccessToken  string   `json:"accessToken"`
 	RefreshToken string   `json:"refreshToken"`
 	ExpiresIn    int64    `json:"expiresIn"`
 }
 
-func (h *Handler) Register(c *gin.Context) {
-	var req registerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
-		return
-	}
-	res, err := h.Auth.Register(c.Request.Context(), service.RegisterInput{
-		Email: req.Email, Phone: req.Phone, Password: req.Password, Name: req.Name,
-	})
-	if err != nil {
-		response.Fail(c, err)
-		return
-	}
-	response.Created(c, toAuthView(res))
-}
-
+// Login is shared: both the storefront and the ops console sign in here.
 func (h *Handler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
+		response.Fail(c, WrapBind(err))
 		return
 	}
 	res, err := h.Auth.Login(c.Request.Context(), service.LoginInput{
@@ -110,13 +71,13 @@ func (h *Handler) Login(c *gin.Context) {
 			ResourceType: "user", ResourceID: res.User.ID, IP: c.ClientIP(),
 		})
 	}
-	response.OK(c, toAuthView(res))
+	response.OK(c, ToAuthView(res))
 }
 
 func (h *Handler) Refresh(c *gin.Context) {
 	var req refreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
+		response.Fail(c, WrapBind(err))
 		return
 	}
 	res, err := h.Auth.Refresh(c.Request.Context(), req.RefreshToken)
@@ -124,7 +85,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.OK(c, toAuthView(res))
+	response.OK(c, ToAuthView(res))
 }
 
 func (h *Handler) Logout(c *gin.Context) {
@@ -134,7 +95,7 @@ func (h *Handler) Logout(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	h.audit(c, "auth.logout", "user", middleware.UserID(c), nil)
+	h.RecordAudit(c, "auth.logout", "user", middleware.UserID(c), nil)
 	response.NoContent(c)
 }
 
@@ -144,77 +105,23 @@ func (h *Handler) Me(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.OK(c, userView{
+	response.OK(c, UserView{
 		ID: user.ID, Email: user.Email, Phone: user.Phone, Name: user.Name, Role: string(user.Role),
 		EmailVerified: user.EmailVerified,
 	})
 }
 
-func (h *Handler) VerifyEmail(c *gin.Context) {
-	var req verifyEmailRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
-		return
-	}
-	if err := h.Auth.VerifyEmail(c.Request.Context(), req.Token); err != nil {
-		response.Fail(c, err)
-		return
-	}
-	response.OK(c, gin.H{"verified": true})
-}
-
-func (h *Handler) ResendVerification(c *gin.Context) {
-	var req resendVerificationRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
-		return
-	}
-	if err := h.Auth.ResendVerificationByEmail(c.Request.Context(), req.Email); err != nil {
-		response.Fail(c, err)
-		return
-	}
-	response.OK(c, gin.H{"sent": true})
-}
-
-// ForgotPassword always returns success so accounts cannot be enumerated.
-func (h *Handler) ForgotPassword(c *gin.Context) {
-	var req forgotPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
-		return
-	}
-	if err := h.Auth.RequestPasswordReset(c.Request.Context(), req.Email); err != nil {
-		response.Fail(c, err)
-		return
-	}
-	response.OK(c, gin.H{"sent": true})
-}
-
-func (h *Handler) ResetPassword(c *gin.Context) {
-	var req resetPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
-		return
-	}
-	if err := h.Auth.ResetPassword(c.Request.Context(), req.Token, req.NewPassword); err != nil {
-		response.Fail(c, err)
-		return
-	}
-	h.audit(c, "auth.password_reset", "user", "", nil)
-	response.OK(c, gin.H{"reset": true})
-}
-
 func (h *Handler) ChangePassword(c *gin.Context) {
 	var req changePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
+		response.Fail(c, WrapBind(err))
 		return
 	}
 	if err := h.Auth.ChangePassword(c.Request.Context(), middleware.UserID(c), req.CurrentPassword, req.NewPassword); err != nil {
 		response.Fail(c, err)
 		return
 	}
-	h.audit(c, "auth.password_change", "user", middleware.UserID(c), nil)
+	h.RecordAudit(c, "auth.password_change", "user", middleware.UserID(c), nil)
 	response.OK(c, gin.H{"changed": true})
 }
 
@@ -237,9 +144,9 @@ func maskIdentifier(id string) string {
 	return "***"
 }
 
-func toAuthView(res *service.AuthResult) authView {
-	return authView{
-		User: userView{
+func ToAuthView(res *service.AuthResult) AuthView {
+	return AuthView{
+		User: UserView{
 			ID: res.User.ID, Email: res.User.Email, Phone: res.User.Phone,
 			Name: res.User.Name, Role: string(res.User.Role), EmailVerified: res.User.EmailVerified,
 		},

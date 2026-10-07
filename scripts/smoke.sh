@@ -10,8 +10,9 @@
 set -euo pipefail
 
 API_BASE="${API_BASE:-http://localhost:8080/api/v1}"
-IDENTIFIER="${IDENTIFIER:-admin@openshop.local}"
-PASSWORD="${PASSWORD:-admin12345}"
+# The storefront realm only signs in customers; admins use the ops binary.
+IDENTIFIER="${IDENTIFIER:-customer@openshop.local}"
+PASSWORD="${PASSWORD:-customer12345}"
 
 command -v jq >/dev/null || { echo "jq is required"; exit 1; }
 

@@ -279,7 +279,10 @@ pnpm --filter @openshop/ops dev     # admin console on :5174 (proxies to :8081)
 To serve the built SPAs from the Go binaries locally, run `make fe-build` before
 running them; it builds `front`/`ops` and copies them into the module.
 
-Demo credentials created by the seed: `admin@openshop.local` / `admin12345`.
+Demo credentials created by the seed:
+
+- Storefront (customers): `customer@openshop.local` / `customer12345`
+- Ops console (admins): `admin@openshop.local` / `admin12345`
 
 ### Make targets
 
@@ -457,7 +460,7 @@ is not present on the public storefront binary. All routes require an admin JWT.
 ```bash
 TOKEN=$(curl -s localhost:8080/api/v1/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"identifier":"admin@openshop.local","password":"admin12345"}' \
+  -d '{"identifier":"customer@openshop.local","password":"customer12345"}' \
   | jq -r .data.accessToken)
 
 curl -s localhost:8080/api/v1/cart/items \
@@ -659,8 +662,15 @@ Honest gaps a buyer should know about:
 the admin console are separate binaries (`openshop`, `openshop-ops`). Each
 command injects its HTTP surface into the shared composition root, so the ops
 binary links only the ops routes and can be deployed on an internal network
-while the public binary carries no admin endpoints. Handlers are shared code
-(the API analogue of the frontend's `lib/`).
+while the public binary carries no admin endpoints. The HTTP layer is split into
+`internal/http/front`, `internal/http/ops` and a shared `internal/http/handler`
+(the API analogue of the frontend's `lib/`), and surface-only services are
+constructed only by the binary that serves them.
+- **Isolated user systems (realms).** The two binaries are separate security
+realms: the storefront only authenticates customers and ops only administrators,
+and JWTs are audience-scoped (`aud: front` / `aud: ops`) so a storefront token is
+rejected by the ops binary and vice versa. Refresh tokens are role-checked too,
+so neither realm can mint a token for the other.
 - **Money as integers.** Prices are stored in minor units (`price_cents`) to
   avoid floating-point drift.
 - **UUID primary keys.** Any replica can generate ids without a central

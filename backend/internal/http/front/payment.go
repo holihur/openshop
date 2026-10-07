@@ -1,10 +1,12 @@
-package handler
+package front
 
 import (
 	"fmt"
 	"io"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/holihur/openshop/internal/http/handler"
 
 	"github.com/holihur/openshop/internal/http/middleware"
 	"github.com/holihur/openshop/internal/http/response"
@@ -30,7 +32,7 @@ type paymentView struct {
 func (h *Handler) CreatePayment(c *gin.Context) {
 	var req createPaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
+		response.Fail(c, handler.WrapBind(err))
 		return
 	}
 	res, err := h.Payments.Create(c.Request.Context(), service.CreatePaymentInput{
@@ -58,7 +60,7 @@ type simulatePaymentRequest struct {
 func (h *Handler) SimulatePayment(c *gin.Context) {
 	var req simulatePaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
+		response.Fail(c, handler.WrapBind(err))
 		return
 	}
 	if err := h.Payments.Simulate(c.Request.Context(), middleware.UserID(c), req.Provider, req.ProviderRef); err != nil {

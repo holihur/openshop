@@ -1,7 +1,9 @@
-package handler
+package front
 
 import (
 	"github.com/gin-gonic/gin"
+
+	"github.com/holihur/openshop/internal/http/handler"
 
 	"github.com/holihur/openshop/internal/http/middleware"
 	"github.com/holihur/openshop/internal/http/response"
@@ -17,13 +19,13 @@ func (h *Handler) ListWishlist(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.OK(c, toProductViews(products))
+	response.OK(c, handler.ToProductViews(products))
 }
 
 func (h *Handler) AddWishlist(c *gin.Context) {
 	var req addWishlistRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
+		response.Fail(c, handler.WrapBind(err))
 		return
 	}
 	if err := h.Wishlist.Add(c.Request.Context(), middleware.UserID(c), req.ProductID); err != nil {

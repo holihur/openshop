@@ -16,26 +16,23 @@ type ReadinessCheck struct {
 	Check func(ctx context.Context) error
 }
 
-// Handler bundles the services and infrastructure the HTTP layer needs.
+// Handler bundles the shared services and infrastructure the HTTP layer needs.
+// Surface-specific services (cart/wishlist/address/account for the storefront,
+// analytics for ops) live on the surface handler that embeds this one.
 type Handler struct {
-	Auth      *service.AuthService
-	Catalog   *service.CatalogService
-	Cart      *service.CartService
-	Orders    *service.OrderService
-	Payments  *service.PaymentService
-	Coupons   *service.CouponService
-	Reviews   *service.ReviewService
-	Addresses *service.AddressService
-	Analytics *service.AnalyticsService
-	Shipping  *service.ShippingService
-	Audit     *service.AuditService
-	Wishlist  *service.WishlistService
-	Currency  *service.CurrencyService
-	Account   *service.AccountService
-	Storage   port.ObjectStorage
-	SiteURL   string
-	IDs       port.IDGenerator
-	Logger    port.Logger
-	Metrics   http.Handler
-	Checks    []ReadinessCheck
+	Auth     *service.AuthService
+	Catalog  *service.CatalogService
+	Orders   *service.OrderService
+	Payments *service.PaymentService
+	Coupons  *service.CouponService
+	Reviews  *service.ReviewService
+	Shipping *service.ShippingService
+	Audit    *service.AuditService
+	Currency *service.CurrencyService
+	Storage  port.ObjectStorage
+	SiteURL  string
+	IDs      port.IDGenerator
+	Logger   port.Logger
+	Metrics  http.Handler
+	Checks   []ReadinessCheck
 }

@@ -128,7 +128,7 @@ export function useAdminReviews() {
 export function useDeleteReviewAdmin() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.del(`/reviews/${id}`),
+    mutationFn: (id: string) => api.del(`/ops/reviews/${id}`),
     onSuccess: () => {
       toast.success("Review removed");
       void queryClient.invalidateQueries({ queryKey: ["admin", "reviews"] });

@@ -43,9 +43,10 @@ func main() {
 
 	app, err := bootstrap.New(ctx, cfg, bootstrap.Options{
 		Addr:       cfg.HTTP.Addr,
+		Surface:    bootstrap.SurfaceFront,
 		RunWorkers: true,
 		BuildHTTP: func(d bootstrap.HTTPDeps) http.Handler {
-			return apphttpfront.New(d.Config, d.Tokens, d.Auth, d.Cache, d.Limiter, d.Metrics, d.Tracer, d.Handler)
+			return apphttpfront.New(d.Config, d.Tokens, d.Auth, d.Cache, d.Limiter, d.Metrics, d.Tracer, d.Handler, d.Cart, d.Addresses, d.Wishlist, d.Account)
 		},
 	})
 	if err != nil {

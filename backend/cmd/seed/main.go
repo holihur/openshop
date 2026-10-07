@@ -59,6 +59,23 @@ func main() {
 		fmt.Println("created admin:", adminEmail, "password: admin12345")
 	}
 
+	// Demo customer (storefront realm).
+	customerEmail := "customer@openshop.local"
+	if _, err := users.FindByEmail(ctx, customerEmail); errors.Is(err, domain.ErrNotFound) {
+		hash, err := hasher.Hash("customer12345")
+		if err != nil {
+			fatal("hash", err)
+		}
+		if err := users.Create(ctx, &domain.User{
+			ID: ids.NewID(), Email: customerEmail, PasswordHash: hash, Name: "Demo Customer",
+			Role: domain.RoleCustomer, Status: domain.UserActive,
+			EmailVerified: true, EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now,
+		}); err != nil {
+			fatal("create customer", err)
+		}
+		fmt.Println("created customer:", customerEmail, "password: customer12345")
+	}
+
 	// Categories.
 	catSpecs := []struct{ name, slug string }{
 		{"Electronics", "electronics"},

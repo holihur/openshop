@@ -1,7 +1,9 @@
-package handler
+package front
 
 import (
 	"github.com/gin-gonic/gin"
+
+	"github.com/holihur/openshop/internal/http/handler"
 
 	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/http/middleware"
@@ -26,9 +28,9 @@ func (h *Handler) ListAddresses(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	out := make([]addressView, 0, len(addresses))
+	out := make([]handler.AddressView, 0, len(addresses))
 	for _, a := range addresses {
-		out = append(out, addressView{
+		out = append(out, handler.AddressView{
 			ID: a.ID, Recipient: a.Recipient, Phone: a.Phone, Province: a.Province,
 			City: a.City, District: a.District, Line1: a.Line1, PostalCode: a.PostalCode,
 			Default: a.Default,
@@ -40,7 +42,7 @@ func (h *Handler) ListAddresses(c *gin.Context) {
 func (h *Handler) CreateAddress(c *gin.Context) {
 	var req addressRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
+		response.Fail(c, handler.WrapBind(err))
 		return
 	}
 	a, err := h.Addresses.Create(c.Request.Context(), middleware.UserID(c), toAddressInput(req))
@@ -48,7 +50,7 @@ func (h *Handler) CreateAddress(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.Created(c, addressView{
+	response.Created(c, handler.AddressView{
 		ID: a.ID, Recipient: a.Recipient, Phone: a.Phone, Province: a.Province,
 		City: a.City, District: a.District, Line1: a.Line1, PostalCode: a.PostalCode,
 		Default: a.Default,
@@ -58,7 +60,7 @@ func (h *Handler) CreateAddress(c *gin.Context) {
 func (h *Handler) UpdateAddress(c *gin.Context) {
 	var req addressRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
+		response.Fail(c, handler.WrapBind(err))
 		return
 	}
 	a, err := h.Addresses.Update(c.Request.Context(), middleware.UserID(c), c.Param("id"), toAddressInput(req))
@@ -66,7 +68,7 @@ func (h *Handler) UpdateAddress(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.OK(c, addressView{
+	response.OK(c, handler.AddressView{
 		ID: a.ID, Recipient: a.Recipient, Phone: a.Phone, Province: a.Province,
 		City: a.City, District: a.District, Line1: a.Line1, PostalCode: a.PostalCode,
 		Default: a.Default,
@@ -87,7 +89,7 @@ func (h *Handler) SetDefaultAddress(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.OK(c, addressView{
+	response.OK(c, handler.AddressView{
 		ID: a.ID, Recipient: a.Recipient, Phone: a.Phone, Province: a.Province,
 		City: a.City, District: a.District, Line1: a.Line1, PostalCode: a.PostalCode,
 		Default: a.Default,

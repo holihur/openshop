@@ -10,5 +10,5 @@ bin
 .dev
 data
 *.log
-backend/internal/http/web/front/dist
-backend/internal/http/web/ops/dist
+backend/internal/http/front/assets/dist
+backend/internal/http/ops/assets/dist

@@ -1,4 +1,4 @@
-package handler
+package ops
 
 import (
 	"fmt"
@@ -57,6 +57,6 @@ func (h *Handler) UploadImage(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	h.audit(c, "upload.create", "upload", key, nil)
+	h.RecordAudit(c, "upload.create", "upload", key, nil)
 	response.Created(c, gin.H{"key": key, "url": url})
 }

@@ -1,4 +1,4 @@
-package handler
+package front
 
 import (
 	"github.com/gin-gonic/gin"
@@ -26,6 +26,6 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	h.audit(c, "account.delete", "user", userID, nil)
+	h.RecordAudit(c, "account.delete", "user", userID, nil)
 	response.NoContent(c)
 }

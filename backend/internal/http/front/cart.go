@@ -1,7 +1,9 @@
-package handler
+package front
 
 import (
 	"github.com/gin-gonic/gin"
+
+	"github.com/holihur/openshop/internal/http/handler"
 
 	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/http/middleware"
@@ -48,7 +50,7 @@ func (h *Handler) GetCart(c *gin.Context) {
 func (h *Handler) AddCartItem(c *gin.Context) {
 	var req addCartItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
+		response.Fail(c, handler.WrapBind(err))
 		return
 	}
 	cart, err := h.Cart.AddItem(c.Request.Context(), middleware.Subject(c), req.ProductID, req.VariantID, req.Quantity)
@@ -62,7 +64,7 @@ func (h *Handler) AddCartItem(c *gin.Context) {
 func (h *Handler) UpdateCartItem(c *gin.Context) {
 	var req updateCartItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, wrapBind(err))
+		response.Fail(c, handler.WrapBind(err))
 		return
 	}
 	cart, err := h.Cart.SetQuantity(c.Request.Context(), middleware.Subject(c), c.Param("productId"), req.VariantID, req.Quantity)
