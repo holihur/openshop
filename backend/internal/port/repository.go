@@ -165,6 +165,17 @@ type NotificationRepository interface {
 	Broadcast(ctx context.Context, n *domain.Notification) (int64, error)
 }
 
+// PersonalAccessTokenRepository persists programmatic credentials. Only the
+// token hash is stored; lookups are by hash.
+type PersonalAccessTokenRepository interface {
+	Create(ctx context.Context, t *domain.PersonalAccessToken, hash string) error
+	// FindByHash resolves a token and its owner in one query.
+	FindByHash(ctx context.Context, hash string) (*domain.PersonalAccessToken, *domain.User, error)
+	ListByUser(ctx context.Context, userID string) ([]domain.PersonalAccessToken, error)
+	Revoke(ctx context.Context, id, userID string, at time.Time) error
+	Touch(ctx context.Context, id string, at time.Time) error
+}
+
 // RetentionRepository prunes append-only tables so they do not grow without
 // limit. Deletes are batched to keep transactions short.
 type RetentionRepository interface {

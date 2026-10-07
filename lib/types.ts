@@ -220,6 +220,29 @@ export interface ReferralSummary {
   approvedCents: number;
 }
 
+export interface PersonalAccessToken {
+  id: string;
+  name: string;
+  prefix: string;
+  realm: string;
+  scopes: string[];
+  cidrs: string[];
+  expiresAt?: string;
+  lastUsedAt?: string;
+  revokedAt?: string;
+  createdAt: string;
+}
+
+export interface CreatedPersonalAccessToken extends PersonalAccessToken {
+  token: string;
+}
+
+export interface ScopeInfo {
+  scope: string;
+  group: string;
+  description: string;
+}
+
 export type NotificationType =
   | "system"
   | "order"

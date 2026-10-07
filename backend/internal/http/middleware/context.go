@@ -11,6 +11,8 @@ const (
 	ctxUserID    = "auth.userID"
 	ctxRole      = "auth.role"
 	ctxClaims    = "auth.claims"
+	ctxScopes    = "auth.scopes"
+	ctxIsPAT     = "auth.pat"
 	ctxRequestID = "request.id"
 )
 
@@ -45,6 +47,37 @@ func Claims(c *gin.Context) *port.TokenClaims {
 		}
 	}
 	return nil
+}
+
+// IsPAT reports whether the request authenticated with a personal access token
+// rather than a browser session.
+func IsPAT(c *gin.Context) bool {
+	if v, ok := c.Get(ctxIsPAT); ok {
+		if b, ok := v.(bool); ok {
+			return b
+		}
+	}
+	return false
+}
+
+// Scopes returns the granted scopes of the calling token. Session callers have
+// no scope list and are never restricted by one.
+func Scopes(c *gin.Context) domain.ScopeSet {
+	if v, ok := c.Get(ctxScopes); ok {
+		if s, ok := v.(domain.ScopeSet); ok {
+			return s
+		}
+	}
+	return nil
+}
+
+// AllowsScope reports whether the caller may exercise a scope. A browser
+// session is unrestricted; a token must grant the scope explicitly.
+func AllowsScope(c *gin.Context, required domain.Scope) bool {
+	if !IsPAT(c) {
+		return true
+	}
+	return Scopes(c).Allows(required)
 }
 
 // RequestIDOf returns the per-request correlation id.

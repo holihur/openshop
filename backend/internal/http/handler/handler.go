@@ -36,6 +36,7 @@ type Handler struct {
 	Commission    *service.CommissionService
 	Withdrawals   *service.WithdrawalService
 	Notifications *service.NotificationService
+	PATs          *service.PATService
 	Settings      *service.SettingsService
 	Customers     *service.CustomerService
 	OIDC          *service.OIDCService

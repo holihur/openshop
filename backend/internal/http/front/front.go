@@ -115,12 +115,12 @@ func New(
 
 		// Support: guests may open a ticket; signed-in customers are linked to it.
 		optional := api.Group("")
-		optional.Use(middleware.Auth(tokens, auth, true))
+		optional.Use(middleware.Auth(tokens, auth, fh.PATs, "front", true))
 		optional.POST("/tickets", fh.CreateTicket)
 
 		// Authenticated customer area.
 		authed := api.Group("")
-		authed.Use(middleware.Auth(tokens, auth, false), middleware.RateLimitUser(limiter, handler.SettingLimit(settings, "security.rate_limit_user_rps")))
+		authed.Use(middleware.Auth(tokens, auth, fh.PATs, "front", false), middleware.InferScope(), middleware.RateLimitUser(limiter, handler.SettingLimit(settings, "security.rate_limit_user_rps")))
 		{
 			authed.POST("/auth/logout", fh.Logout)
 			authed.GET("/auth/me", fh.Me)
@@ -162,6 +162,13 @@ func New(
 			authed.POST("/notifications/:id/read", fh.MarkNotificationRead)
 			authed.POST("/notifications/read-all", fh.MarkAllNotificationsRead)
 
+			// Personal access tokens. Managing them requires a browser session, so a
+			// leaked token cannot mint or revoke tokens.
+			authed.GET("/account/tokens/scopes", middleware.RequireSession(), fh.ListTokenScopes)
+			authed.GET("/account/tokens", middleware.RequireSession(), fh.ListMyTokens)
+			authed.POST("/account/tokens", middleware.RequireSession(), fh.CreateMyToken)
+			authed.DELETE("/account/tokens/:id", middleware.RequireSession(), fh.RevokeMyToken)
+
 			authed.POST("/payments", middleware.Idempotency(cache, 24*time.Hour), fh.CreatePayment)
 			authed.POST("/payments/simulate", fh.SimulatePayment)
 
@@ -178,7 +185,7 @@ func New(
 
 		// Cart & checkout: signed-in users or guests (X-Guest-Id header).
 		shop := api.Group("")
-		shop.Use(middleware.Auth(tokens, auth, true), middleware.ResolveSubject(), middleware.RequireSubject())
+		shop.Use(middleware.Auth(tokens, auth, fh.PATs, "front", true), middleware.ResolveSubject(), middleware.RequireSubject())
 		{
 			shop.GET("/cart", fh.GetCart)
 			shop.POST("/cart/items", fh.AddCartItem)

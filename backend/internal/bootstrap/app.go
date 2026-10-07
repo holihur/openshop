@@ -274,6 +274,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	orderSvc.SetLoyalty(walletSvc, pointsSvc, commissionSvc)
 	withdrawalSvc := service.NewWithdrawalService(postgres.NewWithdrawalRepository(db), walletSvc, ids, clock, db, settingsSvc, cfg.App.Currency)
 	notificationSvc := service.NewNotificationService(postgres.NewNotificationRepository(db), ids, clock)
+	patSvc := service.NewPATService(postgres.NewPersonalAccessTokenRepository(db), ids, clock)
 	withdrawalSvc.SetNotifier(notificationSvc)
 	commissionSvc.SetNotifier(notificationSvc)
 	ticketSvc.SetNotifier(notificationSvc)
@@ -282,7 +283,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Orders: orderSvc, Payments: paymentSvc,
 		Coupons: couponSvc, Reviews: reviewSvc, Shipping: shippingSvc, Audit: auditSvc,
-		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Wallet: walletSvc, Points: pointsSvc, Commission: commissionSvc, Withdrawals: withdrawalSvc, Notifications: notificationSvc, Settings: settingsSvc, Customers: customerSvc, OIDC: oidcSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
+		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Wallet: walletSvc, Points: pointsSvc, Commission: commissionSvc, Withdrawals: withdrawalSvc, Notifications: notificationSvc, PATs: patSvc, Settings: settingsSvc, Customers: customerSvc, OIDC: oidcSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
 			{Name: "postgres", Check: db.Ping},

@@ -82,7 +82,7 @@ func New(
 		api.GET("/currencies", fh.ListCurrencies)
 
 		authed := api.Group("")
-		authed.Use(middleware.Auth(tokens, auth, false))
+		authed.Use(middleware.Auth(tokens, auth, fh.PATs, "ops", false))
 		{
 			authed.POST("/auth/logout", fh.Logout)
 			authed.GET("/auth/me", fh.Me)
@@ -93,7 +93,7 @@ func New(
 		// Idempotency makes mutating retries safe (a no-op without the header).
 		admin := api.Group("/ops")
 		admin.Use(
-			middleware.Auth(tokens, auth, false),
+			middleware.Auth(tokens, auth, fh.PATs, "ops", false),
 			middleware.RequireOps(),
 			middleware.Idempotency(cache, 24*time.Hour),
 		)
@@ -139,6 +139,11 @@ func New(
 			admin.POST("/withdrawals/:id/reject", middleware.RequirePermission(domain.PermWithdrawalsWrite), fh.RejectWithdrawal)
 			admin.POST("/withdrawals/:id/pay", middleware.RequirePermission(domain.PermWithdrawalsWrite), fh.PayWithdrawal)
 			admin.POST("/notifications/broadcast", middleware.RequirePermission(domain.PermNotificationsWrite), fh.BroadcastNotification)
+
+			admin.GET("/token-scopes", fh.ListTokenScopes)
+			admin.GET("/tokens", fh.ListOpsTokens)
+			admin.POST("/tokens", fh.CreateOpsToken)
+			admin.DELETE("/tokens/:id", fh.RevokeOpsToken)
 
 			admin.GET("/customers", middleware.RequirePermission(domain.PermCustomersRead), fh.ListCustomers)
 			admin.GET("/customers/:id", middleware.RequirePermission(domain.PermCustomersRead), fh.GetCustomer)
