@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # Builds one image that contains the API plus both embedded SPAs (front + ops).
 # Build context is the repository root so the web workspace is available.
 

@@ -88,7 +88,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build backend image (API + embedded SPAs)
-        run: docker build -f backend/Dockerfile -t openshop-backend .
+        run: |
+          docker version
+          docker build --progress=plain -f backend/Dockerfile -t openshop-backend .
 
   e2e:
     name: Browser E2E
