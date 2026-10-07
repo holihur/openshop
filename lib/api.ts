@@ -7,6 +7,8 @@
  * what allows the backend to run behind any load balancer.
  */
 
+import { getCurrentLocale } from "./i18n/translate";
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api/v1";
 
 const ACCESS_KEY = "openshop.accessToken";
@@ -133,6 +135,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<E
     const token = tokenStore.access();
     if (auth && token) finalHeaders["Authorization"] = `Bearer ${token}`;
     finalHeaders["X-Guest-Id"] = guestId();
+    finalHeaders["Accept-Language"] = getCurrentLocale();
 
     return fetch(`${API_BASE}${path}`, {
       method,

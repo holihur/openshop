@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { errorMessage } from "@lib/errors";
 import { api } from "@lib/api";
-import { t } from "@lib/i18n";
+import { t, useI18n } from "@lib/i18n";
 import type { AuditLog, Category, Coupon, CurrenciesResponse, Dashboard, ExchangeRate, Order, Product, Review, Setting, Variant } from "@lib/types";
 
 function qs(params: Record<string, string | number | undefined>): string {
@@ -29,8 +29,9 @@ export interface ProductInput {
 }
 
 export function useCategories() {
+  const { locale } = useI18n();
   return useQuery({
-    queryKey: ["categories"],
+    queryKey: ["categories", locale],
     queryFn: () => api.get<Category[]>("/categories"),
     staleTime: 5 * 60_000,
   });
@@ -38,6 +39,7 @@ export function useCategories() {
 
 export interface CategoryInput {
   name: string;
+  names?: Record<string, string>;
   slug?: string;
   parentId?: string;
   sort?: number;

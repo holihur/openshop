@@ -9,10 +9,15 @@ import { api } from "@lib/api";
 import { useI18n } from "@lib/i18n";
 import type { Category, Product } from "@lib/types";
 import { useSeo } from "@lib/hooks/useSeo";
+import { useSite } from "@lib/hooks/useSite";
 
 export function HomePage() {
   const { t } = useI18n();
   useSeo({ description: t("home.seoDesc") });
+  const { data: site } = useSite();
+  const heroTitle = site?.hero.title?.trim() || t("home.title");
+  const heroSubtitle = site?.hero.subtitle?.trim() || t("home.subtitle");
+  const heroCta = site?.hero.ctaUrl?.trim() || "/products";
   const { data: categories } = useQuery({
     queryKey: ["categories"],
     queryFn: () => api.get<Category[]>("/categories"),
@@ -26,25 +31,33 @@ export function HomePage() {
   return (
     <div className="space-y-14">
       <section className="from-primary/10 via-background to-background relative overflow-hidden rounded-2xl border bg-gradient-to-br px-6 py-16 sm:px-12">
-        <Badge variant="secondary" className="mb-4">
-          {t("home.badge")}
-        </Badge>
-        <h1 className="max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
-          {t("home.title")}
-        </h1>
-        <p className="text-muted-foreground mt-4 max-w-xl">
-          {t("home.subtitle")}
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Button size="lg" asChild>
-            <Link to="/products">
-              {t("home.browse")}
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
+        {site?.hero.image && (
+          <img
+            src={site.hero.image}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 size-full object-cover opacity-20"
+          />
+        )}
+        <div className="relative">
+          <Badge variant="secondary" className="mb-4">
+            {t("home.badge")}
+          </Badge>
+          <h1 className="max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
+            {heroTitle}
+          </h1>
+          <p className="text-muted-foreground mt-4 max-w-xl">{heroSubtitle}</p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button size="lg" asChild>
+              <Link to={heroCta}>
+                {t("home.browse")}
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
 
-        <div className="mt-12 grid gap-4 sm:grid-cols-3">
+        <div className="relative mt-12 grid gap-4 sm:grid-cols-3">
           {[
             { icon: Zap, title: t("home.fastCheckout"), text: t("home.fastCheckoutText") },
             { icon: ShieldCheck, title: t("home.secure"), text: t("home.secureText") },

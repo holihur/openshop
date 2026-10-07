@@ -30,7 +30,8 @@ test("a customer can sign in from the storefront", async ({ page }) => {
   await page.getByLabel("Email or phone").fill("customer@openshop.local");
   await page.getByLabel("Password").fill("customer12345");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("link", { name: "Wishlist", exact: true })).toBeVisible();
+  await page.getByTestId("account-menu").click();
+  await expect(page.getByRole("menuitem", { name: "Wishlist" })).toBeVisible();
 });
 
 test("the storefront rejects an admin account (realm isolation)", async ({ page }) => {

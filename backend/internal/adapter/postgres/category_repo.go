@@ -23,7 +23,7 @@ func (r *CategoryRepository) Create(ctx context.Context, c *domain.Category) err
 
 func (r *CategoryRepository) Update(ctx context.Context, c *domain.Category) error {
 	res := r.db.session(ctx).Model(&categoryModel{}).Where("id = ?", c.ID).
-		Select("name", "slug", "parent_id", "sort", "updated_at").
+		Select("name", "names", "slug", "parent_id", "sort", "updated_at").
 		Updates(fromCategory(c))
 	if res.Error != nil {
 		return translate(res.Error)

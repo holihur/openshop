@@ -368,7 +368,8 @@ retries safe.
 
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
-| `GET` | `/categories` | — | List categories |
+| `GET` | `/categories` | — | List categories (localized via `Accept-Language` / `?locale=`) |
+| `GET` | `/site` | — | Public site config (homepage banner, public URL) |
 | `GET` | `/products` | — | List/search (`categoryId`, `keyword`, `sort`, `page`, `pageSize`) |
 | `GET` | `/products/:id` | — | Product detail (cached) |
 
@@ -737,11 +738,16 @@ through unchanged, so product grids and detail pages emit `srcset` out of the bo
   subtotal.
 - **Runtime configuration, not redeploys.** Tax rate, unpaid-order TTL,
   low-stock threshold, email-verification requirement, reset/verify URLs, the
-  public site URL and the rate limits are stored in a `settings` table and
-  edited from the ops console; services read them per request (cached for a few
-  seconds) so a change takes effect without a restart or redeploy. Only what is
-  needed to boot — database/Redis/NATS addresses, listen addresses, secrets,
-  storage credentials — stays in the environment.
+  public site URL, the homepage banner (title/subtitle/image/CTA) and the rate
+  limits are stored in a `settings` table and edited from the ops console;
+  services read them per request (cached for a few seconds) so a change takes
+  effect without a restart or redeploy. Only what is needed to boot — database/
+  Redis/NATS addresses, listen addresses, secrets, storage credentials — stays
+  in the environment.
+- **Localized catalog.** Categories carry per-locale names (`names`); the API
+  resolves the request locale from `Accept-Language` (or `?locale=`) and returns
+  the translated name with the base name as fallback. Operators edit the
+  translations from the ops Categories page.
 - **The ops console is fully navigable.** Lists are server-paginated with
   search/filter controls (products by keyword/category, orders by status, returns
   by status, audit by action) and detail views are deep-linkable routes

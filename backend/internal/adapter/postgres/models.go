@@ -125,13 +125,14 @@ type userModel struct {
 func (userModel) TableName() string { return "users" }
 
 type categoryModel struct {
-	ID        string     `gorm:"type:uuid;primaryKey"`
-	Name      string     `gorm:"size:128;not null"`
-	Slug      string     `gorm:"size:160;uniqueIndex;not null"`
-	ParentID  uuidString `gorm:"type:uuid;index"`
-	Sort      int        `gorm:"not null;default:0"`
-	CreatedAt time.Time  `gorm:"not null"`
-	UpdatedAt time.Time  `gorm:"not null"`
+	ID        string            `gorm:"type:uuid;primaryKey"`
+	Name      string            `gorm:"size:128;not null"`
+	Names     map[string]string `gorm:"serializer:json;type:jsonb;not null;default:'{}'"`
+	Slug      string            `gorm:"size:160;uniqueIndex;not null"`
+	ParentID  uuidString        `gorm:"type:uuid;index"`
+	Sort      int               `gorm:"not null;default:0"`
+	CreatedAt time.Time         `gorm:"not null"`
+	UpdatedAt time.Time         `gorm:"not null"`
 }
 
 func (categoryModel) TableName() string { return "categories" }
@@ -410,14 +411,18 @@ func fromUser(u *domain.User) *userModel {
 
 func toCategory(m *categoryModel) *domain.Category {
 	return &domain.Category{
-		ID: m.ID, Name: m.Name, Slug: m.Slug, ParentID: string(m.ParentID),
+		ID: m.ID, Name: m.Name, Names: m.Names, Slug: m.Slug, ParentID: string(m.ParentID),
 		Sort: m.Sort, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
 }
 
 func fromCategory(c *domain.Category) *categoryModel {
+	names := c.Names
+	if names == nil {
+		names = map[string]string{}
+	}
 	return &categoryModel{
-		ID: c.ID, Name: c.Name, Slug: c.Slug, ParentID: uuidString(c.ParentID),
+		ID: c.ID, Name: c.Name, Names: names, Slug: c.Slug, ParentID: uuidString(c.ParentID),
 		Sort: c.Sort, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
 }

@@ -59,7 +59,7 @@ export function OpsLayout() {
   }
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="bg-background flex min-h-screen flex-col">
       <header className="bg-background/80 sticky top-0 z-20 border-b backdrop-blur">
         <div className="flex h-14 items-center justify-between px-4">
           <NavLink to="/" className="flex items-center gap-2 font-semibold">
@@ -67,7 +67,6 @@ export function OpsLayout() {
             OpenShop Ops
           </NavLink>
           <div className="flex items-center gap-3 text-sm">
-            <LocaleSwitcher className="hidden sm:inline-flex" />
             <span className="text-muted-foreground hidden sm:inline">{user?.email}</span>
             <Button variant="outline" size="sm" asChild>
               <a href={storefrontURL} target="_blank" rel="noreferrer">
@@ -83,7 +82,7 @@ export function OpsLayout() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-4 py-6">
         <aside className="hidden w-52 shrink-0 md:block">
           <nav className="sticky top-20 space-y-1">
             {items.map(({ to, label, icon: Icon, end }) => (
@@ -111,6 +110,13 @@ export function OpsLayout() {
           <Outlet />
         </main>
       </div>
+
+      <footer className="text-muted-foreground border-t">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 text-sm">
+          <span>© {new Date().getFullYear()} OpenShop Ops</span>
+          <LocaleSwitcher />
+        </div>
+      </footer>
     </div>
   );
 }

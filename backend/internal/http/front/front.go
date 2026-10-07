@@ -54,6 +54,7 @@ func New(
 		middleware.Recovery(fh.Logger),
 		middleware.Logger(fh.Logger),
 		middleware.Metrics(metrics),
+		middleware.Locale(),
 		middleware.CORS(cfg.HTTP.CORSOrigins),
 		middleware.RateLimit(limiter, handler.SettingLimit(settings, "security.rate_limit_rps")),
 	)
@@ -88,6 +89,7 @@ func New(
 
 		// Public catalog.
 		api.GET("/categories", fh.ListCategories)
+		api.GET("/site", fh.GetSite)
 		api.GET("/products", fh.ListProducts)
 		api.GET("/products/:id", fh.GetProduct)
 		api.GET("/products/:id/reviews", fh.ListReviews)

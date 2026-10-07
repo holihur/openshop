@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type ProductStatus string
 
@@ -13,11 +16,29 @@ const (
 type Category struct {
 	ID        string
 	Name      string
+	Names     map[string]string // locale -> localized name
 	Slug      string
 	ParentID  string
 	Sort      int
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+// LocalizedName returns the name for a locale, falling back to the base
+// language subtag and then the default name.
+func (c *Category) LocalizedName(locale string) string {
+	locale = strings.ToLower(strings.TrimSpace(locale))
+	if locale != "" {
+		if n := c.Names[locale]; n != "" {
+			return n
+		}
+		if i := strings.IndexAny(locale, "-_"); i > 0 {
+			if n := c.Names[locale[:i]]; n != "" {
+				return n
+			}
+		}
+	}
+	return c.Name
 }
 
 type Product struct {

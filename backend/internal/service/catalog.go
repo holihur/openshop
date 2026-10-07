@@ -43,6 +43,7 @@ func NewCatalogService(
 
 type CreateCategoryInput struct {
 	Name     string
+	Names    map[string]string
 	Slug     string
 	ParentID string
 	Sort     int
@@ -71,7 +72,7 @@ func (s *CatalogService) CreateCategory(ctx context.Context, in CreateCategoryIn
 	}
 	now := s.clock.Now()
 	c := &domain.Category{
-		ID: s.ids.NewID(), Name: in.Name, Slug: slug, ParentID: in.ParentID,
+		ID: s.ids.NewID(), Name: in.Name, Names: cleanNames(in.Names), Slug: slug, ParentID: in.ParentID,
 		Sort: in.Sort, CreatedAt: now, UpdatedAt: now,
 	}
 	if err := s.categories.Create(ctx, c); err != nil {
@@ -83,6 +84,7 @@ func (s *CatalogService) CreateCategory(ctx context.Context, in CreateCategoryIn
 
 type UpdateCategoryInput struct {
 	Name     *string
+	Names    *map[string]string
 	Slug     *string
 	ParentID *string
 	Sort     *int
@@ -100,6 +102,9 @@ func (s *CatalogService) UpdateCategory(ctx context.Context, id string, in Updat
 		}
 		cat.Name = name
 	}
+	if in.Names != nil {
+		cat.Names = cleanNames(*in.Names)
+	}
 	if in.Slug != nil && strings.TrimSpace(*in.Slug) != "" {
 		cat.Slug = slugify(*in.Slug)
 	}
@@ -115,6 +120,20 @@ func (s *CatalogService) UpdateCategory(ctx context.Context, id string, in Updat
 	}
 	_ = s.cache.Delete(ctx, categoryCacheKey)
 	return cat, nil
+}
+
+// cleanNames trims and drops empty localized names.
+func cleanNames(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for locale, name := range in {
+		locale = strings.ToLower(strings.TrimSpace(locale))
+		name = strings.TrimSpace(name)
+		if locale == "" || name == "" {
+			continue
+		}
+		out[locale] = name
+	}
+	return out
 }
 
 type CreateProductInput struct {

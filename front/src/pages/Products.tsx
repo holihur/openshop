@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Search, X } from "lucide-react";
 
@@ -9,6 +9,7 @@ import { ProductGrid } from "@lib/components/product-grid";
 import { Pagination } from "@lib/components/pagination";
 import { api } from "@lib/api";
 import { useI18n } from "@lib/i18n";
+import { usePrice } from "@lib/hooks/usePrice";
 import type { Category, Product } from "@lib/types";
 import { useSeo } from "@lib/hooks/useSeo";
 
@@ -21,6 +22,9 @@ export function ProductsPage() {
   const sort = params.get("sort") ?? "newest";
   const page = Number(params.get("page") ?? "1") || 1;
   const [search, setSearch] = useState(keyword);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const navigate = useNavigate();
+  const price = usePrice();
 
   useEffect(() => setSearch(keyword), [keyword]);
 
@@ -33,6 +37,14 @@ export function ProductsPage() {
   const { data: categories } = useQuery({
     queryKey: ["categories"],
     queryFn: () => api.get<Category[]>("/categories"),
+  });
+
+  // Typeahead suggestions for the search box.
+  const { data: suggestions } = useQuery({
+    queryKey: ["products", "suggest", search],
+    queryFn: () => api.getPage<Product[]>(`/products?keyword=${encodeURIComponent(search)}&pageSize=6`),
+    enabled: search.trim().length >= 2,
+    staleTime: 30_000,
   });
 
   const queryString = useMemo(() => {
@@ -79,9 +91,33 @@ export function ProductsPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onFocus={() => setSuggestOpen(true)}
+            onBlur={() => window.setTimeout(() => setSuggestOpen(false), 150)}
             placeholder={t("products.searchPlaceholder")}
             className="pl-9"
           />
+          {suggestOpen && search.trim().length >= 2 && suggestions && suggestions.items.length > 0 && (
+            <ul className="bg-popover absolute z-20 mt-1 w-full overflow-hidden rounded-md border shadow-md">
+              {suggestions.items.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      navigate(`/products/${p.id}`);
+                    }}
+                    className="hover:bg-accent flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
+                  >
+                    {p.coverImage ? (
+                      <img src={p.coverImage} alt="" className="size-8 rounded object-cover" />
+                    ) : null}
+                    <span className="flex-1 truncate">{p.title}</span>
+                    <span className="text-muted-foreground">{price(p.priceCents)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <select
           value={categoryId}

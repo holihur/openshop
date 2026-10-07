@@ -21,9 +21,15 @@ export interface Setting {
   max?: number;
 }
 
+export interface Site {
+  publicUrl: string;
+  hero: { title: string; subtitle: string; image: string; ctaUrl: string };
+}
+
 export interface Category {
   id: string;
   name: string;
+  names?: Record<string, string>;
   slug: string;
   parentId: string;
   sort: number;

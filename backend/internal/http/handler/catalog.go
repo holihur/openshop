@@ -9,11 +9,12 @@ import (
 )
 
 type CategoryView struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Slug     string `json:"slug"`
-	ParentID string `json:"parentId"`
-	Sort     int    `json:"sort"`
+	ID       string            `json:"id"`
+	Name     string            `json:"name"`
+	Names    map[string]string `json:"names,omitempty"`
+	Slug     string            `json:"slug"`
+	ParentID string            `json:"parentId"`
+	Sort     int               `json:"sort"`
 }
 
 type ProductView struct {
@@ -56,7 +57,7 @@ func (h *Handler) ListCategories(c *gin.Context) {
 	}
 	out := make([]CategoryView, 0, len(cats))
 	for _, cat := range cats {
-		out = append(out, ToCategoryView(cat))
+		out = append(out, ToCategoryView(cat, middleware.LocaleOf(c)))
 	}
 	response.OK(c, out)
 }
@@ -93,8 +94,11 @@ func (h *Handler) ListProducts(c *gin.Context) {
 	response.PaginatedCursor(c, ToProductViews(page.Items), page.Total, page.Page, page.PageSize, page.NextCursor)
 }
 
-func ToCategoryView(cat domain.Category) CategoryView {
-	return CategoryView{ID: cat.ID, Name: cat.Name, Slug: cat.Slug, ParentID: cat.ParentID, Sort: cat.Sort}
+func ToCategoryView(cat domain.Category, locale string) CategoryView {
+	return CategoryView{
+		ID: cat.ID, Name: cat.LocalizedName(locale), Names: cat.Names,
+		Slug: cat.Slug, ParentID: cat.ParentID, Sort: cat.Sort,
+	}
 }
 
 func ToProductView(p domain.Product) ProductView {

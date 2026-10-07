@@ -5,22 +5,25 @@ import (
 
 	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/http/handler"
+	"github.com/holihur/openshop/internal/http/middleware"
 	"github.com/holihur/openshop/internal/http/response"
 	"github.com/holihur/openshop/internal/service"
 )
 
 type createCategoryRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Slug     string `json:"slug"`
-	ParentID string `json:"parentId"`
-	Sort     int    `json:"sort"`
+	Name     string            `json:"name" binding:"required"`
+	Names    map[string]string `json:"names"`
+	Slug     string            `json:"slug"`
+	ParentID string            `json:"parentId"`
+	Sort     int               `json:"sort"`
 }
 
 type updateCategoryRequest struct {
-	Name     *string `json:"name"`
-	Slug     *string `json:"slug"`
-	ParentID *string `json:"parentId"`
-	Sort     *int    `json:"sort"`
+	Name     *string            `json:"name"`
+	Names    *map[string]string `json:"names"`
+	Slug     *string            `json:"slug"`
+	ParentID *string            `json:"parentId"`
+	Sort     *int               `json:"sort"`
 }
 
 type createProductRequest struct {
@@ -78,13 +81,13 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 		return
 	}
 	cat, err := h.Catalog.CreateCategory(c.Request.Context(), service.CreateCategoryInput{
-		Name: req.Name, Slug: req.Slug, ParentID: req.ParentID, Sort: req.Sort,
+		Name: req.Name, Names: req.Names, Slug: req.Slug, ParentID: req.ParentID, Sort: req.Sort,
 	})
 	if err != nil {
 		response.Fail(c, err)
 		return
 	}
-	response.Created(c, handler.ToCategoryView(*cat))
+	response.Created(c, handler.ToCategoryView(*cat, middleware.LocaleOf(c)))
 }
 
 func (h *Handler) UpdateCategory(c *gin.Context) {
@@ -94,14 +97,14 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 		return
 	}
 	cat, err := h.Catalog.UpdateCategory(c.Request.Context(), c.Param("id"), service.UpdateCategoryInput{
-		Name: req.Name, Slug: req.Slug, ParentID: req.ParentID, Sort: req.Sort,
+		Name: req.Name, Names: req.Names, Slug: req.Slug, ParentID: req.ParentID, Sort: req.Sort,
 	})
 	if err != nil {
 		response.Fail(c, err)
 		return
 	}
 	h.RecordAudit(c, "category.update", "category", cat.ID, nil)
-	response.OK(c, handler.ToCategoryView(*cat))
+	response.OK(c, handler.ToCategoryView(*cat, middleware.LocaleOf(c)))
 }
 
 // GetProduct returns one product with its variants (admin detail view).

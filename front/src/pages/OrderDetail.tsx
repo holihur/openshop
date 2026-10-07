@@ -7,6 +7,7 @@ import { errorMessage } from "@lib/errors";
 import { Button } from "@lib/components/ui/button";
 import { Badge } from "@lib/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@lib/components/ui/card";
+import { OrderTimeline } from "@/components/order-timeline";
 import { Separator } from "@lib/components/ui/separator";
 import { Skeleton } from "@lib/components/ui/skeleton";
 import { OrderStatusBadge } from "@lib/components/order-status-badge";
@@ -266,6 +267,15 @@ export function OrderDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("track.title")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <OrderTimeline order={order} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

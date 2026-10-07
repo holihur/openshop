@@ -8,6 +8,7 @@ import { Badge } from "@lib/components/ui/badge";
 import { Separator } from "@lib/components/ui/separator";
 import { Skeleton } from "@lib/components/ui/skeleton";
 import { ReviewsSection } from "@/components/reviews-section";
+import { ProductGrid } from "@lib/components/product-grid";
 import { WishlistButton } from "@lib/components/wishlist-button";
 import { api } from "@lib/api";
 import { useAddToCart } from "@lib/hooks/useCart";
@@ -32,6 +33,13 @@ export function ProductDetailPage() {
     queryKey: ["product", id],
     queryFn: () => api.get<Product>(`/products/${id}`),
     enabled: Boolean(id),
+  });
+
+  // Related products: same category, minus the one being viewed.
+  const { data: related } = useQuery({
+    queryKey: ["products", "related", product?.categoryId],
+    queryFn: () => api.getPage<Product[]>(`/products?categoryId=${product?.categoryId}&pageSize=5`),
+    enabled: Boolean(product?.categoryId),
   });
 
   useSeo(
@@ -101,6 +109,7 @@ export function ProductDetailPage() {
     : product.priceCents;
   const effectiveStock = selected ? selected.stock : product.stock;
   const outOfStock = effectiveStock <= 0;
+  const relatedItems = (related?.items ?? []).filter((p) => p.id !== product.id).slice(0, 4);
 
   return (
     <div className="space-y-8">
@@ -215,8 +224,8 @@ export function ProductDetailPage() {
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center rounded-md border">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex w-fit items-center rounded-md border">
               <Button
                 variant="ghost"
                 size="icon"
@@ -273,6 +282,13 @@ export function ProductDetailPage() {
       </div>
 
       <ReviewsSection productId={product.id} />
+
+      {relatedItems.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">{t("product.related")}</h2>
+          <ProductGrid products={relatedItems} />
+        </section>
+      )}
     </div>
   );
 }

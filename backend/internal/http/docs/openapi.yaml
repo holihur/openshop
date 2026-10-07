@@ -172,7 +172,9 @@ paths:
   /categories:
     get:
       tags: [Catalog]
-      summary: List categories
+      summary: List categories (localized by Accept-Language or ?locale=)
+      parameters:
+        - { in: query, name: locale, schema: { type: string }, description: "Override the request locale (e.g. zh)" }
       responses:
         "200":
           description: Categories
@@ -184,6 +186,12 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/Category" }
+  /site:
+    get:
+      tags: [Catalog]
+      summary: Public site configuration (banner, public URL)
+      responses:
+        "200": { description: Site configuration }
   /products:
     get:
       tags: [Catalog]
@@ -446,6 +454,7 @@ paths:
               required: [name]
               properties:
                 name: { type: string }
+                names: { type: object, additionalProperties: { type: string }, description: "Locale to name" }
                 slug: { type: string }
                 parentId: { type: string, format: uuid }
                 sort: { type: integer }
@@ -472,6 +481,7 @@ paths:
               type: object
               properties:
                 name: { type: string }
+                names: { type: object, additionalProperties: { type: string } }
                 slug: { type: string }
                 parentId: { type: string, format: uuid }
                 sort: { type: integer }

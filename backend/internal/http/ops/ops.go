@@ -52,6 +52,7 @@ func New(
 		middleware.Recovery(fh.Logger),
 		middleware.Logger(fh.Logger),
 		middleware.Metrics(metrics),
+		middleware.Locale(),
 		middleware.RateLimit(limiter, handler.SettingLimit(settings, "security.rate_limit_rps")),
 	)
 

@@ -109,10 +109,10 @@ func main() {
 	}
 
 	// Categories.
-	catSpecs := []struct{ name, slug string }{
-		{"Electronics", "electronics"},
-		{"Home & Living", "home-living"},
-		{"Books", "books"},
+	catSpecs := []struct{ name, slug, zh string }{
+		{"Electronics", "electronics", "电子产品"},
+		{"Home & Living", "home-living", "家居生活"},
+		{"Books", "books", "图书"},
 	}
 	catIDs := map[string]string{}
 	for _, spec := range catSpecs {
@@ -120,24 +120,33 @@ func main() {
 		if err != nil {
 			fatal("list categories", err)
 		}
-		var found string
-		for _, c := range existing {
-			if c.Slug == spec.slug {
-				found = c.ID
+		var current *domain.Category
+		for i := range existing {
+			if existing[i].Slug == spec.slug {
+				current = &existing[i]
 				break
 			}
 		}
-		if found == "" {
+		if current == nil {
 			id := ids.NewID()
 			if err := categories.Create(ctx, &domain.Category{
-				ID: id, Name: spec.name, Slug: spec.slug, CreatedAt: now, UpdatedAt: now,
+				ID: id, Name: spec.name, Names: map[string]string{"zh": spec.zh}, Slug: spec.slug, CreatedAt: now, UpdatedAt: now,
 			}); err != nil {
 				fatal("create category", err)
 			}
-			found = id
+			catIDs[spec.slug] = id
 			fmt.Println("created category:", spec.slug)
+			continue
 		}
-		catIDs[spec.slug] = found
+		// Backfill the translation for categories seeded before i18n.
+		if current.Names["zh"] == "" {
+			current.Names = map[string]string{"zh": spec.zh}
+			if err := categories.Update(ctx, current); err != nil {
+				fatal("update category", err)
+			}
+			fmt.Println("translated category:", spec.slug)
+		}
+		catIDs[spec.slug] = current.ID
 	}
 
 	// Products.
