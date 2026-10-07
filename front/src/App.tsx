@@ -15,6 +15,8 @@ import { ResetPasswordPage } from "@/pages/ResetPassword";
 import { VerifyEmailPage } from "@/pages/VerifyEmail";
 import { GuestOrderPage } from "@/pages/GuestOrder";
 import { OidcCallbackPage } from "@/pages/OidcCallback";
+import { SupportPage } from "@/pages/Support";
+import { TicketDetailPage } from "@/pages/TicketDetail";
 import { PaymentResultPage } from "@/pages/PaymentResult";
 import { AddressesPage } from "@/pages/Addresses";
 import { WishlistPage } from "@/pages/Wishlist";
@@ -39,10 +41,13 @@ export default function App() {
         {/* The cart is public: anonymous shoppers can add items and check out
             as a guest, so it must not sit behind the auth guard. */}
         <Route path="cart" element={<CartPage />} />
+        {/* Support is public: guests may open a ticket from the contact form. */}
+        <Route path="support" element={<SupportPage />} />
 
         <Route element={<ProtectedRoute />}>
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
+          <Route path="support/:id" element={<TicketDetailPage />} />
           <Route path="account/addresses" element={<AddressesPage />} />
           <Route path="account/wishlist" element={<WishlistPage />} />
           <Route path="account/settings" element={<AccountSettingsPage />} />

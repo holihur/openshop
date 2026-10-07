@@ -90,6 +90,17 @@ type ReturnRepository interface {
 	Update(ctx context.Context, r *domain.ReturnRequest) error
 }
 
+// TicketRepository persists support tickets and their message threads.
+type TicketRepository interface {
+	Create(ctx context.Context, t *domain.Ticket) error
+	FindByID(ctx context.Context, id string) (*domain.Ticket, error)
+	Update(ctx context.Context, t *domain.Ticket) error
+	List(ctx context.Context, f domain.TicketFilter) (domain.Page[domain.Ticket], error)
+	AddMessage(ctx context.Context, m *domain.TicketMessage) error
+	ListMessages(ctx context.Context, ticketID string, includeInternal bool) ([]domain.TicketMessage, error)
+	CountOpen(ctx context.Context) (int64, error)
+}
+
 // RetentionRepository prunes append-only tables so they do not grow without
 // limit. Deletes are batched to keep transactions short.
 type RetentionRepository interface {

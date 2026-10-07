@@ -12,6 +12,8 @@ import { SettingsPage } from "@/pages/Settings";
 import { CouponsPage } from "@/pages/Coupons";
 import { ReviewsPage } from "@/pages/Reviews";
 import { ReturnsPage } from "@/pages/Returns";
+import { TicketsPage } from "@/pages/Tickets";
+import { TicketDetailPage } from "@/pages/TicketDetail";
 import { CustomersPage } from "@/pages/Customers";
 import { CustomerDetailPage } from "@/pages/CustomerDetail";
 import { ShippingPage } from "@/pages/Shipping";
@@ -36,6 +38,8 @@ export default function App() {
           <Route path="coupons" element={<CouponsPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="returns" element={<ReturnsPage />} />
+          <Route path="tickets" element={<TicketsPage />} />
+          <Route path="tickets/:id" element={<TicketDetailPage />} />
           <Route path="shipping" element={<ShippingPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="settings" element={<SettingsPage />} />

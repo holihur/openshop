@@ -113,6 +113,11 @@ func New(
 		// Provider callbacks are public and authenticated by signature.
 		api.POST("/webhooks/payments/:provider", fh.PaymentWebhook)
 
+		// Support: guests may open a ticket; signed-in customers are linked to it.
+		optional := api.Group("")
+		optional.Use(middleware.Auth(tokens, auth, true))
+		optional.POST("/tickets", fh.CreateTicket)
+
 		// Authenticated customer area.
 		authed := api.Group("")
 		authed.Use(middleware.Auth(tokens, auth, false), middleware.RateLimitUser(limiter, handler.SettingLimit(settings, "security.rate_limit_user_rps")))
@@ -134,6 +139,10 @@ func New(
 			authed.POST("/orders/:id/complete", fh.ConfirmReceipt)
 			authed.POST("/orders/:id/returns", fh.RequestReturn)
 			authed.GET("/orders/:id/returns", fh.ListOrderReturns)
+
+			authed.GET("/tickets", fh.ListMyTickets)
+			authed.GET("/tickets/:id", fh.GetMyTicket)
+			authed.POST("/tickets/:id/messages", fh.ReplyMyTicket)
 
 			authed.POST("/payments", middleware.Idempotency(cache, 24*time.Hour), fh.CreatePayment)
 			authed.POST("/payments/simulate", fh.SimulatePayment)

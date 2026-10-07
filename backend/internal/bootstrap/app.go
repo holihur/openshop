@@ -189,6 +189,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	paymentRepo := postgres.NewPaymentRepository(db)
 	refundRepo := postgres.NewRefundRepository(db)
 	returnRepo := postgres.NewReturnRepository(db)
+	ticketRepo := postgres.NewTicketRepository(db)
 	couponRepo := postgres.NewCouponRepository(db)
 	reviewRepo := postgres.NewReviewRepository(db)
 	variantRepo := postgres.NewVariantRepository(db)
@@ -261,6 +262,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		accountSvc = service.NewAccountService(users, addressRepo, wishlistRepo, reviewRepo, orders, authSvc, log)
 	}
 	returnSvc := service.NewReturnService(returnRepo, orders, ids, clock)
+	ticketSvc := service.NewTicketService(ticketRepo, users, orders, ids, clock, outbox, settingsSvc)
 	retentionRepo := postgres.NewRetentionRepository(db)
 	orderSvc := service.NewOrderService(orders, users, products, couponRepo, variantRepo, addressRepo, shippingRepo, zoneRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, invoice.NewPDFRenderer(), settingsSvc, cfg.App.Currency)
 	paymentSvc := service.NewPaymentService(paymentRepo, refundRepo, orders, payments, orderSvc, ids, clock, log, promMetrics, settingsSvc)
@@ -269,7 +271,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Orders: orderSvc, Payments: paymentSvc,
 		Coupons: couponSvc, Reviews: reviewSvc, Shipping: shippingSvc, Audit: auditSvc,
-		Currency: currencySvc, Returns: returnSvc, Settings: settingsSvc, Customers: customerSvc, OIDC: oidcSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
+		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Settings: settingsSvc, Customers: customerSvc, OIDC: oidcSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
 			{Name: "postgres", Check: db.Ping},

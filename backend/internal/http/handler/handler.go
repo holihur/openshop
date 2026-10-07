@@ -30,6 +30,7 @@ type Handler struct {
 	Audit     *service.AuditService
 	Currency  *service.CurrencyService
 	Returns   *service.ReturnService
+	Tickets   *service.TicketService
 	Settings  *service.SettingsService
 	Customers *service.CustomerService
 	OIDC      *service.OIDCService

@@ -123,6 +123,12 @@ func New(
 			admin.POST("/returns/:id/approve", middleware.RequirePermission(domain.PermReturnsWrite), fh.ApproveReturn)
 			admin.POST("/returns/:id/reject", middleware.RequirePermission(domain.PermReturnsWrite), fh.RejectReturn)
 
+			admin.GET("/tickets", middleware.RequirePermission(domain.PermTicketsRead), fh.ListTickets)
+			admin.GET("/tickets/:id", middleware.RequirePermission(domain.PermTicketsRead), fh.GetTicket)
+			admin.POST("/tickets/:id/messages", middleware.RequirePermission(domain.PermTicketsWrite), fh.ReplyTicket)
+			admin.PATCH("/tickets/:id", middleware.RequirePermission(domain.PermTicketsWrite), fh.UpdateTicket)
+			admin.POST("/tickets/:id/assign", middleware.RequirePermission(domain.PermTicketsWrite), fh.AssignTicketToMe)
+
 			admin.GET("/customers", middleware.RequirePermission(domain.PermCustomersRead), fh.ListCustomers)
 			admin.GET("/customers/:id", middleware.RequirePermission(domain.PermCustomersRead), fh.GetCustomer)
 			admin.PATCH("/customers/:id", middleware.RequirePermission(domain.PermCustomersWrite), fh.UpdateCustomer)

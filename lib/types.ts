@@ -155,6 +155,38 @@ export interface ReturnRequest {
   createdAt: string;
 }
 
+export type TicketKind = "presale" | "postsale" | "other";
+export type TicketStatus = "open" | "pending" | "resolved" | "closed";
+export type TicketPriority = "low" | "normal" | "high" | "urgent";
+
+export interface Ticket {
+  id: string;
+  number: number;
+  reference: string;
+  userId?: string;
+  email: string;
+  name: string;
+  subject: string;
+  kind: TicketKind;
+  priority: TicketPriority;
+  status: TicketStatus;
+  orderId?: string;
+  productId?: string;
+  assigneeId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TicketMessage {
+  id: string;
+  authorId?: string;
+  authorRole: "customer" | "staff" | "system";
+  authorName?: string;
+  body: string;
+  internal: boolean;
+  createdAt: string;
+}
+
 export interface Review {
   id: string;
   productId: string;

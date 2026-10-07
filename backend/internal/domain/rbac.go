@@ -14,6 +14,8 @@ const (
 	PermRefundsWrite    Permission = "refunds:write"
 	PermReturnsRead     Permission = "returns:read"
 	PermReturnsWrite    Permission = "returns:write"
+	PermTicketsRead     Permission = "tickets:read"
+	PermTicketsWrite    Permission = "tickets:write"
 	PermCouponsRead     Permission = "coupons:read"
 	PermCouponsWrite    Permission = "coupons:write"
 	PermShippingRead    Permission = "shipping:read"
@@ -34,6 +36,7 @@ var allPermissions = []Permission{
 	PermProductsRead, PermProductsWrite, PermCategoriesWrite,
 	PermOrdersRead, PermOrdersWrite, PermRefundsWrite,
 	PermReturnsRead, PermReturnsWrite,
+	PermTicketsRead, PermTicketsWrite,
 	PermCouponsRead, PermCouponsWrite,
 	PermShippingRead, PermShippingWrite, PermCurrencyWrite,
 	PermReviewsRead, PermReviewsWrite,
@@ -49,6 +52,7 @@ var rolePermissions = map[UserRole]map[Permission]bool{
 	RoleSupport: set(
 		PermOrdersRead, PermOrdersWrite, PermRefundsWrite,
 		PermReturnsRead, PermReturnsWrite,
+		PermTicketsRead, PermTicketsWrite,
 		PermReviewsRead, PermReviewsWrite,
 		PermCustomersRead, PermCustomersWrite,
 		PermAnalyticsRead,
@@ -57,11 +61,12 @@ var rolePermissions = map[UserRole]map[Permission]bool{
 	RoleCatalog: set(
 		PermProductsRead, PermProductsWrite, PermCategoriesWrite,
 		PermShippingRead, PermShippingWrite, PermCurrencyWrite,
-		PermReviewsRead, PermAnalyticsRead,
+		PermReviewsRead, PermAnalyticsRead, PermTicketsRead,
 	),
 	// Finance: money movement and audit, read-mostly on everything else.
 	RoleFinance: set(
 		PermOrdersRead, PermRefundsWrite, PermReturnsRead,
+		PermTicketsRead,
 		PermCurrencyWrite, PermAnalyticsRead, PermAuditRead,
 	),
 }
