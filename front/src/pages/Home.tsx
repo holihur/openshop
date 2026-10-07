@@ -4,6 +4,7 @@ import { ArrowRight, PackageSearch, ShieldCheck, Zap } from "lucide-react";
 
 import { Button } from "@lib/components/ui/button";
 import { Badge } from "@lib/components/ui/badge";
+import { Skeleton } from "@lib/components/ui/skeleton";
 import { ProductGrid } from "@lib/components/product-grid";
 import { api } from "@lib/api";
 import { useI18n } from "@lib/i18n";
@@ -18,7 +19,7 @@ export function HomePage() {
   const heroTitle = site?.hero.title?.trim() || t("home.title");
   const heroSubtitle = site?.hero.subtitle?.trim() || t("home.subtitle");
   const heroCta = site?.hero.ctaUrl?.trim() || "/products";
-  const { data: categories } = useQuery({
+  const { data: categories, isLoading: categoriesLoading } = useQuery({
     queryKey: ["categories"],
     queryFn: () => api.get<Category[]>("/categories"),
   });
@@ -84,7 +85,16 @@ export function HomePage() {
         </div>
       </section>
 
-      {categories && categories.length > 0 && (
+      {categoriesLoading ? (
+        <section>
+          <Skeleton className="mb-4 h-6 w-40" />
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-24" />
+            ))}
+          </div>
+        </section>
+      ) : categories && categories.length > 0 ? (
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-semibold">{t("home.shopByCategory")}</h2>
@@ -97,7 +107,7 @@ export function HomePage() {
             ))}
           </div>
         </section>
-      )}
+      ) : null}
 
       <section>
         <div className="mb-6 flex items-center justify-between">

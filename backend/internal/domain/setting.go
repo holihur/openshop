@@ -7,6 +7,7 @@ const (
 	SettingString SettingType = "string"
 	SettingInt    SettingType = "int"
 	SettingBool   SettingType = "bool"
+	SettingColor  SettingType = "color"
 )
 
 // SettingDef describes one configurable runtime setting. Defaults are the
@@ -56,6 +57,8 @@ var SettingDefs = []SettingDef{
 		Default: "", Description: "Homepage feature card 3 text"},
 	{Key: "store.tagline", Group: "store", Type: SettingString,
 		Default: "", Description: "Footer tagline (empty hides it)"},
+	{Key: "store.theme_color", Group: "store", Type: SettingColor,
+		Default: "", Description: "Brand color (hex, e.g. #6366f1); empty keeps the default theme"},
 	{Key: "checkout.tax_rate_bps", Group: "checkout", Type: SettingInt,
 		Default: "0", Description: "Tax rate in basis points (600 = 6%)", Min: 0, Max: 10000},
 	{Key: "checkout.order_ttl_minutes", Group: "checkout", Type: SettingInt,

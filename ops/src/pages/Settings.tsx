@@ -124,6 +124,25 @@ export function SettingsPage() {
                             setDraft((d) => ({ ...d, [s.key]: String(e.target.checked) }))
                           }
                         />
+                      ) : s.type === "color" ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            id={s.key}
+                            type="color"
+                            aria-label={t(`settings.key.${s.key}` as MessageKey)}
+                            value={draft[s.key] || "#000000"}
+                            onChange={(e) =>
+                              setDraft((d) => ({ ...d, [s.key]: e.target.value }))
+                            }
+                            className="border-input h-9 w-12 cursor-pointer rounded-md border bg-transparent"
+                          />
+                          <Input
+                            value={draft[s.key] ?? ""}
+                            onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}
+                            placeholder="#6366f1"
+                            className="max-w-40"
+                          />
+                        </div>
                       ) : (
                         <Input
                           id={s.key}

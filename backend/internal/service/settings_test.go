@@ -25,6 +25,16 @@ func TestSettingsOverrideAndValidation(t *testing.T) {
 	if err := svc.Update(ctx, map[string]string{"auth.require_email_verification": "maybe"}); err == nil {
 		t.Fatal("expected an error for a non-boolean")
 	}
+	// Colors are validated as hex.
+	if err := svc.Update(ctx, map[string]string{"store.theme_color": "not-a-color"}); err == nil {
+		t.Fatal("expected an error for an invalid color")
+	}
+	if err := svc.Update(ctx, map[string]string{"store.theme_color": "#6366F1"}); err != nil {
+		t.Fatalf("valid color rejected: %v", err)
+	}
+	if got := svc.String(ctx, "store.theme_color"); got != "#6366f1" {
+		t.Fatalf("color not normalized: got %q, want #6366f1", got)
+	}
 
 	// A valid update is persisted and visible immediately.
 	if err := svc.Update(ctx, map[string]string{

@@ -13,7 +13,7 @@ export interface User {
 export interface Setting {
   key: string;
   group: string;
-  type: "string" | "int" | "bool";
+  type: "string" | "int" | "bool" | "color";
   value: string;
   default: string;
   description: string;
@@ -27,6 +27,7 @@ export interface Site {
   announcement: { message: string; url: string };
   features: { title: string; text: string }[];
   tagline: string;
+  themeColor: string;
 }
 
 export interface Category {

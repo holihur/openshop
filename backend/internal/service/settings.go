@@ -164,7 +164,31 @@ func validateSetting(def domain.SettingDef, raw string) (string, error) {
 			return "", fmt.Errorf("%w: %s must be a boolean", domain.ErrInvalidArgument, def.Key)
 		}
 		return strconv.FormatBool(b), nil
+	case domain.SettingColor:
+		if v == "" {
+			return "", nil
+		}
+		if !validHexColor(v) {
+			return "", fmt.Errorf("%w: %s must be a hex color like #6366f1", domain.ErrInvalidArgument, def.Key)
+		}
+		return strings.ToLower(v), nil
 	default:
 		return v, nil
 	}
+}
+
+// validHexColor accepts #RGB and #RRGGBB.
+func validHexColor(s string) bool {
+	if len(s) != 4 && len(s) != 7 {
+		return false
+	}
+	if s[0] != '#' {
+		return false
+	}
+	for _, r := range s[1:] {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+			return false
+		}
+	}
+	return true
 }

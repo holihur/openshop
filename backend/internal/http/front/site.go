@@ -19,6 +19,7 @@ type siteView struct {
 	Announcement siteAnnouncementView `json:"announcement"`
 	Features     []siteFeatureView    `json:"features"`
 	Tagline      string               `json:"tagline"`
+	ThemeColor   string               `json:"themeColor"`
 }
 
 type siteFeatureView struct {
@@ -53,6 +54,7 @@ func (h *Handler) GetSite(c *gin.Context) {
 			{Title: h.Settings.String(ctx, "store.feature2_title"), Text: h.Settings.String(ctx, "store.feature2_text")},
 			{Title: h.Settings.String(ctx, "store.feature3_title"), Text: h.Settings.String(ctx, "store.feature3_text")},
 		},
-		Tagline: h.Settings.String(ctx, "store.tagline"),
+		Tagline:    h.Settings.String(ctx, "store.tagline"),
+		ThemeColor: h.Settings.String(ctx, "store.theme_color"),
 	})
 }
