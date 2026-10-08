@@ -17,6 +17,7 @@ import { Pagination } from "@lib/components/pagination";
 import { useAdminTickets } from "@lib/hooks/useTickets";
 import { useI18n } from "@lib/i18n";
 import { formatDate } from "@lib/format";
+import { OpsModuleStats } from "@/components/ops-stats";
 import type { TicketPriority, TicketStatus } from "@lib/types";
 
 const STATUS_VARIANT: Record<TicketStatus, "default" | "secondary" | "success" | "warning"> = {
@@ -49,6 +50,8 @@ export function TicketsPage() {
         <h1 className="text-xl font-semibold">{t("ops.tickets")}</h1>
         <p className="text-muted-foreground text-sm">{t("ops.ticketsSubtitle")}</p>
       </div>
+
+      <OpsModuleStats module="tickets" />
 
       <div className="flex flex-wrap gap-2">
         <Input

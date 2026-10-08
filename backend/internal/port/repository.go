@@ -259,6 +259,9 @@ type AnalyticsRepository interface {
 	Dashboard(ctx context.Context) (domain.Dashboard, error)
 	// LowStock lists products and variants at or below the threshold.
 	LowStock(ctx context.Context, threshold int) ([]domain.LowStockItem, error)
+	// Summary aggregates the per-module counters the console shows, bucketed
+	// into day/week/fortnight/month windows relative to now.
+	Summary(ctx context.Context, now time.Time, lowStockThreshold int) (domain.OpsSummary, error)
 }
 
 // ShippingMethodRepository persists selectable shipping options.

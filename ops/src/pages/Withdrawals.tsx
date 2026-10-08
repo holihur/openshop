@@ -22,6 +22,7 @@ import {
 } from "@lib/hooks/useLoyalty";
 import { useI18n } from "@lib/i18n";
 import { formatDate, formatMoney } from "@lib/format";
+import { OpsModuleStats } from "@/components/ops-stats";
 import type { WithdrawalStatus } from "@lib/types";
 
 const STATUS_VARIANT: Record<
@@ -63,6 +64,8 @@ export function WithdrawalsPage() {
         <h1 className="text-xl font-semibold">{t("withdraw.opsTitle")}</h1>
         <p className="text-muted-foreground text-sm">{t("withdraw.opsSubtitle")}</p>
       </div>
+
+      <OpsModuleStats module="withdrawals" />
 
       <select
         aria-label={t("common.status")}

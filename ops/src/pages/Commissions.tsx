@@ -16,6 +16,7 @@ import { Pagination } from "@lib/components/pagination";
 import { useAdminCommissions } from "@lib/hooks/useLoyalty";
 import { useI18n } from "@lib/i18n";
 import { formatDate, formatMoney } from "@lib/format";
+import { OpsModuleStats } from "@/components/ops-stats";
 import type { CommissionStatus } from "@lib/types";
 
 const STATUS_VARIANT: Record<CommissionStatus, "warning" | "success" | "secondary"> = {
@@ -35,6 +36,8 @@ export function CommissionsPage() {
       <div>
         <h1 className="text-xl font-semibold">{t("ops.commissions")}</h1>
       </div>
+
+      <OpsModuleStats module="commissions" />
 
       <select
         aria-label={t("ops.commissionStatus")}

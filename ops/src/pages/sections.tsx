@@ -15,12 +15,12 @@ import {
   TableHeader,
   TableRow,
 } from "@lib/components/ui/table";
-import { ProductForm } from "@/components/admin/product-form";
 import { CouponUsage } from "@/components/admin/coupon-usage";
+import { OpsModuleStats } from "@/components/ops-stats";
 import { OrderStatusBadge } from "@lib/components/order-status-badge";
 import { Pagination } from "@lib/components/pagination";
 import { useI18n } from "@lib/i18n";
-import { useAdminCoupons, useAdminOrders, useAdminProducts, useAdminReviews, useAuditLogs, useCategories, useCreateCoupon, useCurrencies, useDashboard, useDeleteReviewAdmin, useSetCurrencyRate, useUpdateCoupon } from "@lib/hooks/useAdmin";
+import { useAdminCoupons, useAdminOrders, useAdminProducts, useAdminReviews, useAuditLogs, useCategories, useCurrencies, useDashboard, useDeleteReviewAdmin, useSetCurrencyRate, useUpdateCoupon } from "@lib/hooks/useAdmin";
 import { useAdminReturns, useApproveReturn, useRejectReturn } from "@lib/hooks/useReturns";
 import {
   useAdminShippingMethods,
@@ -344,6 +344,8 @@ export function AdminReviews() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t("ops.rating")}</TableHead>
+
+      <OpsModuleStats module="reviews" />
                 <TableHead>{t("ops.review")}</TableHead>
                 <TableHead>{t("ops.product")}</TableHead>
                 <TableHead>{t("ops.date")}</TableHead>
@@ -620,92 +622,20 @@ export function AdminCoupons() {
   const [page, setPage] = useState(1);
   const [usageId, setUsageId] = useState<string | null>(null);
   const { data, isLoading } = useAdminCoupons(page, 20);
-  const create = useCreateCoupon();
   const update = useUpdateCoupon();
-  const [code, setCode] = useState("");
-  const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent");
-  const [value, setValue] = useState("10");
-  const [usageLimit, setUsageLimit] = useState("0");
-
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    create.mutate(
-      {
-        code,
-        discountType,
-        discountValue:
-          discountType === "percent"
-            ? Number.parseInt(value || "0", 10)
-            : Math.round(Number.parseFloat(value || "0") * 100),
-        usageLimit: Number.parseInt(usageLimit || "0", 10),
-        perUserLimit: 1,
-        active: true,
-      },
-      {
-        onSuccess: () => {
-          setCode("");
-          setValue("10");
-          setUsageLimit("0");
-        },
-      },
-    );
-  }
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("ops.newCoupon")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-5">
-            <div className="space-y-1 sm:col-span-2">
-              <Label htmlFor="c-code">{t("ops.code")}</Label>
-              <Input id="c-code" value={code} onChange={(e) => setCode(e.target.value)} required />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="c-type">{t("ops.type")}</Label>
-              <select
-                id="c-type"
-                value={discountType}
-                onChange={(e) => setDiscountType(e.target.value as "percent" | "fixed")}
-                className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
-              >
-                <option value="percent">{t("ops.percent")}</option>
-                <option value="fixed">{t("ops.fixed")}</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="c-value">{t("ops.value")}</Label>
-              <Input
-                id="c-value"
-                type="number"
-                min="0"
-                step={discountType === "fixed" ? "0.01" : "1"}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="c-limit">{t("ops.usageLimit")}</Label>
-              <Input
-                id="c-limit"
-                type="number"
-                min="0"
-                value={usageLimit}
-                onChange={(e) => setUsageLimit(e.target.value)}
-              />
-            </div>
-            <div className="sm:col-span-5">
-              <Button type="submit" size="sm" disabled={create.isPending}>
-                <Plus className="size-4" />
-                {t("ops.createCoupon")}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      <div className="flex justify-end">
+        <Button size="sm" asChild>
+          <Link to="/coupons/new">
+
+      <OpsModuleStats module="coupons" />
+            <Plus className="size-4" />
+            {t("ops.newCoupon")}
+          </Link>
+        </Button>
+      </div>
 
       <Card className="py-0">
         <CardContent className="px-0">
@@ -808,7 +738,6 @@ export function AdminProducts() {
   const [categoryId, setCategoryId] = useState("");
   const { data: categories } = useCategories();
   const { data, isLoading } = useAdminProducts(page, 20, { keyword, categoryId });
-  const [creating, setCreating] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -816,13 +745,15 @@ export function AdminProducts() {
         <p className="text-muted-foreground text-sm">
           {t("ops.productCount", { count: data?.total ?? 0 })}
         </p>
-        {!creating && (
-          <Button size="sm" onClick={() => setCreating(true)}>
+        <Button size="sm" asChild>
+          <Link to="/products/new">
             <Plus className="size-4" />
             {t("ops.newProduct")}
-          </Button>
-        )}
+          </Link>
+        </Button>
       </div>
+
+      <OpsModuleStats module="products" />
 
       <div className="flex flex-wrap items-center gap-2">
         <Input
@@ -850,8 +781,6 @@ export function AdminProducts() {
           ))}
         </select>
       </div>
-
-      {creating && <ProductForm onDone={() => setCreating(false)} />}
 
       <Card className="py-0">
         <CardContent className="px-0">
@@ -924,6 +853,7 @@ export function AdminOrders() {
 
   return (
     <div className="space-y-4">
+      <OpsModuleStats module="orders" />
       <select
         value={status}
         onChange={(e) => {
@@ -1006,6 +936,7 @@ export function AdminReturns() {
 
   return (
     <div className="space-y-4">
+      <OpsModuleStats module="returns" />
       <select
         value={status}
         onChange={(e) => {

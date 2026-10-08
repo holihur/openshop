@@ -154,6 +154,7 @@ func New(
 			admin.PATCH("/customers/:id", middleware.RequirePermission(domain.PermCustomersWrite), fh.UpdateCustomer)
 
 			admin.GET("/stats", middleware.RequirePermission(domain.PermAnalyticsRead), fh.Dashboard)
+			admin.GET("/stats/summary", middleware.RequirePermission(domain.PermAnalyticsRead), fh.Summary)
 			admin.GET("/inventory/low-stock", middleware.RequirePermission(domain.PermAnalyticsRead), fh.LowStock)
 			admin.GET("/audit-logs", middleware.RequirePermission(domain.PermAuditRead), fh.ListAuditLogs)
 			admin.GET("/audit-logs/verify", middleware.RequirePermission(domain.PermAuditRead), fh.VerifyAuditChain)

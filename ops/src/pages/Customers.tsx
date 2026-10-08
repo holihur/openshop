@@ -17,6 +17,7 @@ import { Pagination } from "@lib/components/pagination";
 import { useI18n } from "@lib/i18n";
 import { useAdminCustomers } from "@lib/hooks/useAdmin";
 import { formatDate } from "@lib/format";
+import { OpsModuleStats } from "@/components/ops-stats";
 
 /** Customer directory: search, filter by status and open a customer. */
 export function CustomersPage() {
@@ -29,6 +30,7 @@ export function CustomersPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
+      <OpsModuleStats module="customers" />
         <Input
           value={keyword}
           onChange={(e) => {

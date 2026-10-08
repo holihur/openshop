@@ -10,17 +10,22 @@ import (
 
 const dashboardCacheKey = "admin:dashboard"
 
+// summaryCacheKey is short-lived: the console headers are read on every page
+// load but a few seconds of staleness is irrelevant for counters.
+const summaryCacheKey = "admin:summary"
+
 // AnalyticsService serves the merchant dashboard, briefly cached so repeated
 // refreshes do not hammer the database.
 type AnalyticsService struct {
 	repo     port.AnalyticsRepository
 	cache    port.Cache
+	clock    port.Clock
 	base     string
 	settings *SettingsService
 }
 
-func NewAnalyticsService(repo port.AnalyticsRepository, cache port.Cache, base string, settings *SettingsService) *AnalyticsService {
-	return &AnalyticsService{repo: repo, cache: cache, base: base, settings: settings}
+func NewAnalyticsService(repo port.AnalyticsRepository, cache port.Cache, clock port.Clock, base string, settings *SettingsService) *AnalyticsService {
+	return &AnalyticsService{repo: repo, cache: cache, clock: clock, base: base, settings: settings}
 }
 
 func (s *AnalyticsService) Dashboard(ctx context.Context) (domain.Dashboard, error) {
@@ -42,6 +47,25 @@ func (s *AnalyticsService) Dashboard(ctx context.Context) (domain.Dashboard, err
 
 func (s *AnalyticsService) LowStock(ctx context.Context) ([]domain.LowStockItem, error) {
 	return s.repo.LowStock(ctx, s.lowStockThreshold(ctx))
+}
+
+// Summary returns the per-module console counters, bucketed into
+// day/week/fortnight/month windows.
+func (s *AnalyticsService) Summary(ctx context.Context) (domain.OpsSummary, error) {
+	if s.cache != nil {
+		var cached domain.OpsSummary
+		if err := s.cache.GetJSON(ctx, summaryCacheKey, &cached); err == nil {
+			return cached, nil
+		}
+	}
+	summary, err := s.repo.Summary(ctx, s.clock.Now().UTC(), s.lowStockThreshold(ctx))
+	if err != nil {
+		return domain.OpsSummary{}, err
+	}
+	if s.cache != nil {
+		_ = s.cache.SetJSON(ctx, summaryCacheKey, summary, 15*time.Second)
+	}
+	return summary, nil
 }
 
 func (s *AnalyticsService) lowStockThreshold(ctx context.Context) int {

@@ -18,6 +18,9 @@ import { CommissionsPage } from "@/pages/Commissions";
 import { WithdrawalsPage } from "@/pages/Withdrawals";
 import { TokensPage } from "@/pages/Tokens";
 import { OutboxPage } from "@/pages/Outbox";
+import { ProductNewPage } from "@/pages/ProductNew";
+import { CouponNewPage } from "@/pages/CouponNew";
+import { CategoryNewPage } from "@/pages/CategoryNew";
 import { CustomersPage } from "@/pages/Customers";
 import { CustomerDetailPage } from "@/pages/CustomerDetail";
 import { ShippingPage } from "@/pages/Shipping";
@@ -33,13 +36,16 @@ export default function App() {
         <Route element={<OpsLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="products" element={<ProductsPage />} />
+          <Route path="products/new" element={<ProductNewPage />} />
           <Route path="products/:id" element={<ProductDetailPage />} />
           <Route path="categories" element={<CategoriesPage />} />
+          <Route path="categories/new" element={<CategoryNewPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="customers" element={<CustomersPage />} />
           <Route path="customers/:id" element={<CustomerDetailPage />} />
           <Route path="coupons" element={<CouponsPage />} />
+          <Route path="coupons/new" element={<CouponNewPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="returns" element={<ReturnsPage />} />
           <Route path="tickets" element={<TicketsPage />} />

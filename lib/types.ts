@@ -243,6 +243,36 @@ export interface ScopeInfo {
   description: string;
 }
 
+/**
+ * Rolling windows every time-based console counter is bucketed into:
+ * today (since 00:00 UTC), the last 7, 14 and 30 days.
+ */
+export interface PeriodCounts {
+  today: number;
+  week: number;
+  fortnight: number;
+  month: number;
+}
+
+export interface OpsSummary {
+  generatedAt: string;
+  orders: {
+    total: number;
+    byStatus: Record<string, number>;
+    created: PeriodCounts;
+    paid: PeriodCounts;
+    revenueCents: PeriodCounts;
+  };
+  customers: { total: number; disabled: number; new: PeriodCounts };
+  products: { total: number; published: number; draft: number; lowStock: number; outOfStock: number };
+  coupons: { total: number; active: number; redemptions: PeriodCounts };
+  tickets: { open: number; pending: number; unassigned: number; created: PeriodCounts };
+  returns: { requested: number; approved: number; created: PeriodCounts };
+  withdrawals: { requested: number; approved: number; paid: number; created: PeriodCounts };
+  reviews: { total: number; created: PeriodCounts };
+  commissions: { pending: number; approved: number; created: PeriodCounts };
+}
+
 export type NotificationType =
   | "system"
   | "order"

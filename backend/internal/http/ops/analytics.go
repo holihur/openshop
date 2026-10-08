@@ -43,6 +43,17 @@ func toLowStockViews(items []domain.LowStockItem) []lowStockView {
 	return out
 }
 
+// Summary returns the per-module counters shown at the top of each console
+// page, bucketed into day/week/fortnight/month windows.
+func (h *Handler) Summary(c *gin.Context) {
+	summary, err := h.Analytics.Summary(c.Request.Context())
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, summary)
+}
+
 func (h *Handler) Dashboard(c *gin.Context) {
 	dashboard, err := h.Analytics.Dashboard(c.Request.Context())
 	if err != nil {

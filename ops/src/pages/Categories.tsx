@@ -1,10 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Pencil, Plus } from "lucide-react";
 
 import { Button } from "@lib/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@lib/components/ui/card";
+import { Card, CardContent } from "@lib/components/ui/card";
 import { Input } from "@lib/components/ui/input";
-import { Label } from "@lib/components/ui/label";
 import { Skeleton } from "@lib/components/ui/skeleton";
 import {
   Table,
@@ -16,81 +16,29 @@ import {
 } from "@lib/components/ui/table";
 import { useI18n } from "@lib/i18n";
 import { localeNames, supportedLocales } from "@lib/i18n/messages";
-import { useCategories, useCreateCategory, useUpdateCategory } from "@lib/hooks/useAdmin";
+import { useCategories, useUpdateCategory } from "@lib/hooks/useAdmin";
 import type { Category } from "@lib/types";
 
 /** Manage the product categories and their per-locale translations. */
 export function CategoriesPage() {
   const { t } = useI18n();
   const { data: categories, isLoading } = useCategories();
-  const create = useCreateCategory();
   const update = useUpdateCategory();
-
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [names, setNames] = useState<Record<string, string>>({});
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editNames, setEditNames] = useState<Record<string, string>>({});
 
-  function onCreate(e: FormEvent) {
-    e.preventDefault();
-    create.mutate(
-      { name, slug: slug || undefined, names },
-      {
-        onSuccess: () => {
-          setName("");
-          setSlug("");
-          setNames({});
-        },
-      },
-    );
-  }
-
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("ops.newCategory")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onCreate} className="space-y-3">
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="cat-name">{t("ops.categoryName")}</Label>
-                <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} required />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="cat-slug">{t("ops.slug")}</Label>
-                <Input
-                  id="cat-slug"
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                  placeholder="auto"
-                />
-              </div>
-            </div>
-            <div className="flex flex-wrap items-end gap-3">
-              {supportedLocales.map((locale) => (
-                <div key={locale} className="space-y-1">
-                  <Label htmlFor={`cat-name-${locale}`}>{localeNames[locale]}</Label>
-                  <Input
-                    id={`cat-name-${locale}`}
-                    value={names[locale] ?? ""}
-                    onChange={(e) => setNames((n) => ({ ...n, [locale]: e.target.value }))}
-                    placeholder={name}
-                  />
-                </div>
-              ))}
-              <Button type="submit" size="sm" disabled={create.isPending}>
-                <Plus className="size-4" />
-                {t("ops.createCategory")}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      <div className="flex justify-end">
+        <Button size="sm" asChild>
+          <Link to="/categories/new">
+            <Plus className="size-4" />
+            {t("ops.newCategory")}
+          </Link>
+        </Button>
+      </div>
 
       <Card className="py-0">
         <CardContent className="px-0">

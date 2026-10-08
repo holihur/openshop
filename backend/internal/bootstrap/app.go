@@ -255,7 +255,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		analyticsSvc *service.AnalyticsService
 	)
 	if surface == SurfaceOps {
-		analyticsSvc = service.NewAnalyticsService(analyticsRepo, cache, cfg.App.Currency, settingsSvc)
+		analyticsSvc = service.NewAnalyticsService(analyticsRepo, cache, clock, cfg.App.Currency, settingsSvc)
 	} else {
 		cartSvc = service.NewCartService(cartRepo, products, variantRepo)
 		addressSvc = service.NewAddressService(addressRepo, ids, clock)
