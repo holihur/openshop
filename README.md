@@ -537,6 +537,30 @@ hash chain and its tamper detection, and the wallet/points invariants):
 TEST_DATABASE_URL='...' go test ./internal/adapter/postgres/ -count=1
 ```
 
+### Component tests (shared layer)
+
+The shared layer (`lib/`) is covered by **vitest + Testing Library** in a jsdom
+environment, so helpers and interactive components are tested without a browser:
+
+```bash
+pnpm --filter @openshop/lib test        # or: pnpm test
+```
+
+What is covered:
+
+- `errorMessage` maps every backend error code to a translation (a contract test
+  fails when a new code is not mapped) and never returns empty text
+- `formatMoney` upper-cases the code, degrades instead of throwing on an invalid
+  currency, and handles zero/negative amounts
+- the i18n catalogues define the same keys in both locales with no empty values
+- `responsiveSrcSet` builds a srcset only for backend-served uploads
+- `notificationText` localises from the stored code, formats amounts and falls
+  back to the stored text
+- `Pagination` page maths, disabled bounds and the change callback
+- `TokenManager` scope selection, CIDR parsing, the one-time secret, and the rule
+  that an operations token can never offer more than the caller's role
+- `OrderStatusBadge` localises every status and keeps the colour mapping
+
 ### End-to-end smoke test
 
 Against a running API:
