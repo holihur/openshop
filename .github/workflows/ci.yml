@@ -96,8 +96,10 @@ jobs:
         run: |
           docker version
           docker build --progress=plain -f backend/Dockerfile -t openshop-backend .
-      - name: Verify the image starts
-        run: docker run --rm --entrypoint /app/migrate openshop-backend -dir /app/migrations -dry-run 2>&1 | tail -3 || true
+      - name: Verify the image contents
+        run: |
+          docker run --rm --entrypoint /bin/sh openshop-backend \
+            -c 'ls -l /app/server /app/ops /app/migrate /app/seed && ls /app/migrations | head -3'
 
   e2e:
     name: Browser E2E
