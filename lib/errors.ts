@@ -23,6 +23,12 @@ const byCode: Record<string, MessageKey> = {
   payment_failed: "errors.payment_failed",
   internal_error: "errors.internal_error",
   rate_limited: "errors.rate_limited",
+  invoice_unavailable: "errors.invoice_unavailable",
+  registration_disabled: "errors.registration_disabled",
+  insufficient_funds: "errors.insufficient_funds",
+  loyalty_disabled: "errors.loyalty_disabled",
+  account_locked: "errors.account_locked",
+  oidc_unavailable: "errors.oidc_unavailable",
 };
 
 /** Localised, user-facing message for any thrown value. */

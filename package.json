@@ -8,6 +8,7 @@
     "build": "pnpm --filter @openshop/front build && pnpm --filter @openshop/ops build",
     "dev:front": "pnpm --filter @openshop/front dev",
     "dev:ops": "pnpm --filter @openshop/ops dev",
-    "lint": "pnpm --filter @openshop/front lint && pnpm --filter @openshop/ops lint"
+    "lint": "pnpm --filter @openshop/front lint && pnpm --filter @openshop/ops lint",
+    "test": "pnpm --filter @openshop/lib test"
   }
 }
