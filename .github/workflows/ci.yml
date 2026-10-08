@@ -145,7 +145,8 @@ jobs:
           artifact-name: openshop-sbom.spdx.json
           output-file: openshop-sbom.spdx.json
       - name: Scan the image
-        uses: aquasecurity/trivy-action@0.28.0
+        # trivy-action has no floating major tag, so pin an explicit release.
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: openshop-backend:ci
           format: table
