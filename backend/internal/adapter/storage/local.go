@@ -24,21 +24,22 @@ type Local struct {
 }
 
 func NewLocal(cfg config.StorageConfig) (*Local, error) {
-	if err := os.MkdirAll(cfg.LocalDir, 0o755); err != nil {
+	if err := os.MkdirAll(cfg.LocalDir, 0o750); err != nil {
 		return nil, fmt.Errorf("storage local mkdir: %w", err)
 	}
 	return &Local{dir: cfg.LocalDir, publicURL: strings.TrimRight(cfg.PublicURL, "/")}, nil
 }
 
 func (l *Local) Put(_ context.Context, key string, r io.Reader, _ int64, _ string) (string, error) {
+	// l.path rejects any key that escapes the storage root.
 	path, err := l.path(key)
 	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return "", err
 	}
-	f, err := os.Create(path)
+	f, err := os.Create(path) // #nosec G304 -- path is validated by l.path
 	if err != nil {
 		return "", err
 	}

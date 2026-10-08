@@ -1,0 +1,35 @@
+version: 2
+updates:
+  # Go modules (backend).
+  - package-ecosystem: gomod
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      go-minor:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # Frontend workspace (lib + front + ops + e2e).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # Keep the workflow actions themselves current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Base images referenced by backend/Dockerfile.
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly

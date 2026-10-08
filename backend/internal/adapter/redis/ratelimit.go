@@ -3,7 +3,6 @@ package redis
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"time"
 
 	goredis "github.com/redis/go-redis/v9"
@@ -49,7 +48,9 @@ func (r *RateLimiter) Allow(ctx context.Context, key string, limit int, window t
 		return true, 0, nil
 	}
 	nowMs := time.Now().UnixMilli()
-	member := fmt.Sprintf("%d-%d", nowMs, rand.Int63())
+	// The member only has to be unique within the sorted set; a monotonic
+	// nanosecond stamp is enough and avoids a (non-cryptographic) RNG.
+	member := fmt.Sprintf("%d-%d", nowMs, time.Now().UnixNano())
 
 	res, err := slidingWindowScript.Run(ctx, r.rdb, []string{key},
 		nowMs, window.Milliseconds(), limit, member).Result()

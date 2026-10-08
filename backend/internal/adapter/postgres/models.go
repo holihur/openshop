@@ -575,8 +575,16 @@ func toReview(m *reviewModel) *domain.Review {
 }
 
 func fromReview(r *domain.Review) *reviewModel {
+	// Ratings are validated to 1..5 on the way in; clamp anyway so the narrow
+	// column can never be fed an out-of-range value.
+	rating := r.Rating
+	if rating < 0 {
+		rating = 0
+	} else if rating > 5 {
+		rating = 5
+	}
 	return &reviewModel{
-		ID: r.ID, ProductID: r.ProductID, UserID: r.UserID, Rating: int16(r.Rating),
+		ID: r.ID, ProductID: r.ProductID, UserID: r.UserID, Rating: int16(rating),
 		Title: r.Title, Body: r.Body, VerifiedPurchase: r.VerifiedPurchase, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}
 }

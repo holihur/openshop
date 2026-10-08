@@ -28,8 +28,8 @@ func mediaHandler(dir string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rel := strings.TrimPrefix(r.URL.Path, "/uploads/")
 		clean := filepath.Clean("/" + rel)
-		full := filepath.Join(root, clean)
-		if full != root && !strings.HasPrefix(full, root+string(os.PathSeparator)) {
+		full, ok := safePath(root, clean)
+		if !ok {
 			http.NotFound(w, r)
 			return
 		}
@@ -64,6 +64,18 @@ func mediaHandler(dir string) http.Handler {
 	})
 }
 
+// safePath resolves an untrusted request path against the storage root and
+// reports whether the result stays inside it. It is the single place where a
+// URL becomes a filesystem path, so the traversal check cannot be bypassed by
+// a later caller.
+func safePath(root, clean string) (string, bool) {
+	full := filepath.Join(root, clean)
+	if full != root && !strings.HasPrefix(full, root+string(os.PathSeparator)) {
+		return "", false
+	}
+	return full, true
+}
+
 func parseWidth(raw string) int {
 	if raw == "" {
 		return 0
@@ -88,11 +100,13 @@ func isRaster(path string) bool {
 // writes to <root>/.cache so repeated requests are cheap.
 func resizeCached(root, clean, full string, width int) ([]byte, bool) {
 	cachePath := filepath.Join(root, ".cache", strings.TrimPrefix(clean, "/")+"_"+strconv.Itoa(width)+".jpg")
-	if data, err := os.ReadFile(cachePath); err == nil {
+	// The cache path is derived from an already-validated path, so it is safe to
+	// read and write directly.
+	if data, err := os.ReadFile(cachePath); err == nil { // #nosec G304 G703 -- derived from a validated path
 		return data, true
 	}
 
-	f, err := os.Open(full)
+	f, err := os.Open(full) // #nosec G304 -- validated by safePath
 	if err != nil {
 		return nil, false
 	}
@@ -114,14 +128,14 @@ func resizeCached(root, clean, full string, width int) ([]byte, bool) {
 	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 82}); err != nil {
 		return nil, false
 	}
-	if err := os.MkdirAll(filepath.Dir(cachePath), 0o755); err == nil {
-		_ = os.WriteFile(cachePath, buf.Bytes(), 0o644)
+	if err := os.MkdirAll(filepath.Dir(cachePath), 0o750); err == nil { // #nosec G703 -- derived from a validated path
+		_ = os.WriteFile(cachePath, buf.Bytes(), 0o600) // #nosec G304 G703 -- derived from a validated path
 	}
 	return buf.Bytes(), true
 }
 
 func modTime(path string) time.Time {
-	if info, err := os.Stat(path); err == nil {
+	if info, err := os.Stat(path); err == nil { // #nosec G304 -- validated by safePath
 		return info.ModTime()
 	}
 	return time.Time{}

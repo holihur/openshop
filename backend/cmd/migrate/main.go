@@ -79,7 +79,8 @@ func loadMigrations(dir string) ([]postgres.Migration, error) {
 
 	out := make([]postgres.Migration, 0, len(names))
 	for _, name := range names {
-		body, err := os.ReadFile(filepath.Join(dir, name))
+		// The directory comes from the operator's -dir flag, not from a request.
+		body, err := os.ReadFile(filepath.Join(dir, name)) // #nosec G304 -- operator-supplied migration dir
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +88,7 @@ func loadMigrations(dir string) ([]postgres.Migration, error) {
 		m := postgres.Migration{Version: version, SQL: string(body)}
 		// Down migrations live beside the up files in a `down/` directory,
 		// named <version>.down.sql.
-		if downSQL, err := os.ReadFile(filepath.Join(dir, "down", version+".down.sql")); err == nil {
+		if downSQL, err := os.ReadFile(filepath.Join(dir, "down", version+".down.sql")); err == nil { // #nosec G304 -- operator-supplied migration dir
 			m.DownSQL = string(downSQL)
 		} else if !os.IsNotExist(err) {
 			return nil, err

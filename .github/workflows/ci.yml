@@ -81,6 +81,44 @@ jobs:
       - name: Build storefront and ops
         run: pnpm run build
 
+  security:
+    name: Security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      # Reachable-vulnerability scan of the standard library and dependencies.
+      - name: govulncheck
+        working-directory: backend
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+      # Static analysis for common Go security mistakes.
+      - name: gosec
+        working-directory: backend
+        run: go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet ./...
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      # Dependency advisories. Fails on high and critical only.
+      - name: Dependency audit (npm)
+        run: |
+          pnpm audit --audit-level=high || {
+            echo '::error::high or critical dependency advisory';
+            pnpm audit || true;
+            exit 1;
+          }
+
   docker:
     name: Docker image
     runs-on: ubuntu-latest
@@ -95,11 +133,26 @@ jobs:
       - name: Build backend image (API + embedded SPAs)
         run: |
           docker version
-          docker build --progress=plain -f backend/Dockerfile -t openshop-backend .
+          docker build --progress=plain -f backend/Dockerfile -t openshop-backend:ci .
       - name: Verify the image contents
         run: |
-          docker run --rm --entrypoint /bin/sh openshop-backend \
+          docker run --rm --entrypoint /bin/sh openshop-backend:ci \
             -c 'ls -l /app/server /app/ops /app/migrate /app/seed && ls /app/migrations | head -3'
+      - name: Generate an SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: openshop-backend:ci
+          artifact-name: openshop-sbom.spdx.json
+          output-file: openshop-sbom.spdx.json
+      - name: Scan the image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: openshop-backend:ci
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          vuln-type: os,library
+          exit-code: '1'
 
   e2e:
     name: Browser E2E
