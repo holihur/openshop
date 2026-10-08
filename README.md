@@ -537,13 +537,16 @@ hash chain and its tamper detection, and the wallet/points invariants):
 TEST_DATABASE_URL='...' go test ./internal/adapter/postgres/ -count=1
 ```
 
-### Component tests (shared layer)
+### Component and page tests
 
-The shared layer (`lib/`) is covered by **vitest + Testing Library** in a jsdom
-environment, so helpers and interactive components are tested without a browser:
+The shared layer (`lib/`) and the storefront pages (`front/src`) are covered by
+**vitest + Testing Library** in a jsdom environment, so helpers, components and
+the checkout page are tested without a browser:
 
 ```bash
-pnpm --filter @openshop/lib test        # or: pnpm test
+pnpm test                               # lib + front
+pnpm --filter @openshop/lib test        # shared layer only
+pnpm --filter @openshop/front test      # pages only
 ```
 
 What is covered:
@@ -560,10 +563,16 @@ What is covered:
 - `TokenManager` scope selection, CIDR parsing, the one-time secret, and the rule
   that an operations token can never offer more than the caller's role
 - `OrderStatusBadge` localises every status and keeps the colour mapping
-- the API client: the bearer token, guest id and locale headers, public requests
-  omitting the token, envelope and page unwrapping, `ApiError` construction, and
-  the 401 path — one refresh, de-duplicated across concurrent failures, retried
-  with the new token, and the session cleared when the refresh is rejected
+- `ProtectedRoute` redirects anonymous visitors, renders for a signed-in user and
+  shows neither while the session loads
+- `AccountMenu` links to every customer area, signs out and closes on Escape
+- `LocaleSwitcher` switches locale and relabels from the active catalogue
+- `ProductCard` stock badges, add-to-cart, image placeholder and srcset
+- the API client: auth headers, envelope unwrapping, `ApiError`, and the 401 path
+  (one refresh, de-duplicated, retried, session cleared on failure)
+- the `CartPage` money path: the checkout payload (address, shipping, currency,
+  wallet and points opt-in), the chosen payment channel, and the guest flow
+  including the access token kept for later
 
 ### End-to-end smoke test
 

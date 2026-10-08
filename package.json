@@ -9,6 +9,6 @@
     "dev:front": "pnpm --filter @openshop/front dev",
     "dev:ops": "pnpm --filter @openshop/ops dev",
     "lint": "pnpm --filter @openshop/front lint && pnpm --filter @openshop/ops lint",
-    "test": "pnpm --filter @openshop/lib test"
+    "test": "pnpm --filter @openshop/lib test && pnpm --filter @openshop/front test"
   }
 }

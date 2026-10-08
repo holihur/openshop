@@ -78,9 +78,9 @@ jobs:
       - name: Type-check
         run: pnpm run lint
 
-      # Component and helper tests for the shared layer (vitest + Testing Library).
+      # Component and page tests (vitest + Testing Library).
       - name: Component tests
-        run: pnpm --filter @openshop/lib test
+        run: pnpm test
 
       - name: Build storefront and ops
         run: pnpm run build
