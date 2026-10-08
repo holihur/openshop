@@ -2,35 +2,78 @@ package domain
 
 import "time"
 
-// PeriodCounts buckets a counter into rolling windows so the console shows
+// PeriodCounts buckets a counter into windows so the console shows
 // "day / week / fortnight / month" instead of only the current instant.
 //
 //	Today     - since 00:00 UTC today
-//	Week      - the last 7 days
+//	Yesterday - the whole previous calendar day (00:00 to 00:00 UTC)
+//	Week      - the last 7 days, today included
 //	Fortnight - the last 14 days
 //	Month     - the last 30 days
 type PeriodCounts struct {
 	Today     int64 `json:"today"`
+	Yesterday int64 `json:"yesterday"`
 	Week      int64 `json:"week"`
 	Fortnight int64 `json:"fortnight"`
 	Month     int64 `json:"month"`
+}
+
+// PeriodMetric pairs each window with the equivalent window immediately before
+// it, so the client can show the change without a second request:
+//
+//	Today     vs yesterday
+//	Yesterday vs the day before
+//	Week      vs the previous 7 days
+//	Fortnight vs the previous 14 days
+//	Month     vs the previous 30 days
+type PeriodMetric struct {
+	Current  PeriodCounts `json:"current"`
+	Previous PeriodCounts `json:"previous"`
+}
+
+// Change is the signed difference between two windows of a PeriodMetric.
+func (m PeriodMetric) Change(window string) int64 {
+	switch window {
+	case "today":
+		return m.Current.Today - m.Previous.Today
+	case "yesterday":
+		return m.Current.Yesterday - m.Previous.Yesterday
+	case "week":
+		return m.Current.Week - m.Previous.Week
+	case "fortnight":
+		return m.Current.Fortnight - m.Previous.Fortnight
+	case "month":
+		return m.Current.Month - m.Previous.Month
+	}
+	return 0
+}
+
+// DailyPoint is one day of a trend series (oldest first).
+type DailyPoint struct {
+	Date  string `json:"date"`
+	Value int64  `json:"value"`
 }
 
 // OrdersSummary is the orders module header.
 type OrdersSummary struct {
 	Total    int64            `json:"total"`
 	ByStatus map[string]int64 `json:"byStatus"`
-	Created  PeriodCounts     `json:"created"`
-	Paid     PeriodCounts     `json:"paid"`
+	Created  PeriodMetric     `json:"created"`
+	Paid     PeriodMetric     `json:"paid"`
 	// RevenueCents is the paid revenue per window, in the settlement currency.
-	RevenueCents PeriodCounts `json:"revenueCents"`
+	RevenueCents PeriodMetric `json:"revenueCents"`
+	// Series is the last 30 days of created orders, for the trend chart.
+	Series []DailyPoint `json:"series"`
+	// RevenueSeries is the same window for paid revenue.
+	RevenueSeries []DailyPoint `json:"revenueSeries"`
 }
 
 // CustomersSummary is the customers module header.
 type CustomersSummary struct {
 	Total    int64        `json:"total"`
 	Disabled int64        `json:"disabled"`
-	New      PeriodCounts `json:"new"`
+	New      PeriodMetric `json:"new"`
+	Series   []DailyPoint `json:"series"`
 }
 
 // ProductsSummary is the catalog module header. Inventory is a snapshot, so it
@@ -47,7 +90,8 @@ type ProductsSummary struct {
 type CouponsSummary struct {
 	Total       int64        `json:"total"`
 	Active      int64        `json:"active"`
-	Redemptions PeriodCounts `json:"redemptions"`
+	Redemptions PeriodMetric `json:"redemptions"`
+	Series      []DailyPoint `json:"series"`
 }
 
 // TicketsSummary is the support module header.
@@ -55,14 +99,16 @@ type TicketsSummary struct {
 	Open       int64        `json:"open"`
 	Pending    int64        `json:"pending"`
 	Unassigned int64        `json:"unassigned"`
-	Created    PeriodCounts `json:"created"`
+	Created    PeriodMetric `json:"created"`
+	Series     []DailyPoint `json:"series"`
 }
 
 // ReturnsSummary is the returns module header.
 type ReturnsSummary struct {
 	Requested int64        `json:"requested"`
 	Approved  int64        `json:"approved"`
-	Created   PeriodCounts `json:"created"`
+	Created   PeriodMetric `json:"created"`
+	Series    []DailyPoint `json:"series"`
 }
 
 // WithdrawalsSummary is the withdrawals module header.
@@ -70,20 +116,23 @@ type WithdrawalsSummary struct {
 	Requested int64        `json:"requested"`
 	Approved  int64        `json:"approved"`
 	Paid      int64        `json:"paid"`
-	Created   PeriodCounts `json:"created"`
+	Created   PeriodMetric `json:"created"`
+	Series    []DailyPoint `json:"series"`
 }
 
 // ReviewsSummary is the reviews module header.
 type ReviewsSummary struct {
 	Total   int64        `json:"total"`
-	Created PeriodCounts `json:"created"`
+	Created PeriodMetric `json:"created"`
+	Series  []DailyPoint `json:"series"`
 }
 
 // CommissionsSummary is the referral commissions module header.
 type CommissionsSummary struct {
 	Pending  int64        `json:"pending"`
 	Approved int64        `json:"approved"`
-	Created  PeriodCounts `json:"created"`
+	Created  PeriodMetric `json:"created"`
+	Series   []DailyPoint `json:"series"`
 }
 
 // OpsSummary aggregates the counters each operations page shows at the top, in

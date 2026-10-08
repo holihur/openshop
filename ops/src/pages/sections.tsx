@@ -17,6 +17,8 @@ import {
 } from "@lib/components/ui/table";
 import { CouponUsage } from "@/components/admin/coupon-usage";
 import { OpsModuleStats } from "@/components/ops-stats";
+import { LineChart } from "@/components/charts";
+import { useOpsSummary } from "@lib/hooks/useOpsSummary";
 import { OrderStatusBadge } from "@lib/components/order-status-badge";
 import { Pagination } from "@lib/components/pagination";
 import { useI18n } from "@lib/i18n";
@@ -527,7 +529,9 @@ export function AdminShipping() {
 
 export function AdminDashboard() {
   const { data, isLoading } = useDashboard();
+  const { data: summary } = useOpsSummary();
   const { t } = useI18n();
+  const [trend, setTrend] = useState<"orders" | "revenue">("orders");
 
   if (isLoading || !data) {
     return (
@@ -548,6 +552,9 @@ export function AdminDashboard() {
     { label: t("ops.totalUsers"), value: data.totalUsers },
   ];
 
+  const trendPoints =
+    trend === "orders" ? summary?.orders.series ?? [] : summary?.orders.revenueSeries ?? [];
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
@@ -560,6 +567,30 @@ export function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      {trendPoints.length > 1 && (
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-2">
+            <CardTitle>{t("stats.trend30", { label: t("stats.period.month") })}</CardTitle>
+            <select
+              aria-label={t("ops.trend")}
+              value={trend}
+              onChange={(e) => setTrend(e.target.value as "orders" | "revenue")}
+              className="border-input bg-background h-8 rounded-md border px-2 text-sm"
+            >
+              <option value="orders">{t("stats.ordersCreated")}</option>
+              <option value="revenue">{t("stats.revenueTrend")}</option>
+            </select>
+          </CardHeader>
+          <CardContent>
+            <LineChart
+              points={trendPoints}
+              format={trend === "revenue" ? (n) => formatMoney(n) : undefined}
+              ariaLabel={t("stats.trend30", { label: trend === "orders" ? t("stats.ordersCreated") : t("stats.revenue") })}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {data.lowStock.length > 0 && (
         <Card>

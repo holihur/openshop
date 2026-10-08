@@ -245,13 +245,30 @@ export interface ScopeInfo {
 
 /**
  * Rolling windows every time-based console counter is bucketed into:
- * today (since 00:00 UTC), the last 7, 14 and 30 days.
+ * today (since 00:00 UTC), yesterday (the whole previous day), the last 7, 14
+ * and 30 days.
  */
 export interface PeriodCounts {
   today: number;
+  yesterday: number;
   week: number;
   fortnight: number;
   month: number;
+}
+
+/**
+ * Each window paired with the equivalent window immediately before it, so the
+ * console can show the change (today vs yesterday, last 7 days vs the 7 before).
+ */
+export interface PeriodMetric {
+  current: PeriodCounts;
+  previous: PeriodCounts;
+}
+
+/** One day of a trend series, oldest first. */
+export interface DailyPoint {
+  date: string;
+  value: number;
 }
 
 export interface OpsSummary {
@@ -259,18 +276,20 @@ export interface OpsSummary {
   orders: {
     total: number;
     byStatus: Record<string, number>;
-    created: PeriodCounts;
-    paid: PeriodCounts;
-    revenueCents: PeriodCounts;
+    created: PeriodMetric;
+    paid: PeriodMetric;
+    revenueCents: PeriodMetric;
+    series: DailyPoint[];
+    revenueSeries: DailyPoint[];
   };
-  customers: { total: number; disabled: number; new: PeriodCounts };
+  customers: { total: number; disabled: number; new: PeriodMetric; series: DailyPoint[] };
   products: { total: number; published: number; draft: number; lowStock: number; outOfStock: number };
-  coupons: { total: number; active: number; redemptions: PeriodCounts };
-  tickets: { open: number; pending: number; unassigned: number; created: PeriodCounts };
-  returns: { requested: number; approved: number; created: PeriodCounts };
-  withdrawals: { requested: number; approved: number; paid: number; created: PeriodCounts };
-  reviews: { total: number; created: PeriodCounts };
-  commissions: { pending: number; approved: number; created: PeriodCounts };
+  coupons: { total: number; active: number; redemptions: PeriodMetric; series: DailyPoint[] };
+  tickets: { open: number; pending: number; unassigned: number; created: PeriodMetric; series: DailyPoint[] };
+  returns: { requested: number; approved: number; created: PeriodMetric; series: DailyPoint[] };
+  withdrawals: { requested: number; approved: number; paid: number; created: PeriodMetric; series: DailyPoint[] };
+  reviews: { total: number; created: PeriodMetric; series: DailyPoint[] };
+  commissions: { pending: number; approved: number; created: PeriodMetric; series: DailyPoint[] };
 }
 
 export type NotificationType =

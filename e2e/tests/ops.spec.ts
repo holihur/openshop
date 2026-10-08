@@ -14,7 +14,7 @@ test("the ops console requires sign-in and then shows the dashboard", async ({ p
   await page.goto(`${opsBase}/`);
   await expect(page).toHaveURL(/\/login$/);
   await signIn(page);
-  await expect(page.getByText("Revenue")).toBeVisible();
+  await expect(page.getByText("Revenue", { exact: true }).first()).toBeVisible();
 });
 
 test("the ops sidebar navigates between sections", async ({ page }) => {
@@ -48,20 +48,21 @@ test("a narrow role only sees the sections it can access", async ({ page }) => {
 test("the ops console deep-links to product detail and categories", async ({ page }) => {
   await signIn(page);
   await page.getByRole("link", { name: "Products" }).click();
-  await page.locator('a[href^="/products/"]').first().click();
+  // Exclude the create link (/products/new): this test wants a product row.
+  await page.locator('a[href^="/products/"]:not([href$="/new"])').first().click();
   await expect(page).toHaveURL(/\/products\/[^/]+$/);
   await expect(page.getByText("Edit product")).toBeVisible();
 
   await page.getByRole("link", { name: "Categories" }).click();
   await expect(page).toHaveURL(/\/categories$/);
-  await expect(page.getByText("New category")).toBeVisible();
+  await expect(page.getByRole("link", { name: "New category" })).toBeVisible();
 });
 
 test("switching language localises the console", async ({ page }) => {
   await signIn(page);
   await page.getByTestId("locale-switcher").selectOption("zh");
   await expect(page.getByRole("link", { name: "概览" })).toBeVisible();
-  await expect(page.getByText("营收")).toBeVisible();
+  await expect(page.getByText("营收", { exact: true }).first()).toBeVisible();
   await page.getByTestId("locale-switcher").selectOption("en");
   await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
 });
