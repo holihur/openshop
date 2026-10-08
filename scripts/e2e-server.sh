@@ -17,6 +17,11 @@ if [ "$MODE" = "server" ]; then
   export HTTP_ADDR="${HTTP_ADDR:-:18081}"
   export INSTANCE_ID="${INSTANCE_ID:-e2e}"
   export STORAGE_PUBLIC_URL="${STORAGE_PUBLIC_URL:-http://localhost:18081/uploads}"
+  # Every test client shares one IP, so the per-IP limiters would throttle the
+  # suite rather than the app. They stay enforced in production.
+  export HTTP_RATE_LIMIT_RPS="${HTTP_RATE_LIMIT_RPS:-100000}"
+  export HTTP_RATE_LIMIT_USER_RPS="${HTTP_RATE_LIMIT_USER_RPS:-100000}"
+  export HTTP_AUTH_RATE_LIMIT_RPS="${HTTP_AUTH_RATE_LIMIT_RPS:-100000}"
   go run ./cmd/migrate -dir migrations
   go run ./cmd/seed
   exec go run ./cmd/server
@@ -24,5 +29,7 @@ else
   export OPS_ADDR="${OPS_ADDR:-:18082}"
   export INSTANCE_ID="${INSTANCE_ID:-e2e-ops}"
   export WORKER_ENABLED=false
+  export HTTP_RATE_LIMIT_RPS="${HTTP_RATE_LIMIT_RPS:-100000}"
+  export HTTP_AUTH_RATE_LIMIT_RPS="${HTTP_AUTH_RATE_LIMIT_RPS:-100000}"
   exec go run ./cmd/ops
 fi

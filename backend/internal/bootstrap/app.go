@@ -217,6 +217,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		"auth.email_verify_url":           cfg.App.VerifyEmailURL,
 		"security.rate_limit_rps":         strconv.Itoa(cfg.HTTP.RateLimitRPS),
 		"security.rate_limit_user_rps":    strconv.Itoa(cfg.HTTP.RateLimitUserRPS),
+		"security.auth_rate_limit_rps":    strconv.Itoa(cfg.HTTP.RateLimitAuthRPS),
 		"payment.default_provider":        cfg.Payment.DefaultProvider,
 		"mail.driver":                     cfg.Mail.Driver,
 		"mail.from":                       cfg.Mail.From,

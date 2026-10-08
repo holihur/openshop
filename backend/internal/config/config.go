@@ -56,6 +56,9 @@ type HTTPConfig struct {
 	CORSOrigins      []string
 	RateLimitRPS     int
 	RateLimitUserRPS int
+	// RateLimitAuthRPS throttles the sign-in and password endpoints, which are
+	// the natural target for credential stuffing.
+	RateLimitAuthRPS int
 	// TrustedProxies lists CIDRs whose X-Forwarded-For is trusted for ClientIP
 	// and rate limiting. Empty trusts all proxies (Gin default).
 	TrustedProxies []string
@@ -190,6 +193,7 @@ func Load() (*Config, error) {
 			CORSOrigins:      envList("HTTP_CORS_ORIGINS", []string{"http://localhost:5173"}),
 			RateLimitRPS:     envInt("HTTP_RATE_LIMIT_RPS", 50),
 			RateLimitUserRPS: envInt("HTTP_RATE_LIMIT_USER_RPS", 100),
+			RateLimitAuthRPS: envInt("HTTP_AUTH_RATE_LIMIT_RPS", 10),
 			TrustedProxies:   envList("HTTP_TRUSTED_PROXIES", nil),
 		},
 		Ops: OpsConfig{

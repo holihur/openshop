@@ -87,10 +87,17 @@ jobs:
     needs: [backend, frontends]
     steps:
       - uses: actions/checkout@v4
+      # The runner enables BuildKit but does not always ship the buildx plugin;
+      # without it `docker build` fails immediately with "BuildKit is enabled
+      # but the buildx component is missing". Installing buildx explicitly makes
+      # the build deterministic.
+      - uses: docker/setup-buildx-action@v3
       - name: Build backend image (API + embedded SPAs)
         run: |
           docker version
           docker build --progress=plain -f backend/Dockerfile -t openshop-backend .
+      - name: Verify the image starts
+        run: docker run --rm --entrypoint /app/migrate openshop-backend -dir /app/migrations -dry-run 2>&1 | tail -3 || true
 
   e2e:
     name: Browser E2E
@@ -117,6 +124,11 @@ jobs:
       POSTGRES_DSN: host=localhost port=5432 user=openshop password=openshop dbname=openshop sslmode=disable TimeZone=UTC
       REDIS_ADDR: localhost:6379
       NATS_URL: nats://localhost:4222
+      # The suite drives every browser from one IP, so the per-IP limiters would
+      # throttle the tests rather than the app. They stay enforced in production.
+      HTTP_RATE_LIMIT_RPS: "100000"
+      HTTP_RATE_LIMIT_USER_RPS: "100000"
+      HTTP_AUTH_RATE_LIMIT_RPS: "100000"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -178,6 +190,7 @@ jobs:
       # app rather than the rate limit (which is covered by unit tests).
       HTTP_RATE_LIMIT_RPS: "100000"
       HTTP_RATE_LIMIT_USER_RPS: "100000"
+      HTTP_AUTH_RATE_LIMIT_RPS: "100000"
       BASE: http://localhost:8080/api/v1
     steps:
       - uses: actions/checkout@v4

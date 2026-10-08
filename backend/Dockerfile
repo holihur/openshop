@@ -33,14 +33,21 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server 
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/seed ./cmd/seed
 
-FROM gcr.io/distroless/static-debian12:nonroot
+# --- runtime ---------------------------------------------------------------
+# Alpine rather than distroless: it comes from the same registry as every other
+# image CI pulls, so the build is reproducible. CA certificates are required for
+# outbound TLS (payment providers, SMTP) and tzdata for local-time rendering.
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates tzdata && \
+    adduser -D -u 65532 -h /app nonroot
 WORKDIR /app
 COPY --from=build /out/server /app/server
 COPY --from=build /out/ops /app/ops
 COPY --from=build /out/migrate /app/migrate
 COPY --from=build /out/seed /app/seed
-COPY migrations /app/migrations
+# The context root is the repository root, so migrations live under backend/.
+COPY backend/migrations /app/migrations
 
 EXPOSE 8080
-USER nonroot:nonroot
+USER nonroot
 ENTRYPOINT ["/app/server"]
