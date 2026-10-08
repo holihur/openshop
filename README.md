@@ -509,6 +509,15 @@ Covered scenarios include:
 - expired orders are listed for the sweeper
 - registration/login/refresh and **refresh-token theft detection**
 - the outbox relay publishes, retries and caps backoff
+- the JWT issuer rejects a foreign secret, the wrong audience or issuer, an
+  expired token and an unsigned (`alg: none`) token
+- production refuses to start with a default/short `JWT_SECRET` or a wildcard
+  CORS origin
+- a personal access token's scope is derived from the route and method, and an
+  unmapped resource falls back to the wildcard scope (closed by default)
+- the full role-to-permission matrix is pinned, so an accidental grant fails
+  the build
+- every domain sentinel maps to its intended HTTP status and error code
 
 ### Integration tests (real PostgreSQL)
 
@@ -519,6 +528,13 @@ covered by integration tests that run when a DSN is provided:
 cd backend
 TEST_DATABASE_URL='host=localhost user=openshop password=openshop dbname=openshop sslmode=disable' \
   go test ./internal/adapter/postgres/ -run TestOutboxClaimSemantics
+```
+
+Run the whole package to cover the rest as well (keyset pagination, the audit
+hash chain and its tamper detection, and the wallet/points invariants):
+
+```bash
+TEST_DATABASE_URL='...' go test ./internal/adapter/postgres/ -count=1
 ```
 
 ### End-to-end smoke test
@@ -558,6 +574,37 @@ make e2e        # or: pnpm --filter @openshop/e2e test
 ```bash
 k6 run scripts/loadtest.js            # browse + shop scenarios, thresholds enforced
 ```
+
+The shape is fixed but the size is parameterised, so the same script can probe
+capacity without being edited:
+
+```bash
+MAX_VUS=150 SHOP_VUS=40 k6 run scripts/loadtest.js
+```
+
+#### Measured capacity
+
+One API instance on **4 vCPU / 7 GB**, with PostgreSQL, Redis and NATS on the
+same host (so the database shares CPU with the server and the generator — these
+are a floor, not a ceiling). The shopping scenario signs in, adds an item and
+checks out with a unique idempotency key.
+
+| Load | Throughput | p95 latency | Checkout p95 | Errors |
+| --- | --- | --- | --- | --- |
+| 40 VUs (CI default) | 77 req/s | 82 ms | 19 ms | 0 |
+| 190 VUs | **314 req/s** | **158 ms** | 175 ms | 0 |
+| 500 VUs | 440 req/s | 2.05 s | 1.13 s | 0 |
+
+**Safe operating point: ~300 req/s (≈40 orders/s) per instance at p95 < 200 ms
+with no errors.** The knee is around 440 req/s, where p95 crosses the 800 ms
+threshold. Errors stay at zero past saturation, so overload shows up as latency
+rather than failed requests — which is why the checkout path is protected by a
+distributed lock and an idempotency key rather than by hoping for spare
+capacity.
+
+To scale out, add instances: the API is stateless, carts and locks live in
+Redis, and the scheduled jobs are leader-locked, so replicas can be added
+without coordination.
 
 The script ramps a browsing scenario to 30 VUs and runs 10 concurrent shoppers
 (each with its own guest cart, so checkouts do not contend). It fails the run on

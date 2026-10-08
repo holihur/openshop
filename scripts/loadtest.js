@@ -18,6 +18,14 @@ const PASSWORD = __ENV.PASSWORD || "customer12345";
 
 const checkoutTrend = new Trend("checkout_duration", true);
 
+// The shape is fixed but the size is not: CI runs the default, while a capacity
+// probe can scale it up without editing the file.
+//
+//   MAX_VUS=150 SHOP_VUS=40 k6 run scripts/loadtest.js
+const MAX_VUS = Number(__ENV.MAX_VUS || 30);
+const SHOP_VUS = Number(__ENV.SHOP_VUS || 10);
+const HOLD = __ENV.HOLD || "1m";
+
 export const options = {
   scenarios: {
     browsing: {
@@ -25,16 +33,16 @@ export const options = {
       exec: "browse",
       startVUs: 5,
       stages: [
-        { duration: "30s", target: 30 },
-        { duration: "1m", target: 30 },
+        { duration: "30s", target: MAX_VUS },
+        { duration: HOLD, target: MAX_VUS },
         { duration: "20s", target: 0 },
       ],
     },
     shopping: {
       executor: "constant-vus",
       exec: "shop",
-      vus: 10,
-      duration: "1m",
+      vus: SHOP_VUS,
+      duration: HOLD,
       startTime: "30s",
     },
   },
