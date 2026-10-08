@@ -22,7 +22,7 @@ jobs:
           cache-dependency-path: backend/go.sum
 
       # GoReleaser's before-hook embeds both SPAs, so the frontends must build.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11
 
