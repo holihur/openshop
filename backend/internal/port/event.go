@@ -3,6 +3,8 @@ package port
 import (
 	"context"
 	"time"
+
+	"github.com/holihur/openshop/internal/domain"
 )
 
 // Event is a transport-agnostic message published to the event bus.
@@ -40,6 +42,39 @@ type OutboxMessage struct {
 	Payload     []byte
 	Attempts    int
 	TraceParent string
+	// Status is pending, processing, published or failed (dead-lettered).
+	Status      string
+	LastError   string
+	CreatedAt   time.Time
+	AvailableAt time.Time
+}
+
+// OutboxFilter selects outbox rows for the operations console.
+type OutboxFilter struct {
+	Status   string
+	Subject  string
+	Page     int
+	PageSize int
+}
+
+// OutboxStats summarises the queue. Failed is the dead-letter count: events the
+// relay gave up on after the maximum number of attempts.
+type OutboxStats struct {
+	Pending       int64
+	Processing    int64
+	Published     int64
+	Failed        int64
+	OldestPending *time.Time
+}
+
+// OutboxInspector exposes the queue to operators: what is waiting, what has
+// dead-lettered, and a way to put a dead letter back. It is deliberately
+// separate from Outbox so the relay's interface stays minimal.
+type OutboxInspector interface {
+	List(ctx context.Context, f OutboxFilter) (domain.Page[OutboxMessage], error)
+	Stats(ctx context.Context) (OutboxStats, error)
+	// Replay returns a dead-lettered event to the pending queue.
+	Replay(ctx context.Context, id string) error
 }
 
 // Outbox implements the transactional-outbox pattern: events are written in the

@@ -17,6 +17,7 @@ import { TicketDetailPage } from "@/pages/TicketDetail";
 import { CommissionsPage } from "@/pages/Commissions";
 import { WithdrawalsPage } from "@/pages/Withdrawals";
 import { TokensPage } from "@/pages/Tokens";
+import { OutboxPage } from "@/pages/Outbox";
 import { CustomersPage } from "@/pages/Customers";
 import { CustomerDetailPage } from "@/pages/CustomerDetail";
 import { ShippingPage } from "@/pages/Shipping";
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="commissions" element={<CommissionsPage />} />
           <Route path="withdrawals" element={<WithdrawalsPage />} />
           <Route path="tokens" element={<TokensPage />} />
+          <Route path="outbox" element={<OutboxPage />} />
           <Route path="shipping" element={<ShippingPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="settings" element={<SettingsPage />} />

@@ -158,6 +158,11 @@ func New(
 			admin.GET("/audit-logs", middleware.RequirePermission(domain.PermAuditRead), fh.ListAuditLogs)
 			admin.GET("/audit-logs/verify", middleware.RequirePermission(domain.PermAuditRead), fh.VerifyAuditChain)
 
+			// The event queue: visibility and replay for dead-lettered events.
+			admin.GET("/outbox", middleware.RequirePermission(domain.PermAuditRead), fh.ListOutbox)
+			admin.GET("/outbox/stats", middleware.RequirePermission(domain.PermAuditRead), fh.OutboxStats)
+			admin.POST("/outbox/:id/replay", middleware.RequirePermission(domain.PermOutboxWrite), fh.ReplayOutbox)
+
 			admin.GET("/settings", middleware.RequirePermission(domain.PermSettingsRead), fh.ListSettings)
 			admin.PUT("/settings", middleware.RequirePermission(domain.PermSettingsWrite), fh.UpdateSettings)
 

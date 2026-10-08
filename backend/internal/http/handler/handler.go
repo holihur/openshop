@@ -37,6 +37,7 @@ type Handler struct {
 	Withdrawals   *service.WithdrawalService
 	Notifications *service.NotificationService
 	PATs          *service.PATService
+	Outbox        port.OutboxInspector
 	Settings      *service.SettingsService
 	Customers     *service.CustomerService
 	OIDC          *service.OIDCService

@@ -21,6 +21,7 @@ const (
 	PermWithdrawalsRead    Permission = "withdrawals:read"
 	PermWithdrawalsWrite   Permission = "withdrawals:write"
 	PermNotificationsWrite Permission = "notifications:write"
+	PermOutboxWrite        Permission = "outbox:write"
 	PermCouponsRead        Permission = "coupons:read"
 	PermCouponsWrite       Permission = "coupons:write"
 	PermShippingRead       Permission = "shipping:read"
@@ -45,6 +46,7 @@ var allPermissions = []Permission{
 	PermLoyaltyRead, PermLoyaltyWrite,
 	PermWithdrawalsRead, PermWithdrawalsWrite,
 	PermNotificationsWrite,
+	PermOutboxWrite,
 	PermCouponsRead, PermCouponsWrite,
 	PermShippingRead, PermShippingWrite, PermCurrencyWrite,
 	PermReviewsRead, PermReviewsWrite,

@@ -14,6 +14,7 @@ import (
 // more relays simply mean more throughput.
 type OutboxRelay struct {
 	outbox    port.Outbox
+	inspector port.OutboxInspector
 	bus       port.EventBus
 	clock     port.Clock
 	logger    port.Logger
@@ -61,8 +62,37 @@ func (r *OutboxRelay) Run(ctx context.Context) {
 			return
 		case <-ticker.C:
 			r.relayOnce(ctx)
+			r.reportQueue(ctx)
 		}
 	}
+}
+
+// SetInspector wires the queue inspector so the relay can publish depth gauges.
+func (r *OutboxRelay) SetInspector(i port.OutboxInspector) { r.inspector = i }
+
+// reportQueue publishes the queue depth, the dead-letter count and the age of
+// the oldest pending event. Without these an outage (or an event the relay gave
+// up on) is invisible: the API stays healthy while events stop flowing.
+func (r *OutboxRelay) reportQueue(ctx context.Context) {
+	if r.inspector == nil || r.metrics == nil {
+		return
+	}
+	stats, err := r.inspector.Stats(ctx)
+	if err != nil {
+		r.logger.Warn("outbox: stats failed", "error", err)
+		return
+	}
+	r.metrics.Gauge("openshop_outbox_pending", float64(stats.Pending), nil)
+	r.metrics.Gauge("openshop_outbox_processing", float64(stats.Processing), nil)
+	r.metrics.Gauge("openshop_outbox_failed", float64(stats.Failed), nil)
+	oldest := 0.0
+	if stats.OldestPending != nil {
+		oldest = time.Since(*stats.OldestPending).Seconds()
+		if oldest < 0 {
+			oldest = 0
+		}
+	}
+	r.metrics.Gauge("openshop_outbox_oldest_pending_seconds", oldest, nil)
 }
 
 func (r *OutboxRelay) relayOnce(ctx context.Context) {

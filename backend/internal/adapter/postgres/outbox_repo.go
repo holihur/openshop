@@ -2,12 +2,14 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/port"
 )
 
@@ -54,6 +56,102 @@ func (r *OutboxRepository) Enqueue(ctx context.Context, evt port.Event) error {
 	}
 	if err := r.db.session(ctx).Create(m).Error; err != nil {
 		return translate(err)
+	}
+	return nil
+}
+
+var _ port.OutboxInspector = (*OutboxRepository)(nil)
+
+func toOutboxMessage(m *outboxModel) port.OutboxMessage {
+	return port.OutboxMessage{
+		ID: m.ID, Subject: m.Subject, Payload: m.Payload, Attempts: m.Attempts,
+		TraceParent: m.TraceParent, Status: m.Status, LastError: m.LastError,
+		CreatedAt: m.CreatedAt, AvailableAt: m.AvailableAt,
+	}
+}
+
+// List returns a page of queue rows, newest first, for the operations console.
+func (r *OutboxRepository) List(ctx context.Context, f port.OutboxFilter) (domain.Page[port.OutboxMessage], error) {
+	page, size := normalizePage(f.Page, f.PageSize, 20)
+	q := r.db.session(ctx).Model(&outboxModel{})
+	if f.Status != "" {
+		q = q.Where("status = ?", f.Status)
+	}
+	if f.Subject != "" {
+		q = q.Where("subject = ?", f.Subject)
+	}
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return domain.Page[port.OutboxMessage]{}, translate(err)
+	}
+	var models []outboxModel
+	if err := q.Order("created_at desc").Offset((page - 1) * size).Limit(size).Find(&models).Error; err != nil {
+		return domain.Page[port.OutboxMessage]{}, translate(err)
+	}
+	items := make([]port.OutboxMessage, 0, len(models))
+	for i := range models {
+		items = append(items, toOutboxMessage(&models[i]))
+	}
+	return domain.Page[port.OutboxMessage]{Items: items, Total: total, Page: page, PageSize: size}, nil
+}
+
+// Stats summarises the queue, including the dead-letter count and how long the
+// oldest pending event has been waiting (the backlog age an alert would watch).
+func (r *OutboxRepository) Stats(ctx context.Context) (port.OutboxStats, error) {
+	type row struct {
+		Status string
+		Count  int64
+	}
+	var rows []row
+	if err := r.db.session(ctx).Model(&outboxModel{}).
+		Select("status, count(*) as count").Group("status").Scan(&rows).Error; err != nil {
+		return port.OutboxStats{}, translate(err)
+	}
+	var stats port.OutboxStats
+	for _, r := range rows {
+		switch r.Status {
+		case "pending":
+			stats.Pending = r.Count
+		case "processing":
+			stats.Processing = r.Count
+		case "published":
+			stats.Published = r.Count
+		case "failed":
+			stats.Failed = r.Count
+		}
+	}
+
+	var oldest sql.NullTime
+	if err := r.db.session(ctx).
+		Raw("SELECT min(available_at) FROM outbox_events WHERE status = ?", "pending").
+		Scan(&oldest).Error; err != nil {
+		return stats, translate(err)
+	}
+	if oldest.Valid {
+		at := oldest.Time
+		stats.OldestPending = &at
+	}
+	return stats, nil
+}
+
+// Replay puts a dead-lettered event back on the queue with a clean slate, so an
+// operator can recover after fixing the cause instead of losing the event.
+func (r *OutboxRepository) Replay(ctx context.Context, id string) error {
+	res := r.db.session(ctx).Model(&outboxModel{}).
+		Where("id = ? AND status = ?", id, "failed").
+		Updates(map[string]any{
+			"status":       "pending",
+			"attempts":     0,
+			"available_at": time.Now().UTC(),
+			"locked_until": nil,
+			"last_error":   "",
+		})
+	if res.Error != nil {
+		return translate(res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return domain.ErrConflict
 	}
 	return nil
 }
