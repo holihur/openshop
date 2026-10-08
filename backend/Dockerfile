@@ -37,7 +37,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server 
 # Alpine rather than distroless: it comes from the same registry as every other
 # image CI pulls, so the build is reproducible. CA certificates are required for
 # outbound TLS (payment providers, SMTP) and tzdata for local-time rendering.
-FROM alpine:3.21
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata && \
     adduser -D -u 65532 -h /app nonroot
 WORKDIR /app
