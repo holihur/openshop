@@ -109,11 +109,16 @@ func (d *DB) AutoMigrate() error {
 	}
 	// GORM cannot express a stored generated tsvector column, so add it here to
 	// keep AutoMigrate (development) consistent with the SQL migrations.
-	return d.gorm.Exec(`
+	if err := d.gorm.Exec(`
 		ALTER TABLE products ADD COLUMN IF NOT EXISTS search_vector tsvector
 		GENERATED ALWAYS AS (
 			to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(description, ''))
-		) STORED`).Error
+		) STORED`).Error; err != nil {
+		return err
+	}
+	// Ticket numbers come from a sequence declared in the SQL migrations; create
+	// it here too so the AutoMigrate path can insert tickets.
+	return d.gorm.Exec(`CREATE SEQUENCE IF NOT EXISTS ticket_number_seq START 1000`).Error
 }
 
 func (d *DB) Close() error {

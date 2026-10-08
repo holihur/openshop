@@ -9,7 +9,7 @@ import (
 
 type ticketModel struct {
 	ID         string     `gorm:"type:uuid;primaryKey"`
-	Number     int64      `gorm:"not null"`
+	Number     int64      `gorm:"not null;uniqueIndex:uni_tickets_number"`
 	UserID     uuidString `gorm:"type:uuid;index"`
 	Email      string     `gorm:"size:320;not null;default:''"`
 	Name       string     `gorm:"size:200;not null;default:''"`
