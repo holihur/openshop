@@ -118,7 +118,16 @@ func (d *DB) AutoMigrate() error {
 	}
 	// Ticket numbers come from a sequence declared in the SQL migrations; create
 	// it here too so the AutoMigrate path can insert tickets.
-	return d.gorm.Exec(`CREATE SEQUENCE IF NOT EXISTS ticket_number_seq START 1000`).Error
+	if err := d.gorm.Exec(`CREATE SEQUENCE IF NOT EXISTS ticket_number_seq START 1000`).Error; err != nil {
+		return err
+	}
+	// The audit hash chain is ordered by a sequence that the model deliberately
+	// omits (so an insert never writes it), which GORM therefore cannot create.
+	// Without it the chain cannot be appended to or verified.
+	if err := d.gorm.Exec(`ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS seq BIGSERIAL`).Error; err != nil {
+		return err
+	}
+	return d.gorm.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_audit_logs_seq ON audit_logs (seq)`).Error
 }
 
 func (d *DB) Close() error {

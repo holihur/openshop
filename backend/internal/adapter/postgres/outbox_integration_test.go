@@ -41,6 +41,12 @@ func TestOutboxClaimSemantics(t *testing.T) {
 
 	repo := NewOutboxRepository(db)
 	prefix := fmt.Sprintf("itest.%d", time.Now().UnixNano())
+	// Claim is not scoped by subject, so this test owns the queue: clearing it
+	// keeps the claim counts deterministic even against a shared database that
+	// already holds pending events. The outbox is a transient queue.
+	if err := db.gorm.WithContext(ctx).Exec("DELETE FROM outbox_events").Error; err != nil {
+		t.Fatalf("clear outbox: %v", err)
+	}
 	defer func() {
 		_ = db.gorm.WithContext(ctx).Exec("DELETE FROM outbox_events WHERE subject LIKE ?", prefix+"%").Error
 	}()

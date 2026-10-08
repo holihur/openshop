@@ -10,12 +10,20 @@ const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:18081";
 // server for us. Set E2E_BASE_URL to test an already-running deployment.
 export default defineConfig({
   testDir: "./tests",
-  timeout: 30_000,
-  expect: { timeout: 10_000 },
+  // The suite boots two Go binaries and drives five browser projects in
+  // parallel; a cold first navigation can exceed the 30s default on a small CI
+  // runner, so the budget is deliberately generous.
+  timeout: 45_000,
+  expect: { timeout: 15_000 },
   retries: process.env.CI ? 1 : 0,
+  // Fewer browsers at once keeps CPU contention (and therefore timing flake)
+  // down on a 2-core runner.
+  workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? [["github"], ["list"]] : [["list"]],
   use: {
     baseURL,
+    navigationTimeout: 45_000,
+    actionTimeout: 15_000,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
