@@ -67,6 +67,8 @@ export default async function CheckoutPage() {
           placing: t("cart.updating"),
           failed: t("error.generic"),
           businessDays: t("checkout.deliveryIn"),
+          scan: t("checkout.scan"),
+          scanWith: t("checkout.scanWith"),
         }}
       />
 

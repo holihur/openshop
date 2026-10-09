@@ -781,7 +781,7 @@ never sees a provider-specific payload. Four are built in:
 | `mock` | Hosted sandbox | Development only |
 | `stripe` | Stripe Checkout | `STRIPE_SECRET_KEY`, webhook signature verified |
 | `alipay` | Signed redirect (page pay) | RSA2; notifications verified with Alipay's public key |
-| `wechat` | Native (QR) | API v3; requests signed with the merchant key, notifications verified and decrypted (AES-256-GCM) |
+| `wechat` | Native (QR) | API v3; requests signed with the merchant key, notifications verified and decrypted (AES-256-GCM). The `weixin://` payload is returned as an inline SVG QR in `qrSvg`, so the storefront has an image to show instead of a URL it cannot open |
 
 A gateway is only registered when its credentials are present, and only offered
 at checkout when it is listed in `payment.enabled_providers`. The ops console

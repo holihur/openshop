@@ -113,11 +113,7 @@ func (h *Handler) GuestPay(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.Created(c, paymentView{
-		ID: res.Payment.ID, OrderID: res.Payment.OrderID, Provider: res.Payment.Provider,
-		Status: string(res.Payment.Status), AmountCents: res.Payment.AmountCents,
-		Currency: res.Payment.Currency, RedirectURL: res.RedirectURL,
-	})
+	response.Created(c, toPaymentView(res.Payment, res.RedirectURL))
 }
 
 func (h *Handler) GuestCancel(c *gin.Context) {

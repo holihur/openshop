@@ -3,13 +3,15 @@ package front
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/http/handler"
-
 	"github.com/holihur/openshop/internal/http/middleware"
 	"github.com/holihur/openshop/internal/http/response"
+	"github.com/holihur/openshop/internal/http/shared/qr"
 	"github.com/holihur/openshop/internal/service"
 )
 
@@ -27,6 +29,26 @@ type paymentView struct {
 	AmountCents int64  `json:"amountCents"`
 	Currency    string `json:"currency"`
 	RedirectURL string `json:"redirectUrl,omitempty"`
+	// QRSVG is set when the provider returned something to scan rather than a
+	// URL to open (WeChat Pay Native). It is an inline SVG so the storefront
+	// needs no image service or extra request.
+	QRSVG string `json:"qrSvg,omitempty"`
+}
+
+// toPaymentView renders a payment for the storefront, adding a QR code when the
+// provider's payload is not a web URL.
+func toPaymentView(p *domain.Payment, redirectURL string) paymentView {
+	view := paymentView{
+		ID: p.ID, OrderID: p.OrderID, Provider: p.Provider, Status: string(p.Status),
+		AmountCents: p.AmountCents, Currency: p.Currency, RedirectURL: redirectURL,
+	}
+	if redirectURL != "" && !strings.HasPrefix(redirectURL, "http://") &&
+		!strings.HasPrefix(redirectURL, "https://") {
+		if svg, err := qr.SVG(redirectURL); err == nil {
+			view.QRSVG = svg
+		}
+	}
+	return view
 }
 
 func (h *Handler) CreatePayment(c *gin.Context) {
@@ -43,11 +65,7 @@ func (h *Handler) CreatePayment(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.Created(c, paymentView{
-		ID: res.Payment.ID, OrderID: res.Payment.OrderID, Provider: res.Payment.Provider,
-		Status: string(res.Payment.Status), AmountCents: res.Payment.AmountCents,
-		Currency: res.Payment.Currency, RedirectURL: res.RedirectURL,
-	})
+	response.Created(c, toPaymentView(res.Payment, res.RedirectURL))
 }
 
 type simulatePaymentRequest struct {

@@ -16,6 +16,7 @@ import { useCart, useClearCart, useRemoveCartItem, useUpdateCartItem } from "@li
 import { useAddresses } from "@lib/hooks/useAddresses";
 import { useDeliveryEstimates, useShippingMethods } from "@lib/hooks/useShipping";
 import { DeliveryEstimateLine, FreeShippingProgress } from "@lib/components/delivery-estimate";
+import { PaymentQR } from "@lib/components/payment-qr";
 import { usePaymentMethods } from "@lib/hooks/usePayment";
 import { usePoints, useWallet } from "@lib/hooks/useLoyalty";
 import { formatMoney } from "@lib/format";
@@ -37,6 +38,8 @@ export function CartPage() {
   const clearCart = useClearCart();
 
   const [coupon, setCoupon] = useState("");
+  // Set when the provider returns a code to scan instead of a URL.
+  const [qrPayment, setQrPayment] = useState<Payment | null>(null);
   const [applied, setApplied] = useState<CouponPreview | null>(null);
   const [addressId, setAddressId] = useState("");
   const [shippingMethodId, setShippingMethodId] = useState("");
@@ -134,6 +137,12 @@ export function CartPage() {
     onSuccess: ({ order, payment }) => {
       void queryClient.invalidateQueries({ queryKey: ["cart"] });
       void queryClient.invalidateQueries({ queryKey: ["orders"] });
+      // A provider that returns a code to scan (WeChat Native) has no URL to
+      // open; the QR is shown instead and the webhook confirms the payment.
+      if (payment.qrSvg) {
+        setQrPayment(payment);
+        return;
+      }
       if (payment.redirectUrl) {
         window.location.href = payment.redirectUrl;
       } else if (!user && order.accessToken) {
@@ -218,7 +227,8 @@ export function CartPage() {
                 </p>
               </div>
               <div className="flex items-center rounded-md border">
-                <Button
+                {qrPayment ? <PaymentQR svg={qrPayment.qrSvg} provider={qrPayment.provider} /> : null}
+            <Button
                   variant="ghost"
                   size="icon"
                   className="size-8"

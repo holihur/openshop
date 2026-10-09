@@ -11,6 +11,7 @@ import { OrderTimeline } from "@/components/order-timeline";
 import { Separator } from "@lib/components/ui/separator";
 import { Skeleton } from "@lib/components/ui/skeleton";
 import { OrderStatusBadge } from "@lib/components/order-status-badge";
+import { PaymentQR } from "@lib/components/payment-qr";
 import { api } from "@lib/api";
 import { formatDate, formatMoney } from "@lib/format";
 import { useI18n } from "@lib/i18n";
@@ -37,6 +38,10 @@ export function OrderDetailPage() {
         returnUrl: `${window.location.origin}/payment/result`,
       }),
     onSuccess: (payment) => {
+      if (payment.qrSvg) {
+        setQrPayment(payment);
+        return;
+      }
       if (payment.redirectUrl) window.location.href = payment.redirectUrl;
       else void navigate(`/orders/${id}`);
     },
@@ -64,6 +69,8 @@ export function OrderDetailPage() {
   });
 
   const [downloading, setDownloading] = useState(false);
+  // Set when the provider returns a code to scan instead of a URL.
+  const [qrPayment, setQrPayment] = useState<Payment | null>(null);
   const { data: returns } = useOrderReturns(id);
   const requestReturn = useRequestReturn(id);
   const openReturn = returns?.find((r) => r.status === "requested" || r.status === "approved");
@@ -93,6 +100,7 @@ export function OrderDetailPage() {
     return (
       <div className="py-16 text-center">
         <p className="text-muted-foreground">{t("orders.notFound")}</p>
+        {qrPayment ? <PaymentQR svg={qrPayment.qrSvg} provider={qrPayment.provider} /> : null}
         <Button variant="link" asChild>
           <Link to="/orders">{t("orders.backToOrders")}</Link>
         </Button>

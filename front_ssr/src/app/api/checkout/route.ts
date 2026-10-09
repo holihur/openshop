@@ -11,6 +11,9 @@ interface OrderResponse {
 
 interface PaymentResponse {
   redirectUrl?: string;
+  // Set when the provider returned something to scan (WeChat Native) rather
+  // than a URL to open.
+  qrSvg?: string;
 }
 
 /**
@@ -100,6 +103,7 @@ export async function POST(request: Request) {
       orderId: order.id,
       orderNo: order.orderNo,
       redirectUrl: payPayload.data.redirectUrl ?? `${returnUrl}?order_no=${order.orderNo}`,
+      qrSvg: payPayload.data.qrSvg,
     },
   });
 }

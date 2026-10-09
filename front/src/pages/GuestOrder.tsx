@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,11 +11,14 @@ import { OrderStatusBadge } from "@lib/components/order-status-badge";
 import { api } from "@lib/api";
 import { useI18n } from "@lib/i18n";
 import { formatDate, formatMoney } from "@lib/format";
+import { PaymentQR } from "@lib/components/payment-qr";
 import type { Order, Payment } from "@lib/types";
 
 // GuestOrderPage lets an anonymous buyer view, pay, cancel or confirm their
 // order using the access token returned at checkout.
 export function GuestOrderPage() {
+  // Set when the provider returns a code to scan instead of a URL.
+  const [qrPayment, setQrPayment] = useState<Payment | null>(null);
   const { t } = useI18n();
   const { token = "" } = useParams();
   const queryClient = useQueryClient();
@@ -34,6 +38,10 @@ export function GuestOrderPage() {
         returnUrl: `${window.location.origin}/payment/result`,
       }),
     onSuccess: (payment) => {
+      if (payment.qrSvg) {
+        setQrPayment(payment);
+        return;
+      }
       if (payment.redirectUrl) window.location.href = payment.redirectUrl;
       else void invalidate();
     },
@@ -99,6 +107,7 @@ export function GuestOrderPage() {
             </Button>
           )}
         </div>
+        {qrPayment ? <PaymentQR svg={qrPayment.qrSvg} provider={qrPayment.provider} /> : null}
       </div>
 
       <Card>

@@ -511,6 +511,11 @@ export interface Payment {
   amountCents: number;
   currency: string;
   redirectUrl?: string;
+  /**
+   * Inline SVG QR code. Set when the provider returned something to scan rather
+   * than a URL to open (WeChat Pay Native returns a weixin:// payload).
+   */
+  qrSvg?: string;
 }
 
 export interface AuthResponse {
