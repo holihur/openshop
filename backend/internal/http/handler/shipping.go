@@ -13,6 +13,8 @@ type ShippingMethodView struct {
 	Name               string `json:"name"`
 	FlatRateCents      int64  `json:"flatRateCents"`
 	FreeThresholdCents int64  `json:"freeThresholdCents"`
+	MinDays            int    `json:"minDays"`
+	MaxDays            int    `json:"maxDays"`
 	Active             bool   `json:"active"`
 	Sort               int    `json:"sort"`
 }
@@ -28,10 +30,28 @@ func (h *Handler) ListShippingMethods(c *gin.Context) {
 	response.OK(c, ToShippingViews(methods))
 }
 
+// DeliveryEstimates reports the cost and delivery window of every active
+// shipping method for the current cart, so the storefront can show the
+// expectation before the shopper reaches checkout.
+func (h *Handler) DeliveryEstimates(c *gin.Context) {
+	estimates, err := h.Shipping.Estimate(
+		c.Request.Context(),
+		int64(queryInt(c, "subtotalCents", 0)),
+		int64(queryInt(c, "weightGrams", 0)),
+		c.Query("province"),
+	)
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, estimates)
+}
+
 func ToShippingView(m domain.ShippingMethod) ShippingMethodView {
 	return ShippingMethodView{
 		ID: m.ID, Code: m.Code, Name: m.Name, FlatRateCents: m.FlatRateCents,
-		FreeThresholdCents: m.FreeThresholdCents, Active: m.Active, Sort: m.Sort,
+		FreeThresholdCents: m.FreeThresholdCents, MinDays: m.MinDays, MaxDays: m.MaxDays,
+		Active: m.Active, Sort: m.Sort,
 	}
 }
 

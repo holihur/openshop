@@ -14,7 +14,8 @@ import { usePrice } from "@lib/hooks/usePrice";
 import { useCurrency } from "@lib/currency";
 import { useCart, useClearCart, useRemoveCartItem, useUpdateCartItem } from "@lib/hooks/useCart";
 import { useAddresses } from "@lib/hooks/useAddresses";
-import { useShippingMethods } from "@lib/hooks/useShipping";
+import { useDeliveryEstimates, useShippingMethods } from "@lib/hooks/useShipping";
+import { DeliveryEstimateLine, FreeShippingProgress } from "@lib/components/delivery-estimate";
 import { usePaymentMethods } from "@lib/hooks/usePayment";
 import { usePoints, useWallet } from "@lib/hooks/useLoyalty";
 import { formatMoney } from "@lib/format";
@@ -62,6 +63,17 @@ export function CartPage() {
     addressId || addresses?.find((a) => a.default)?.id || addresses?.[0]?.id || "";
   const chosenMethod =
     shippingMethods?.find((m) => m.id === shippingMethodId) ?? shippingMethods?.[0];
+  // Server-side delivery expectations: shipping cost and arrival window per
+  // method for this cart's subtotal and the chosen destination.
+  const { data: deliveryEstimates } = useDeliveryEstimates(
+    cart?.totalCents ?? 0,
+    0,
+    guestAddress.province || addresses?.find((a) => a.id === chosenAddress)?.province || "",
+  );
+  const chosenEstimate =
+    deliveryEstimates?.find((e) => e.methodId === chosenMethod?.id) ?? deliveryEstimates?.[0];
+  const estimateFor = (methodId: string) => deliveryEstimates?.find((e) => e.methodId === methodId);
+
   const shippingCents = chosenMethod
     ? chosenMethod.freeThresholdCents > 0 && cart && cart.totalCents >= chosenMethod.freeThresholdCents
       ? 0
@@ -356,7 +368,13 @@ export function CartPage() {
                           checked={chosenMethod?.id === m.id}
                           onChange={() => setShippingMethodId(m.id)}
                         />
-                        {m.name}
+                        <span>
+                          {m.name}
+                          <DeliveryEstimateLine
+                            estimate={estimateFor(m.id)}
+                            className="text-muted-foreground block text-xs"
+                          />
+                        </span>
                       </span>
                       <span className="text-muted-foreground">
                         {m.freeThresholdCents > 0 && cart.totalCents >= m.freeThresholdCents
@@ -427,15 +445,14 @@ export function CartPage() {
             </div>
 
             <Separator />
-            {chosenMethod &&
-              chosenMethod.freeThresholdCents > 0 &&
-              cart.totalCents < chosenMethod.freeThresholdCents && (
-                <p className="text-muted-foreground text-xs">
-                  {t("cart.freeShippingHint", {
-                    amount: price(chosenMethod.freeThresholdCents - cart.totalCents),
-                  })}
-                </p>
-              )}
+            {chosenEstimate && (
+              <FreeShippingProgress
+                subtotalCents={cart.totalCents}
+                thresholdCents={chosenEstimate.freeThresholdCents}
+                remainingCents={chosenEstimate.freeRemainingCents}
+                format={price}
+              />
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t("cart.subtotal")}</span>
               <span>{price(cart.totalCents)}</span>
@@ -448,7 +465,7 @@ export function CartPage() {
             )}
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t("cart.shipping")}</span>
-              <span>{price(shippingCents)}</span>
+              <span>{price(chosenEstimate?.priceCents ?? shippingCents)}</span>
             </div>
             <p className="text-muted-foreground text-xs">{t("cart.taxesAtCheckout")}</p>
             {user && wallet && wallet.balanceCents > 0 && (

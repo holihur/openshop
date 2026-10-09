@@ -25,8 +25,61 @@ type ShippingMethodInput struct {
 	Name               string
 	FlatRateCents      int64
 	FreeThresholdCents int64
+	MinDays            int
+	MaxDays            int
 	Active             bool
 	Sort               int
+}
+
+// Estimate returns, for every active method, what shipping would cost and when
+// it would arrive. The storefront shows this before checkout so a shopper is
+// never surprised by the delivery time or the cost at the last step.
+func (s *ShippingService) Estimate(ctx context.Context, subtotalCents, weightGrams int64, province string) ([]domain.DeliveryEstimate, error) {
+	methods, err := s.methods.List(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+
+	// The destination zone is the same for every method, so resolve it once.
+	var zoneID string
+	if province != "" && s.zones != nil {
+		if zone, err := s.zones.FindByProvince(ctx, province); err == nil {
+			zoneID = zone.ID
+		}
+	}
+
+	now := s.clock.Now()
+	out := make([]domain.DeliveryEstimate, 0, len(methods))
+	for _, method := range methods {
+		method := method
+		var rate *domain.ShippingRate
+		if zoneID != "" {
+			if r, err := s.zones.FindRate(ctx, zoneID, method.ID); err == nil {
+				rate = r
+			}
+		}
+
+		cost := method.CostFor(subtotalCents)
+		threshold := method.FreeThresholdCents
+		if rate != nil {
+			cost = rate.Cost(subtotalCents, weightGrams)
+			threshold = rate.FreeThresholdCents
+		}
+		minDays, maxDays := domain.DeliveryWindow(&method, rate)
+		var remaining int64
+		if threshold > 0 && subtotalCents < threshold {
+			remaining = threshold - subtotalCents
+		}
+
+		out = append(out, domain.DeliveryEstimate{
+			MethodID: method.ID, Code: method.Code, Name: method.Name,
+			PriceCents: cost, MinDays: minDays, MaxDays: maxDays,
+			Earliest:           domain.AddBusinessDays(now, minDays),
+			Latest:             domain.AddBusinessDays(now, maxDays),
+			FreeThresholdCents: threshold, FreeRemainingCents: remaining,
+		})
+	}
+	return out, nil
 }
 
 func (s *ShippingService) List(ctx context.Context, activeOnly bool) ([]domain.ShippingMethod, error) {
@@ -121,6 +174,10 @@ type RateInput struct {
 	FlatRateCents      int64
 	FreeThresholdCents int64
 	PerKgCents         int64
+	// MinDays/MaxDays override the method's delivery window for this zone. 0
+	// inherits the method.
+	MinDays int
+	MaxDays int
 }
 
 func (s *ShippingService) SetRate(ctx context.Context, zoneID, methodID string, in RateInput) (*domain.ShippingRate, error) {
@@ -133,7 +190,7 @@ func (s *ShippingService) SetRate(ctx context.Context, zoneID, methodID string, 
 	r := &domain.ShippingRate{
 		ID: s.ids.NewID(), ZoneID: zoneID, MethodID: methodID,
 		FlatRateCents: in.FlatRateCents, FreeThresholdCents: in.FreeThresholdCents,
-		PerKgCents: in.PerKgCents,
+		PerKgCents: in.PerKgCents, MinDays: in.MinDays, MaxDays: in.MaxDays,
 	}
 	if err := s.zones.UpsertRate(ctx, r); err != nil {
 		return nil, err

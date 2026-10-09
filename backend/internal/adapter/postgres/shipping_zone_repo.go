@@ -84,7 +84,7 @@ func (r *ShippingZoneRepository) UpsertRate(ctx context.Context, rate *domain.Sh
 	m := fromShippingRate(rate)
 	err := r.db.session(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "zone_id"}, {Name: "method_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"flat_rate_cents", "free_threshold_cents", "per_kg_cents"}),
+		DoUpdates: clause.AssignmentColumns([]string{"flat_rate_cents", "free_threshold_cents", "per_kg_cents", "min_days", "max_days"}),
 	}).Create(m).Error
 	return translate(err)
 }

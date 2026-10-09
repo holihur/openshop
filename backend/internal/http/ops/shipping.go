@@ -14,6 +14,8 @@ type shippingMethodRequest struct {
 	Name               string `json:"name" binding:"required"`
 	FlatRateCents      int64  `json:"flatRateCents" binding:"gte=0"`
 	FreeThresholdCents int64  `json:"freeThresholdCents" binding:"gte=0"`
+	MinDays            int    `json:"minDays" binding:"gte=0"`
+	MaxDays            int    `json:"maxDays" binding:"gte=0"`
 	Active             *bool  `json:"active"`
 	Sort               int    `json:"sort"`
 }
@@ -39,7 +41,8 @@ func (h *Handler) CreateShippingMethod(c *gin.Context) {
 	}
 	m, err := h.Shipping.Create(c.Request.Context(), service.ShippingMethodInput{
 		Code: req.Code, Name: req.Name, FlatRateCents: req.FlatRateCents,
-		FreeThresholdCents: req.FreeThresholdCents, Active: active, Sort: req.Sort,
+		FreeThresholdCents: req.FreeThresholdCents, MinDays: req.MinDays, MaxDays: req.MaxDays,
+		Active: active, Sort: req.Sort,
 	})
 	if err != nil {
 		response.Fail(c, err)
@@ -61,7 +64,8 @@ func (h *Handler) UpdateShippingMethod(c *gin.Context) {
 	}
 	m, err := h.Shipping.Update(c.Request.Context(), c.Param("id"), service.ShippingMethodInput{
 		Name: req.Name, FlatRateCents: req.FlatRateCents,
-		FreeThresholdCents: req.FreeThresholdCents, Active: active, Sort: req.Sort,
+		FreeThresholdCents: req.FreeThresholdCents, MinDays: req.MinDays, MaxDays: req.MaxDays,
+		Active: active, Sort: req.Sort,
 	})
 	if err != nil {
 		response.Fail(c, err)
@@ -90,6 +94,8 @@ type shippingRateRequest struct {
 	FlatRateCents      int64 `json:"flatRateCents" binding:"gte=0"`
 	FreeThresholdCents int64 `json:"freeThresholdCents" binding:"gte=0"`
 	PerKgCents         int64 `json:"perKgCents" binding:"gte=0"`
+	MinDays            int   `json:"minDays" binding:"gte=0"`
+	MaxDays            int   `json:"maxDays" binding:"gte=0"`
 }
 
 func (h *Handler) ListShippingZones(c *gin.Context) {
@@ -154,7 +160,8 @@ func (h *Handler) SetShippingRate(c *gin.Context) {
 		return
 	}
 	rate, err := h.Shipping.SetRate(c.Request.Context(), c.Param("zoneId"), c.Param("methodId"), service.RateInput{
-		FlatRateCents: req.FlatRateCents, FreeThresholdCents: req.FreeThresholdCents, PerKgCents: req.PerKgCents,
+		FlatRateCents: req.FlatRateCents, FreeThresholdCents: req.FreeThresholdCents,
+		PerKgCents: req.PerKgCents, MinDays: req.MinDays, MaxDays: req.MaxDays,
 	})
 	if err != nil {
 		response.Fail(c, err)
@@ -164,6 +171,7 @@ func (h *Handler) SetShippingRate(c *gin.Context) {
 	response.OK(c, gin.H{
 		"zoneId": rate.ZoneID, "methodId": rate.MethodID,
 		"flatRateCents": rate.FlatRateCents, "freeThresholdCents": rate.FreeThresholdCents,
+		"minDays": rate.MinDays, "maxDays": rate.MaxDays,
 		"perKgCents": rate.PerKgCents,
 	})
 }

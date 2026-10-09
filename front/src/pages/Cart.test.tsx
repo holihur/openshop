@@ -58,6 +58,34 @@ vi.mock("@lib/hooks/useShipping", () => ({
       { id: "s2", name: "Express", flatRateCents: 3000, freeThresholdCents: 0 },
     ],
   }),
+  useDeliveryEstimates: () => ({
+    data: [
+      {
+        methodId: "s1",
+        code: "standard",
+        name: "Standard",
+        priceCents: 1000,
+        minDays: 3,
+        maxDays: 5,
+        earliest: "2026-03-10T00:00:00Z",
+        latest: "2026-03-12T00:00:00Z",
+        freeThresholdCents: 0,
+        freeRemainingCents: 0,
+      },
+      {
+        methodId: "s2",
+        code: "express",
+        name: "Express",
+        priceCents: 3000,
+        minDays: 1,
+        maxDays: 2,
+        earliest: "2026-03-09T00:00:00Z",
+        latest: "2026-03-10T00:00:00Z",
+        freeThresholdCents: 0,
+        freeRemainingCents: 0,
+      },
+    ],
+  }),
 }));
 
 vi.mock("@lib/hooks/usePayment", () => ({

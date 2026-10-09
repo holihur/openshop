@@ -369,6 +369,8 @@ type shippingMethodModel struct {
 	Name               string    `gorm:"size:128;not null"`
 	FlatRateCents      int64     `gorm:"not null;default:0"`
 	FreeThresholdCents int64     `gorm:"not null;default:0"`
+	MinDays            int       `gorm:"not null;default:3"`
+	MaxDays            int       `gorm:"not null;default:7"`
 	Active             bool      `gorm:"not null;default:true"`
 	Sort               int       `gorm:"not null;default:0"`
 	CreatedAt          time.Time `gorm:"not null"`
@@ -396,6 +398,8 @@ type shippingRateModel struct {
 	FlatRateCents      int64  `gorm:"not null;default:0"`
 	FreeThresholdCents int64  `gorm:"not null;default:0"`
 	PerKgCents         int64  `gorm:"not null;default:0"`
+	MinDays            int    `gorm:"not null;default:0"`
+	MaxDays            int    `gorm:"not null;default:0"`
 }
 
 func (shippingRateModel) TableName() string { return "shipping_rates" }
@@ -634,7 +638,8 @@ func fromAddress(a *domain.Address) *addressModel {
 func toShippingMethod(m *shippingMethodModel) *domain.ShippingMethod {
 	return &domain.ShippingMethod{
 		ID: m.ID, Code: m.Code, Name: m.Name, FlatRateCents: m.FlatRateCents,
-		FreeThresholdCents: m.FreeThresholdCents, Active: m.Active, Sort: m.Sort,
+		FreeThresholdCents: m.FreeThresholdCents, MinDays: m.MinDays, MaxDays: m.MaxDays,
+		Active: m.Active, Sort: m.Sort,
 		CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
 }
@@ -642,7 +647,8 @@ func toShippingMethod(m *shippingMethodModel) *domain.ShippingMethod {
 func fromShippingMethod(m *domain.ShippingMethod) *shippingMethodModel {
 	return &shippingMethodModel{
 		ID: m.ID, Code: m.Code, Name: m.Name, FlatRateCents: m.FlatRateCents,
-		FreeThresholdCents: m.FreeThresholdCents, Active: m.Active, Sort: m.Sort,
+		FreeThresholdCents: m.FreeThresholdCents, MinDays: m.MinDays, MaxDays: m.MaxDays,
+		Active: m.Active, Sort: m.Sort,
 		CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
 }
@@ -665,6 +671,7 @@ func toShippingRate(m *shippingRateModel) *domain.ShippingRate {
 	return &domain.ShippingRate{
 		ID: m.ID, ZoneID: m.ZoneID, MethodID: m.MethodID, FlatRateCents: m.FlatRateCents,
 		FreeThresholdCents: m.FreeThresholdCents, PerKgCents: m.PerKgCents,
+		MinDays: m.MinDays, MaxDays: m.MaxDays,
 	}
 }
 
@@ -672,6 +679,7 @@ func fromShippingRate(r *domain.ShippingRate) *shippingRateModel {
 	return &shippingRateModel{
 		ID: r.ID, ZoneID: r.ZoneID, MethodID: r.MethodID, FlatRateCents: r.FlatRateCents,
 		FreeThresholdCents: r.FreeThresholdCents, PerKgCents: r.PerKgCents,
+		MinDays: r.MinDays, MaxDays: r.MaxDays,
 	}
 }
 

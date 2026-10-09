@@ -210,6 +210,8 @@ export function AdminZones() {
   const [methodId, setMethodId] = useState("");
   const [flat, setFlat] = useState("0");
   const [perKg, setPerKg] = useState("0");
+  const [rateMinDays, setRateMinDays] = useState("0");
+  const [rateMaxDays, setRateMaxDays] = useState("0");
 
   function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -233,6 +235,8 @@ export function AdminZones() {
         flatRateCents: Math.round(Number.parseFloat(flat || "0") * 100),
         freeThresholdCents: 0,
         perKgCents: Math.round(Number.parseFloat(perKg || "0") * 100),
+        minDays: Number.parseInt(rateMinDays || "0", 10),
+        maxDays: Number.parseInt(rateMaxDays || "0", 10),
       },
     });
   }
@@ -318,6 +322,14 @@ export function AdminZones() {
             <Label htmlFor="z-perkg">{t("ops.perKg")}</Label>
             <Input id="z-perkg" type="number" step="0.01" min="0" value={perKg} onChange={(e) => setPerKg(e.target.value)} />
           </div>
+          <div className="space-y-1">
+            <Label htmlFor="z-mindays">{t("ops.minDays")}</Label>
+            <Input id="z-mindays" type="number" min="0" value={rateMinDays} onChange={(e) => setRateMinDays(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="z-maxdays">{t("ops.maxDays")}</Label>
+            <Input id="z-maxdays" type="number" min="0" value={rateMaxDays} onChange={(e) => setRateMaxDays(e.target.value)} />
+          </div>
           <div className="sm:col-span-4">
             <Button type="submit" size="sm" disabled={setRate.isPending}>
               {t("ops.saveRate")}
@@ -402,6 +414,9 @@ export function AdminShipping() {
   const [name, setName] = useState("");
   const [rate, setRate] = useState("0");
   const [threshold, setThreshold] = useState("0");
+  const [minDays, setMinDays] = useState("3");
+  const [maxDays, setMaxDays] = useState("7");
+
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -410,6 +425,8 @@ export function AdminShipping() {
         name,
         flatRateCents: Math.round(Number.parseFloat(rate || "0") * 100),
         freeThresholdCents: Math.round(Number.parseFloat(threshold || "0") * 100),
+        minDays: Number.parseInt(minDays || "0", 10),
+        maxDays: Number.parseInt(maxDays || "0", 10),
         active: true,
       },
       {
@@ -417,6 +434,8 @@ export function AdminShipping() {
           setName("");
           setRate("0");
           setThreshold("0");
+          setMinDays("3");
+          setMaxDays("7");
         },
       },
     );
@@ -456,6 +475,26 @@ export function AdminShipping() {
                 onChange={(e) => setThreshold(e.target.value)}
               />
             </div>
+            <div className="space-y-1">
+              <Label htmlFor="s-mindays">{t("ops.minDays")}</Label>
+              <Input
+                id="s-mindays"
+                type="number"
+                min="0"
+                value={minDays}
+                onChange={(e) => setMinDays(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="s-maxdays">{t("ops.maxDays")}</Label>
+              <Input
+                id="s-maxdays"
+                type="number"
+                min="0"
+                value={maxDays}
+                onChange={(e) => setMaxDays(e.target.value)}
+              />
+            </div>
             <div className="sm:col-span-4">
               <Button type="submit" size="sm" disabled={create.isPending}>
                 <Plus className="size-4" />
@@ -479,6 +518,7 @@ export function AdminShipping() {
                   <TableHead>{t("ops.name")}</TableHead>
                   <TableHead>{t("ops.flatRateHeader")}</TableHead>
                   <TableHead>{t("ops.freeOverHeader")}</TableHead>
+                  <TableHead>{t("ops.deliveryDays")}</TableHead>
                   <TableHead>{t("common.status")}</TableHead>
                   <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
@@ -490,6 +530,9 @@ export function AdminShipping() {
                     <TableCell>{formatMoney(m.flatRateCents)}</TableCell>
                     <TableCell>
                       {m.freeThresholdCents > 0 ? formatMoney(m.freeThresholdCents) : "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {m.maxDays > 0 ? `${m.minDays}–${m.maxDays}` : "—"}
                     </TableCell>
                     <TableCell>
                       <Badge variant={m.active ? "success" : "secondary"}>
@@ -508,6 +551,8 @@ export function AdminShipping() {
                               name: m.name,
                               flatRateCents: m.flatRateCents,
                               freeThresholdCents: m.freeThresholdCents,
+                              minDays: m.minDays,
+                              maxDays: m.maxDays,
                               active: !m.active,
                               sort: m.sort,
                             },

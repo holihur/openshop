@@ -12,6 +12,8 @@ import { ProductGrid } from "@lib/components/product-grid";
 import { WishlistButton } from "@lib/components/wishlist-button";
 import { api } from "@lib/api";
 import { useAddToCart } from "@lib/hooks/useCart";
+import { useDeliveryEstimates } from "@lib/hooks/useShipping";
+import { DeliveryEstimateLine, FreeShippingProgress } from "@lib/components/delivery-estimate";
 import { useI18n, localizedName } from "@lib/i18n";
 import { useSeo } from "@lib/hooks/useSeo";
 import { usePrice } from "@lib/hooks/usePrice";
@@ -34,6 +36,13 @@ export function ProductDetailPage() {
     queryFn: () => api.get<Product>(`/products/${id}`),
     enabled: Boolean(id),
   });
+
+  // Delivery expectations use this product alone: the price and weight of the
+  // line the shopper is looking at.
+  const estimate = useDeliveryEstimates(
+    product ? product.priceCents * quantity : 0,
+    product ? (product.weightGrams || 0) * quantity : 0,
+  ).data?.[0];
 
   const title = product ? localizedName(product, locale) : "";
 
@@ -249,6 +258,18 @@ export function ProductDetailPage() {
                 <Plus className="size-4" />
               </Button>
             </div>
+
+            {estimate && (
+              <div className="space-y-2 rounded-lg border border-dashed p-3">
+                <DeliveryEstimateLine estimate={estimate} />
+                <FreeShippingProgress
+                  subtotalCents={product.priceCents * quantity}
+                  thresholdCents={estimate.freeThresholdCents}
+                  remainingCents={estimate.freeRemainingCents}
+                  format={price}
+                />
+              </div>
+            )}
 
             <div className="flex flex-1 flex-col gap-2 sm:flex-row">
               <Button

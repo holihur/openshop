@@ -770,6 +770,20 @@ Listings accept `minPrice`/`maxPrice` (major units) and any number of
 `GET /products/facets` returns the price range and the attribute values that
 actually occur, which is what the storefront filter panel renders.
 
+## Delivery expectations
+
+Shipping methods carry a delivery window in **business days** (`minDays`/
+`maxDays`), which a zone rate can override for a remote region (0 inherits).
+`GET /delivery-estimates?subtotalCents=&weightGrams=&province=` resolves the
+zone and rate once and returns, per active method, the shipping cost, the
+earliest/latest arrival date (weekends skipped) and how much more the shopper
+must spend to reach free shipping.
+
+The storefront shows that on the product page and in the cart — each shipping
+option states its arrival window, and a progress bar nudges towards the free
+shipping threshold instead of the terse "spend more" hint. Operators set the
+window on the shipping method and override it per zone in the ops console.
+
 ## Known limitations
 
 Honest gaps a buyer should know about:

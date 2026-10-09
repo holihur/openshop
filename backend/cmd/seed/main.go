@@ -212,9 +212,10 @@ func seedShipping(ctx context.Context, shipping *postgres.ShippingMethodReposito
 	if err != nil || len(existing) > 0 {
 		return
 	}
+	// The delivery window is what the storefront promises before checkout.
 	methods := []domain.ShippingMethod{
-		{Code: "standard", Name: "Standard (3-5 days)", FlatRateCents: 800, FreeThresholdCents: 9900, Active: true, Sort: 1},
-		{Code: "express", Name: "Express (1-2 days)", FlatRateCents: 2500, Active: true, Sort: 2},
+		{Code: "standard", Name: "Standard (3-5 days)", FlatRateCents: 800, FreeThresholdCents: 9900, MinDays: 3, MaxDays: 5, Active: true, Sort: 1},
+		{Code: "express", Name: "Express (1-2 days)", FlatRateCents: 2500, MinDays: 1, MaxDays: 2, Active: true, Sort: 2},
 	}
 	for _, m := range methods {
 		m.ID = ids.NewID()

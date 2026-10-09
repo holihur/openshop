@@ -99,6 +99,7 @@ func New(
 		api.GET("/products/:id", fh.GetProduct)
 		api.GET("/products/:id/reviews", fh.ListReviews)
 		api.GET("/shipping-methods", fh.ListShippingMethods)
+		api.GET("/delivery-estimates", fh.DeliveryEstimates)
 		api.GET("/payment-methods", fh.ListPaymentMethods)
 		api.GET("/currencies", fh.ListCurrencies)
 

@@ -28,6 +28,8 @@ func (r *ShippingMethodRepository) Update(ctx context.Context, m *domain.Shippin
 		"code":                 m.Code,
 		"name":                 m.Name,
 		"flat_rate_cents":      m.FlatRateCents,
+		"min_days":             m.MinDays,
+		"max_days":             m.MaxDays,
 		"free_threshold_cents": m.FreeThresholdCents,
 		"active":               m.Active,
 		"sort":                 m.Sort,

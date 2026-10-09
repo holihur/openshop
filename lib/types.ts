@@ -426,8 +426,25 @@ export interface ShippingMethod {
   name: string;
   flatRateCents: number;
   freeThresholdCents: number;
+  /** Delivery window in business days, shown to shoppers before checkout. */
+  minDays: number;
+  maxDays: number;
   active: boolean;
   sort: number;
+}
+
+/** DeliveryEstimate is what a shipping method costs and when it would arrive. */
+export interface DeliveryEstimate {
+  methodId: string;
+  code: string;
+  name: string;
+  priceCents: number;
+  minDays: number;
+  maxDays: number;
+  earliest: string;
+  latest: string;
+  freeThresholdCents: number;
+  freeRemainingCents: number;
 }
 
 export interface ShippingZone {
