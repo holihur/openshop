@@ -12,7 +12,7 @@ import { ProductGrid } from "@lib/components/product-grid";
 import { WishlistButton } from "@lib/components/wishlist-button";
 import { api } from "@lib/api";
 import { useAddToCart } from "@lib/hooks/useCart";
-import { useI18n } from "@lib/i18n";
+import { useI18n, localizedName } from "@lib/i18n";
 import { useSeo } from "@lib/hooks/useSeo";
 import { usePrice } from "@lib/hooks/usePrice";
 import { responsiveSrcSet } from "@lib/media";
@@ -25,7 +25,7 @@ export function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [variantId, setVariantId] = useState<string>("");
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const addToCart = useAddToCart();
   const price = usePrice();
 
@@ -34,6 +34,8 @@ export function ProductDetailPage() {
     queryFn: () => api.get<Product>(`/products/${id}`),
     enabled: Boolean(id),
   });
+
+  const title = product ? localizedName(product, locale) : "";
 
   // Related products: same category, minus the one being viewed.
   const { data: related } = useQuery({
@@ -45,14 +47,14 @@ export function ProductDetailPage() {
   useSeo(
     product
       ? {
-          title: product.title,
+          title,
           description: product.description,
           image: product.coverImage,
           type: "product",
           jsonLd: {
             "@context": "https://schema.org",
             "@type": "Product",
-            name: product.title,
+            name: title,
             description: product.description,
             image: product.coverImage ? [product.coverImage] : undefined,
             offers: {
@@ -134,7 +136,7 @@ export function ProductDetailPage() {
                 src={shown}
                 srcSet={responsiveSrcSet(shown)}
                 sizes="(max-width: 768px) 100vw, 50vw"
-                alt={product.title}
+                alt={title}
                 decoding="async"
                 className="size-full object-cover"
               />
@@ -150,7 +152,7 @@ export function ProductDetailPage() {
                 <button
                   key={src}
                   onClick={() => setActiveImage(src)}
-                  aria-label={`${product.title} image ${index + 1}`}
+                  aria-label={`${title} image ${index + 1}`}
                   aria-current={activeImage === src ? "true" : undefined}
                   className="bg-muted size-16 overflow-hidden rounded-md border"
                 >
@@ -164,7 +166,7 @@ export function ProductDetailPage() {
         <div className="space-y-5">
           <div>
             <div className="flex items-start justify-between gap-3">
-              <h1 className="text-3xl font-bold">{product.title}</h1>
+              <h1 className="text-3xl font-bold">{title}</h1>
               <WishlistButton productId={product.id} />
             </div>
             <div className="mt-2 flex items-center gap-3">

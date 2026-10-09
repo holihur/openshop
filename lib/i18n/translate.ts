@@ -26,3 +26,16 @@ export function t(key: MessageKey, vars?: Vars): string {
   const catalog = catalogs[currentLocale] ?? catalogs.en;
   return interpolate(catalog[key] ?? catalogs.en[key] ?? key, vars);
 }
+
+/**
+ * The localized title for a catalogue entity (product or category), falling
+ * back to the base title when no translation exists for the active locale.
+ */
+export function localizedName(
+  entity: { name?: string; title?: string; names?: Record<string, string> },
+  locale: Locale,
+): string {
+  const base = entity.title ?? entity.name ?? "";
+  const localized = entity.names?.[locale];
+  return localized && localized.trim() !== "" ? localized : base;
+}

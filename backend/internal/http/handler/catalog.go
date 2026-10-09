@@ -18,22 +18,23 @@ type CategoryView struct {
 }
 
 type ProductView struct {
-	ID          string        `json:"id"`
-	CategoryID  string        `json:"categoryId"`
-	Title       string        `json:"title"`
-	Slug        string        `json:"slug"`
-	Description string        `json:"description"`
-	PriceCents  int64         `json:"priceCents"`
-	Currency    string        `json:"currency"`
-	CoverImage  string        `json:"coverImage"`
-	Images      []string      `json:"images"`
-	Status      string        `json:"status"`
-	Stock       int           `json:"stock"`
-	WeightGrams int           `json:"weightGrams"`
-	Variants    []VariantView `json:"variants,omitempty"`
-	FAQs        []FAQView     `json:"faqs,omitempty"`
-	Rating      float64       `json:"rating,omitempty"`
-	ReviewCount int64         `json:"reviewCount,omitempty"`
+	ID          string            `json:"id"`
+	CategoryID  string            `json:"categoryId"`
+	Title       string            `json:"title"`
+	Names       map[string]string `json:"names,omitempty"`
+	Slug        string            `json:"slug"`
+	Description string            `json:"description"`
+	PriceCents  int64             `json:"priceCents"`
+	Currency    string            `json:"currency"`
+	CoverImage  string            `json:"coverImage"`
+	Images      []string          `json:"images"`
+	Status      string            `json:"status"`
+	Stock       int               `json:"stock"`
+	WeightGrams int               `json:"weightGrams"`
+	Variants    []VariantView     `json:"variants,omitempty"`
+	FAQs        []FAQView         `json:"faqs,omitempty"`
+	Rating      float64           `json:"rating,omitempty"`
+	ReviewCount int64             `json:"reviewCount,omitempty"`
 }
 
 type FAQView struct {
@@ -114,7 +115,7 @@ func ToProductView(p domain.Product) ProductView {
 		images = []string{}
 	}
 	view := ProductView{
-		ID: p.ID, CategoryID: p.CategoryID, Title: p.Title, Slug: p.Slug,
+		ID: p.ID, CategoryID: p.CategoryID, Title: p.Title, Names: p.Names, Slug: p.Slug,
 		Description: p.Description, PriceCents: p.PriceCents, Currency: p.Currency,
 		CoverImage: p.CoverImage, Images: images, Status: string(p.Status), Stock: p.Stock,
 		WeightGrams: p.WeightGrams,

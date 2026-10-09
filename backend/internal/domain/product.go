@@ -42,10 +42,12 @@ func (c *Category) LocalizedName(locale string) string {
 }
 
 type Product struct {
-	ID          string
-	CategoryID  string
-	Title       string
-	Slug        string
+	ID         string
+	CategoryID string
+	Title      string
+	Slug       string
+	// Names holds per-locale titles; an absent locale falls back to Title.
+	Names       map[string]string
 	Description string
 	// PriceCents stores the price in the minor currency unit to avoid floating
 	// point money. Currency is an ISO-4217 code.

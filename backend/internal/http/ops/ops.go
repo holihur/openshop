@@ -108,6 +108,8 @@ func New(
 			admin.GET("/products", middleware.RequirePermission(domain.PermProductsRead), fh.ListProducts)
 			admin.GET("/products/:id", middleware.RequirePermission(domain.PermProductsRead), fh.GetProduct)
 			admin.POST("/products", middleware.RequirePermission(domain.PermProductsWrite), fh.CreateProduct)
+			admin.GET("/products/export.csv", middleware.RequirePermission(domain.PermProductsRead), fh.ExportProducts)
+			admin.POST("/products/import", middleware.RequirePermission(domain.PermProductsWrite), fh.ImportProducts)
 			admin.PATCH("/products/:id", middleware.RequirePermission(domain.PermProductsWrite), fh.UpdateProduct)
 			admin.GET("/products/:id/variants", middleware.RequirePermission(domain.PermProductsRead), fh.ListVariants)
 			admin.GET("/products/:id/faqs", middleware.RequirePermission(domain.PermProductsRead), fh.ListProductFAQs)

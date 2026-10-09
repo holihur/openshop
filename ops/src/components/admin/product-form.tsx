@@ -8,10 +8,13 @@ import { Label } from "@lib/components/ui/label";
 import { Textarea } from "@lib/components/ui/textarea";
 import { useCategories, useCreateProduct, useUpdateProduct, useUploadImage } from "@lib/hooks/useAdmin";
 import { useI18n } from "@lib/i18n";
+import { localeNames, supportedLocales } from "@lib/i18n/messages";
 import type { Product } from "@lib/types";
 
 interface FormState {
   title: string;
+  // Per-locale titles; an empty value falls back to the base title.
+  names: Record<string, string>;
   description: string;
   price: string; // in major units, converted to cents on submit
   stock: string;
@@ -26,6 +29,7 @@ function initialState(product?: Product): FormState {
   const images = [product?.coverImage ?? "", ...(product?.images ?? [])].filter(Boolean);
   return {
     title: product?.title ?? "",
+    names: { ...(product?.names ?? {}) },
     description: product?.description ?? "",
     price: product ? (product.priceCents / 100).toFixed(2) : "",
     stock: product ? String(product.stock) : "0",
@@ -59,6 +63,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
     const priceCents = Math.round(Number.parseFloat(form.price || "0") * 100);
     const input = {
       title: form.title,
+      names: form.names,
       description: form.description,
       priceCents,
       stock: Number.parseInt(form.stock || "0", 10),
@@ -93,6 +98,20 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
               onChange={(e) => set({ title: e.target.value })}
               required
             />
+          </div>
+
+          <div className="flex flex-wrap items-end gap-3 sm:col-span-2">
+            {supportedLocales.map((locale) => (
+              <div key={locale} className="space-y-2">
+                <Label htmlFor={`title-${locale}`}>{t("ops.titleIn", { locale: localeNames[locale] })}</Label>
+                <Input
+                  id={`title-${locale}`}
+                  value={form.names[locale] ?? ""}
+                  onChange={(e) => set({ names: { ...form.names, [locale]: e.target.value } })}
+                  placeholder={form.title}
+                />
+              </div>
+            ))}
           </div>
 
           <div className="space-y-2 sm:col-span-2">

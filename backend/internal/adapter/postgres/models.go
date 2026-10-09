@@ -140,20 +140,21 @@ type categoryModel struct {
 func (categoryModel) TableName() string { return "categories" }
 
 type productModel struct {
-	ID          string     `gorm:"type:uuid;primaryKey"`
-	CategoryID  uuidString `gorm:"type:uuid;index"`
-	Title       string     `gorm:"size:255;not null"`
-	Slug        string     `gorm:"size:255;uniqueIndex;not null"`
-	Description string     `gorm:"type:text"`
-	PriceCents  int64      `gorm:"not null;default:0"`
-	WeightGrams int        `gorm:"not null;default:0"`
-	Currency    string     `gorm:"size:8;not null;default:CNY"`
-	CoverImage  string     `gorm:"size:512"`
-	Images      stringList `gorm:"type:jsonb"`
-	Status      string     `gorm:"size:32;index;not null;default:draft"`
-	Stock       int        `gorm:"not null;default:0"`
-	CreatedAt   time.Time  `gorm:"not null"`
-	UpdatedAt   time.Time  `gorm:"not null"`
+	ID          string            `gorm:"type:uuid;primaryKey"`
+	CategoryID  uuidString        `gorm:"type:uuid;index"`
+	Title       string            `gorm:"size:255;not null"`
+	Names       map[string]string `gorm:"serializer:json;type:jsonb;not null;default:'{}'"`
+	Slug        string            `gorm:"size:255;uniqueIndex;not null"`
+	Description string            `gorm:"type:text"`
+	PriceCents  int64             `gorm:"not null;default:0"`
+	WeightGrams int               `gorm:"not null;default:0"`
+	Currency    string            `gorm:"size:8;not null;default:CNY"`
+	CoverImage  string            `gorm:"size:512"`
+	Images      stringList        `gorm:"type:jsonb"`
+	Status      string            `gorm:"size:32;index;not null;default:draft"`
+	Stock       int               `gorm:"not null;default:0"`
+	CreatedAt   time.Time         `gorm:"not null"`
+	UpdatedAt   time.Time         `gorm:"not null"`
 }
 
 func (productModel) TableName() string { return "products" }
@@ -439,6 +440,7 @@ func fromCategory(c *domain.Category) *categoryModel {
 func toProduct(m *productModel) *domain.Product {
 	return &domain.Product{
 		ID: m.ID, CategoryID: string(m.CategoryID), Title: m.Title, Slug: m.Slug,
+		Names:       m.Names,
 		Description: m.Description, PriceCents: m.PriceCents, Currency: m.Currency,
 		WeightGrams: m.WeightGrams,
 		CoverImage:  m.CoverImage, Images: []string(m.Images), Status: domain.ProductStatus(m.Status),
@@ -449,6 +451,7 @@ func toProduct(m *productModel) *domain.Product {
 func fromProduct(p *domain.Product) *productModel {
 	return &productModel{
 		ID: p.ID, CategoryID: uuidString(p.CategoryID), Title: p.Title, Slug: p.Slug,
+		Names:       p.Names,
 		Description: p.Description, PriceCents: p.PriceCents, Currency: p.Currency,
 		WeightGrams: p.WeightGrams,
 		CoverImage:  p.CoverImage, Images: stringList(p.Images), Status: string(p.Status),

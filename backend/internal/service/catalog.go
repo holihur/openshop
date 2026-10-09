@@ -142,6 +142,7 @@ type CreateProductInput struct {
 	CategoryID  string
 	Title       string
 	Slug        string
+	Names       map[string]string
 	Description string
 	PriceCents  int64
 	Currency    string
@@ -174,6 +175,7 @@ func (s *CatalogService) CreateProduct(ctx context.Context, in CreateProductInpu
 	now := s.clock.Now()
 	p := &domain.Product{
 		ID: s.ids.NewID(), CategoryID: in.CategoryID, Title: in.Title, Slug: slug,
+		Names:       cleanNames(in.Names),
 		Description: in.Description, PriceCents: in.PriceCents, Currency: currency,
 		CoverImage: in.CoverImage, Images: in.Images, Status: status, Stock: in.Stock,
 		WeightGrams: in.WeightGrams,
@@ -187,6 +189,7 @@ func (s *CatalogService) CreateProduct(ctx context.Context, in CreateProductInpu
 
 type UpdateProductInput struct {
 	Title       *string
+	Names       map[string]string
 	Description *string
 	PriceCents  *int64
 	CoverImage  *string
@@ -204,6 +207,9 @@ func (s *CatalogService) UpdateProduct(ctx context.Context, id string, in Update
 	}
 	if in.Title != nil {
 		p.Title = *in.Title
+	}
+	if in.Names != nil {
+		p.Names = cleanNames(in.Names)
 	}
 	if in.Description != nil {
 		p.Description = *in.Description

@@ -61,6 +61,8 @@ export interface Product {
   id: string;
   categoryId: string;
   title: string;
+  /** Per-locale titles; an absent locale falls back to title. */
+  names?: Record<string, string>;
   slug: string;
   description: string;
   priceCents: number;

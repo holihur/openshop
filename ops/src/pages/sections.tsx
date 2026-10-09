@@ -17,6 +17,7 @@ import {
 } from "@lib/components/ui/table";
 import { CouponUsage } from "@/components/admin/coupon-usage";
 import { OpsModuleStats } from "@/components/ops-stats";
+import { ProductCsv } from "@/components/admin/product-csv";
 import { LineChart } from "@/components/charts";
 import { useOpsSummary } from "@lib/hooks/useOpsSummary";
 import { OrderStatusBadge } from "@lib/components/order-status-badge";
@@ -776,12 +777,15 @@ export function AdminProducts() {
         <p className="text-muted-foreground text-sm">
           {t("ops.productCount", { count: data?.total ?? 0 })}
         </p>
-        <Button size="sm" asChild>
-          <Link to="/products/new">
-            <Plus className="size-4" />
-            {t("ops.newProduct")}
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ProductCsv />
+          <Button size="sm" asChild>
+            <Link to="/products/new">
+              <Plus className="size-4" />
+              {t("ops.newProduct")}
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <OpsModuleStats module="products" />

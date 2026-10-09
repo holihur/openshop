@@ -27,29 +27,31 @@ type updateCategoryRequest struct {
 }
 
 type createProductRequest struct {
-	CategoryID  string   `json:"categoryId"`
-	Title       string   `json:"title" binding:"required"`
-	Slug        string   `json:"slug"`
-	Description string   `json:"description"`
-	PriceCents  int64    `json:"priceCents" binding:"gte=0"`
-	Currency    string   `json:"currency"`
-	CoverImage  string   `json:"coverImage"`
-	Images      []string `json:"images"`
-	Status      string   `json:"status"`
-	Stock       int      `json:"stock" binding:"gte=0"`
-	WeightGrams int      `json:"weightGrams" binding:"gte=0"`
+	CategoryID  string            `json:"categoryId"`
+	Title       string            `json:"title" binding:"required"`
+	Names       map[string]string `json:"names"`
+	Slug        string            `json:"slug"`
+	Description string            `json:"description"`
+	PriceCents  int64             `json:"priceCents" binding:"gte=0"`
+	Currency    string            `json:"currency"`
+	CoverImage  string            `json:"coverImage"`
+	Images      []string          `json:"images"`
+	Status      string            `json:"status"`
+	Stock       int               `json:"stock" binding:"gte=0"`
+	WeightGrams int               `json:"weightGrams" binding:"gte=0"`
 }
 
 type updateProductRequest struct {
-	Title       *string  `json:"title"`
-	Description *string  `json:"description"`
-	PriceCents  *int64   `json:"priceCents"`
-	CoverImage  *string  `json:"coverImage"`
-	Images      []string `json:"images"`
-	Status      *string  `json:"status"`
-	Stock       *int     `json:"stock"`
-	CategoryID  *string  `json:"categoryId"`
-	WeightGrams *int     `json:"weightGrams"`
+	Title       *string           `json:"title"`
+	Names       map[string]string `json:"names"`
+	Description *string           `json:"description"`
+	PriceCents  *int64            `json:"priceCents"`
+	CoverImage  *string           `json:"coverImage"`
+	Images      []string          `json:"images"`
+	Status      *string           `json:"status"`
+	Stock       *int              `json:"stock"`
+	CategoryID  *string           `json:"categoryId"`
+	WeightGrams *int              `json:"weightGrams"`
 }
 
 type createVariantRequest struct {
@@ -124,7 +126,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		return
 	}
 	p, err := h.Catalog.CreateProduct(c.Request.Context(), service.CreateProductInput{
-		CategoryID: req.CategoryID, Title: req.Title, Slug: req.Slug,
+		CategoryID: req.CategoryID, Title: req.Title, Slug: req.Slug, Names: req.Names,
 		Description: req.Description, PriceCents: req.PriceCents, Currency: req.Currency,
 		CoverImage: req.CoverImage, Images: req.Images,
 		Status: domain.ProductStatus(req.Status), Stock: req.Stock, WeightGrams: req.WeightGrams,
@@ -144,7 +146,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 	in := service.UpdateProductInput{
-		Title: req.Title, Description: req.Description, PriceCents: req.PriceCents,
+		Title: req.Title, Names: req.Names, Description: req.Description, PriceCents: req.PriceCents,
 		CoverImage: req.CoverImage, Images: req.Images, Stock: req.Stock, CategoryID: req.CategoryID,
 		WeightGrams: req.WeightGrams,
 	}
