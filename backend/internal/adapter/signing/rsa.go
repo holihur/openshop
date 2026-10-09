@@ -1,4 +1,4 @@
-package payment
+package signing
 
 import (
 	"crypto"
@@ -14,10 +14,11 @@ import (
 	"strings"
 )
 
-// The Chinese gateways sign their requests with RSA rather than a shared secret:
+// The Chinese providers sign requests with RSA rather than a shared secret:
 // Alipay uses RSA2 (SHA-256 with RSA) over a sorted parameter string, and WeChat
-// Pay uses SHA-256 with RSA over the request line. Both are implemented here so
-// the adapters stay dependency-free.
+// uses SHA-256 with RSA over the request line. These helpers are shared by the
+// payment and identity adapters, so signing and verification cannot drift apart
+// between the two.
 
 // parseKeyMaterial accepts a PEM block or a bare base64 body, because
 // environment variables are often populated with a single line.
@@ -92,7 +93,7 @@ func ParseRSAPublicKey(raw string) (*rsa.PublicKey, error) {
 }
 
 // signSHA256RSA returns the base64 signature of message.
-func signSHA256RSA(key *rsa.PrivateKey, message string) (string, error) {
+func SignSHA256RSA(key *rsa.PrivateKey, message string) (string, error) {
 	digest := sha256.Sum256([]byte(message))
 	signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
 	if err != nil {
@@ -102,7 +103,7 @@ func signSHA256RSA(key *rsa.PrivateKey, message string) (string, error) {
 }
 
 // verifySHA256RSA checks a base64 signature over message.
-func verifySHA256RSA(key *rsa.PublicKey, message, signature string) error {
+func VerifySHA256RSA(key *rsa.PublicKey, message, signature string) error {
 	decoded, err := base64.StdEncoding.DecodeString(signature)
 	if err != nil {
 		return fmt.Errorf("signature is not base64: %w", err)
@@ -115,7 +116,7 @@ func verifySHA256RSA(key *rsa.PublicKey, message, signature string) error {
 // parameter except sign and sign_type, with empty values dropped, sorted by name
 // and joined as k=v&k=v. Both directions use this one function, so signing and
 // verification cannot drift apart.
-func alipaySignatureBase(params map[string]string) string {
+func AlipaySignatureBase(params map[string]string) string {
 	keys := make([]string, 0, len(params))
 	for key, value := range params {
 		if key == "sign" || key == "sign_type" || strings.TrimSpace(value) == "" {

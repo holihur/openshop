@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/http/response"
 )
 
@@ -31,11 +32,22 @@ type siteView struct {
 	WithdrawalInstructions string `json:"withdrawalInstructions"`
 	// OIDCProviders lists the single sign-on buttons to render.
 	OIDCProviders []oidcProviderView `json:"oidcProviders"`
+	// SocialProviders lists the WeChat/Alipay sign-in buttons to render. An
+	// unconfigured or switched-off provider is absent rather than broken.
+	SocialProviders []domain.SocialProviderInfo `json:"socialProviders"`
 }
 
 type oidcProviderView struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+// socialViews lists the configured WeChat/Alipay sign-in providers.
+func socialViews(ctx context.Context, h *Handler) []domain.SocialProviderInfo {
+	if h.Social == nil {
+		return []domain.SocialProviderInfo{}
+	}
+	return h.Social.Providers(ctx)
 }
 
 // oidcProviderViews adapts the service's provider list to the API shape.
@@ -88,6 +100,7 @@ func (h *Handler) GetSite(c *gin.Context) {
 		AllowRegistration:      h.Settings.Bool(ctx, "auth.allow_registration"),
 		OIDCEnabled:            h.OIDC != nil && h.OIDC.Enabled(ctx),
 		OIDCProviders:          h.oidcProviderViews(ctx),
+		SocialProviders:        socialViews(ctx, h),
 		WithdrawalEnabled:      h.Settings.Bool(ctx, "wallet.withdrawal_enabled"),
 		WithdrawalMinCents:     int64(h.Settings.Int(ctx, "wallet.min_withdrawal_cents")),
 		WithdrawalInstructions: h.Settings.String(ctx, "wallet.withdrawal_instructions"),

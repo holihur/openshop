@@ -2,11 +2,20 @@ package port
 
 import "context"
 
-// Identity is a verified external identity returned by an OIDC provider.
+// Identity is a verified external identity returned by an identity provider.
+//
+// Subject is the provider's stable account identifier. It may be an email-less
+// identifier (WeChat and Alipay do not return one), which is why accounts are
+// linked through SocialAccount rather than by email alone.
 type Identity struct {
-	Subject string
-	Email   string
-	Name    string
+	Provider  string
+	Subject   string
+	Email     string
+	Name      string
+	AvatarURL string
+	// EmailVerified reports whether the provider vouched for the address. Only
+	// then may it be matched against an existing account.
+	EmailVerified bool
 }
 
 // IdentityProvider abstracts an OpenID Connect provider: it builds the

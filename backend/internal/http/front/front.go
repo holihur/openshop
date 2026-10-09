@@ -102,6 +102,9 @@ func New(
 		api.GET("/delivery-estimates", fh.DeliveryEstimates)
 		api.GET("/payment-methods", fh.ListPaymentMethods)
 		api.GET("/currencies", fh.ListCurrencies)
+		api.GET("/auth/social/providers", fh.ListSocialProviders)
+		api.GET("/auth/social/:provider/start", fh.SocialStart)
+		api.GET("/auth/social/:provider/callback", fh.SocialCallback)
 
 		// Auth.
 		// Sign-in and password endpoints get a tighter per-IP limit than the global

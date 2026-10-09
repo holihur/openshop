@@ -21,6 +21,7 @@ type Config struct {
 	NATS     NATSConfig
 	JWT      JWTConfig
 	Payment  PaymentConfig
+	Social   SocialConfig
 	OIDC     OIDCConfig
 	Storage  StorageConfig
 	Mail     MailConfig
@@ -120,6 +121,18 @@ type PaymentConfig struct {
 	WeChatAPIv3Key     string
 	WeChatPlatformCert string
 	WeChatGateway      string
+}
+
+// SocialConfig holds the secret half of the WeChat/Alipay sign-in configuration.
+// The identifiers live in the settings table; the secrets stay in the
+// environment next to the payment credentials they belong to.
+type SocialConfig struct {
+	WeChatAppSecret  string
+	AlipayPrivateKey string
+	// Endpoint overrides exist for sandboxes and tests.
+	WeChatBaseURL string
+	AlipayGateway string
+	AlipayAuthURL string
 }
 
 // OIDCConfig holds the secret half of the OIDC configuration; the rest lives in
@@ -256,6 +269,13 @@ func Load() (*Config, error) {
 			WeChatAPIv3Key:     env("WECHAT_PAY_API_V3_KEY", ""),
 			WeChatPlatformCert: env("WECHAT_PAY_PLATFORM_CERT", ""),
 			WeChatGateway:      env("WECHAT_PAY_GATEWAY", ""),
+		},
+		Social: SocialConfig{
+			WeChatAppSecret:  env("WECHAT_APP_SECRET", ""),
+			AlipayPrivateKey: env("ALIPAY_PRIVATE_KEY", ""),
+			WeChatBaseURL:    env("WECHAT_API_BASE", ""),
+			AlipayGateway:    env("ALIPAY_GATEWAY", ""),
+			AlipayAuthURL:    env("ALIPAY_AUTH_URL", ""),
 		},
 		OIDC: OIDCConfig{
 			ClientSecret:  env("OIDC_CLIENT_SECRET", ""),

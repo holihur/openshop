@@ -793,6 +793,24 @@ verification and notification decryption are implemented with the standard
 library, and are covered by tests that generate a key pair, sign a request or a
 notification, and assert both the happy path and the forged-signature rejection.
 
+## Social sign-in
+
+WeChat and Alipay sign-in are adapters behind `port.IdentityProvider`, the same
+seam as the OIDC providers, so the service layer never sees a provider payload.
+
+Neither returns an email address, so accounts are linked by the provider's own
+stable subject (`openid`/`unionid`, Alipay user id) in `social_accounts`, and the
+sign-in creates an account with an internal `*.invalid` placeholder address when
+no address is available. An email is only used to match an existing account when
+the provider says it is verified.
+
+Both are switched on at runtime: `social.wechat.enabled` / `social.wechat.app_id`
+and `social.alipay.enabled` / `social.alipay.app_id` (ops console → Auth), with
+`WECHAT_APP_SECRET` and `ALIPAY_PRIVATE_KEY` in the environment. A provider that
+is switched off or missing a credential is simply absent from `/site`, so the
+sign-in page never renders a button that cannot work. Alipay's token exchange is
+RSA2-signed, reusing the shared signing package.
+
 ## Search
 
 The catalog search is backed by a stored `tsvector` generated column that uses

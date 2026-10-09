@@ -98,6 +98,18 @@ export function LoginPage() {
             </>
           )}
 
+          {site?.socialProviders && site.socialProviders.length > 0 && (
+            <div className="space-y-2">
+              {site.socialProviders.map((p) => (
+                <Button key={p.id} type="button" variant="outline" className="w-full" asChild>
+                  <a href={`/api/v1/auth/social/${encodeURIComponent(p.id)}/start`}>
+                    {t("auth.signInWith", { provider: p.name })}
+                  </a>
+                </Button>
+              ))}
+            </div>
+          )}
+
           {site?.allowRegistration !== false && (
             <p className="text-muted-foreground mt-4 text-center text-sm">
               {t("auth.noAccount")}{" "}

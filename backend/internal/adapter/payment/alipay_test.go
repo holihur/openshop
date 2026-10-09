@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holihur/openshop/internal/adapter/signing"
 	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/port"
 )
@@ -76,15 +77,15 @@ func TestAlipayChargeSignsTheRedirect(t *testing.T) {
 	for key := range query {
 		params[key] = query.Get(key)
 	}
-	publicKey, err := ParseRSAPublicKey(publicPEM)
+	publicKey, err := signing.ParseRSAPublicKey(publicPEM)
 	if err != nil {
 		t.Fatalf("parse public key: %v", err)
 	}
-	if err := verifySHA256RSA(publicKey, alipaySignatureBase(params), query.Get("sign")); err != nil {
+	if err := signing.VerifySHA256RSA(publicKey, signing.AlipaySignatureBase(params), query.Get("sign")); err != nil {
 		t.Fatalf("redirect signature does not verify: %v", err)
 	}
 	// sign_type is excluded from the signed string by the shared rule.
-	if strings.Contains(alipaySignatureBase(params), "sign_type=") {
+	if strings.Contains(signing.AlipaySignatureBase(params), "sign_type=") {
 		t.Error("sign_type must not be part of the signature base")
 	}
 }
@@ -106,7 +107,7 @@ func TestAlipayWebhookVerifiesTheSignature(t *testing.T) {
 		"total_amount": "123.45",
 		"sign_type":    "RSA2",
 	}
-	signature, err := signSHA256RSA(privateKey, alipaySignatureBase(notify))
+	signature, err := signing.SignSHA256RSA(privateKey, signing.AlipaySignatureBase(notify))
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
@@ -166,7 +167,7 @@ func TestAlipayRejectsAnotherAppID(t *testing.T) {
 		"app_id": "9999999999999999", "out_trade_no": "OS1",
 		"trade_status": "TRADE_SUCCESS", "total_amount": "1.00",
 	}
-	signature, _ := signSHA256RSA(privateKey, alipaySignatureBase(notify))
+	signature, _ := signing.SignSHA256RSA(privateKey, signing.AlipaySignatureBase(notify))
 	notify["sign"] = signature
 	body := url.Values{}
 	for key, value := range notify {
@@ -207,20 +208,20 @@ func TestFormatAmount(t *testing.T) {
 
 func TestParseKeyMaterialAcceptsPEMAndBase64(t *testing.T) {
 	privatePEM, _, _ := generateKeyPair(t)
-	if _, err := ParseRSAPrivateKey(privatePEM); err != nil {
+	if _, err := signing.ParseRSAPrivateKey(privatePEM); err != nil {
 		t.Fatalf("PEM private key: %v", err)
 	}
 	// Environment variables are often single-line base64 without the header.
 	block, _ := pem.Decode([]byte(privatePEM))
 	encoded := base64.StdEncoding.EncodeToString(pem.EncodeToMemory(block))
-	key, err := ParseRSAPrivateKey(encoded)
+	key, err := signing.ParseRSAPrivateKey(encoded)
 	if err != nil {
 		t.Fatalf("base64 private key: %v", err)
 	}
 	if key.N == nil {
 		t.Error("parsed key is empty")
 	}
-	if _, err := ParseRSAPrivateKey("not a key"); err == nil {
+	if _, err := signing.ParseRSAPrivateKey("not a key"); err == nil {
 		t.Error("garbage must be rejected")
 	}
 }

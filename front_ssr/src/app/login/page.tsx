@@ -11,8 +11,24 @@ export default async function LoginPage() {
   const t = translator(locale);
   const site = await getSiteConfig().catch(() => null);
 
+  const providers = site?.socialProviders ?? [];
+
   return (
-    <AuthForm
+    <div className="space-y-4">
+      {providers.length > 0 && (
+        <div className="mx-auto max-w-sm space-y-2">
+          {providers.map((provider) => (
+            <a
+              key={provider.id}
+              href={`/api/auth/social/${encodeURIComponent(provider.id)}/start`}
+              className="block w-full rounded-md border px-4 py-2 text-center text-sm"
+            >
+              {t("auth.signInWith", { provider: provider.name })}
+            </a>
+          ))}
+        </div>
+      )}
+      <AuthForm
       mode="login"
       allowRegistration={site?.allowRegistration ?? true}
       labels={{
@@ -23,7 +39,8 @@ export default async function LoginPage() {
         switchTo: t("auth.noAccount"),
         switchHref: "/register",
         failed: t("error.generic"),
-      }}
-    />
+        }}
+      />
+    </div>
   );
 }

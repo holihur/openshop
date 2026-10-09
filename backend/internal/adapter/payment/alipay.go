@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/holihur/openshop/internal/adapter/signing"
 	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/port"
 )
@@ -54,14 +55,14 @@ func NewAlipay(opts AlipayOptions) (*Alipay, error) {
 		client:    &http.Client{Timeout: 15 * time.Second},
 	}
 	if opts.PrivateKey != "" {
-		key, err := ParseRSAPrivateKey(opts.PrivateKey)
+		key, err := signing.ParseRSAPrivateKey(opts.PrivateKey)
 		if err != nil {
 			return nil, fmt.Errorf("alipay: private key: %w", err)
 		}
 		a.privateKey = key
 	}
 	if opts.AlipayPublicKey != "" {
-		key, err := ParseRSAPublicKey(opts.AlipayPublicKey)
+		key, err := signing.ParseRSAPublicKey(opts.AlipayPublicKey)
 		if err != nil {
 			return nil, fmt.Errorf("alipay: platform public key: %w", err)
 		}
@@ -171,7 +172,7 @@ func (a *Alipay) ParseWebhook(_ context.Context, _ map[string]string, body []byt
 	if signature == "" {
 		return nil, errors.New("alipay notify: missing signature")
 	}
-	if err := verifySHA256RSA(a.alipayPublic, alipaySignatureBase(params), signature); err != nil {
+	if err := signing.VerifySHA256RSA(a.alipayPublic, signing.AlipaySignatureBase(params), signature); err != nil {
 		return nil, fmt.Errorf("alipay notify: invalid signature")
 	}
 	if appID := params["app_id"]; appID != "" && a.appID != "" && appID != a.appID {
@@ -228,7 +229,7 @@ func (a *Alipay) signedParams(method string, bizContent map[string]string, retur
 	if a.notifyURL != "" {
 		params["notify_url"] = a.notifyURL
 	}
-	signature, err := signSHA256RSA(a.privateKey, alipaySignatureBase(params))
+	signature, err := signing.SignSHA256RSA(a.privateKey, signing.AlipaySignatureBase(params))
 	if err != nil {
 		return nil, fmt.Errorf("alipay: sign: %w", err)
 	}

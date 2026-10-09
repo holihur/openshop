@@ -23,6 +23,7 @@ import (
 	redisadapter "github.com/holihur/openshop/internal/adapter/redis"
 	"github.com/holihur/openshop/internal/adapter/security"
 	"github.com/holihur/openshop/internal/adapter/sms"
+	social "github.com/holihur/openshop/internal/adapter/social"
 	"github.com/holihur/openshop/internal/adapter/storage"
 	"github.com/holihur/openshop/internal/adapter/tracing"
 	"github.com/holihur/openshop/internal/config"
@@ -226,6 +227,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	zoneRepo := postgres.NewShippingZoneRepository(db)
 	auditRepo := postgres.NewAuditRepository(db)
 	wishlistRepo := postgres.NewWishlistRepository(db)
+	socialAccountRepo := postgres.NewSocialAccountRepository(db)
 	currencyRepo := postgres.NewCurrencyRepository(db)
 	faqRepo := postgres.NewProductFAQRepository(db)
 	outbox := postgres.NewOutboxRepository(db)
@@ -259,11 +261,40 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 			return oidc.New(ctx, issuer, clientID, clientSecret, redirectURL, scopes)
 		})
 
+	// Social sign-in (WeChat, Alipay). The providers are only built for the
+	// storefront surface: the ops console has no social sign-in.
+	var socialSvc *service.SocialService
+	socialSecrets := map[string]string{
+		"wechat_app_secret":  cfg.Social.WeChatAppSecret,
+		"alipay_private_key": cfg.Social.AlipayPrivateKey,
+	}
+	if surface != SurfaceOps {
+		socialSvc = service.NewSocialService(settingsSvc, socialSecrets,
+			func(id string, opts service.SocialProviderOptions) (port.IdentityProvider, bool) {
+				switch id {
+				case "wechat":
+					wechat := social.NewWeChat(social.WeChatOptions{
+						AppID: opts.AppID, AppSecret: opts.AppSecret,
+						RedirectURL: opts.RedirectURL, BaseURL: cfg.Social.WeChatBaseURL,
+					})
+					return wechat, wechat.Configured()
+				case "alipay":
+					alipay := social.NewAlipay(social.AlipayOptions{
+						AppID: opts.AppID, PrivateKey: opts.AppSecret,
+						RedirectURL: opts.RedirectURL, Gateway: cfg.Social.AlipayGateway,
+						AuthURL: cfg.Social.AlipayAuthURL,
+					})
+					return alipay, alipay.Configured()
+				}
+				return nil, false
+			})
+	}
+
 	// --- services ---
 	authSvc := service.NewAuthService(users, hasher, tokens, cache, ids, clock, mailer, service.AuthConfig{
 		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL,
 		AllowedRoles: allowedRoles(surface),
-	}, settingsSvc)
+	}, settingsSvc, socialAccountRepo)
 	catalogSvc := service.NewCatalogService(categories, products, variantRepo, faqRepo, cache, ids, clock, cfg.App.Currency, settingsSvc)
 	couponSvc := service.NewCouponService(couponRepo, ids, clock)
 	reviewSvc := service.NewReviewService(reviewRepo, products, orders, cache, ids, clock)
@@ -311,7 +342,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Orders: orderSvc, Payments: paymentSvc,
 		Coupons: couponSvc, Reviews: reviewSvc, Shipping: shippingSvc, Audit: auditSvc,
-		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Wallet: walletSvc, Points: pointsSvc, Commission: commissionSvc, Withdrawals: withdrawalSvc, Notifications: notificationSvc, PATs: patSvc, Outbox: outbox, Settings: settingsSvc, Customers: customerSvc, OIDC: oidcSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
+		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Wallet: walletSvc, Points: pointsSvc, Commission: commissionSvc, Withdrawals: withdrawalSvc, Notifications: notificationSvc, PATs: patSvc, Outbox: outbox, Settings: settingsSvc, Customers: customerSvc, OIDC: oidcSvc, Social: socialSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
 			{Name: "postgres", Check: db.Ping},

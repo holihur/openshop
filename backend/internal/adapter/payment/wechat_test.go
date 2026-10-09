@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/holihur/openshop/internal/adapter/signing"
 	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/port"
 )
@@ -59,14 +60,14 @@ func TestWeChatAuthorizationIsSigned(t *testing.T) {
 
 	// The signature must cover method, path, timestamp, nonce and body, exactly
 	// as WeChat reconstructs it, so verify with the merchant public key.
-	merchantPublic, err := ParseRSAPublicKey(mustPublicFromPrivate(t, w.privateKey))
+	merchantPublic, err := signing.ParseRSAPublicKey(mustPublicFromPrivate(t, w.privateKey))
 	if err != nil {
 		t.Fatalf("public key: %v", err)
 	}
 	message := strings.Join([]string{
 		"POST", "/v3/pay/transactions/native", fields["timestamp"], fields["nonce_str"], string(body), "",
 	}, "\n")
-	if err := verifySHA256RSA(merchantPublic, message, fields["signature"]); err != nil {
+	if err := signing.VerifySHA256RSA(merchantPublic, message, fields["signature"]); err != nil {
 		t.Fatalf("authorization signature does not verify: %v", err)
 	}
 }
@@ -114,7 +115,7 @@ func TestWeChatNotificationIsVerifiedAndDecrypted(t *testing.T) {
 		t.Fatalf("marshal body: %v", err)
 	}
 
-	signature, err := signSHA256RSA(platformKey, strings.Join([]string{timestamp, nonce, string(body), ""}, "\n"))
+	signature, err := signing.SignSHA256RSA(platformKey, strings.Join([]string{timestamp, nonce, string(body), ""}, "\n"))
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
@@ -157,7 +158,7 @@ func TestWeChatNotificationRejectsStaleTimestamp(t *testing.T) {
 	stale := strconv.FormatInt(time.Now().Add(-10*time.Minute).Unix(), 10)
 	nonce := "n0nc3"
 	body := []byte(`{"event_type":"TRANSACTION.SUCCESS","resource":{}}`)
-	signature, err := signSHA256RSA(platformKey, strings.Join([]string{stale, nonce, string(body), ""}, "\n"))
+	signature, err := signing.SignSHA256RSA(platformKey, strings.Join([]string{stale, nonce, string(body), ""}, "\n"))
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}

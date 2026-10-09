@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/holihur/openshop/internal/adapter/signing"
 	"github.com/holihur/openshop/internal/domain"
 	"github.com/holihur/openshop/internal/port"
 )
@@ -63,14 +64,14 @@ func NewWeChatPay(opts WeChatOptions) (*WeChatPay, error) {
 		client:    &http.Client{Timeout: 15 * time.Second},
 	}
 	if opts.PrivateKey != "" {
-		key, err := ParseRSAPrivateKey(opts.PrivateKey)
+		key, err := signing.ParseRSAPrivateKey(opts.PrivateKey)
 		if err != nil {
 			return nil, fmt.Errorf("wechat pay: private key: %w", err)
 		}
 		w.privateKey = key
 	}
 	if opts.PlatformCert != "" {
-		key, err := ParseRSAPublicKey(opts.PlatformCert)
+		key, err := signing.ParseRSAPublicKey(opts.PlatformCert)
 		if err != nil {
 			return nil, fmt.Errorf("wechat pay: platform certificate: %w", err)
 		}
@@ -164,7 +165,7 @@ func (w *WeChatPay) ParseWebhook(_ context.Context, headers map[string]string, b
 		return nil, errors.New("wechat pay notify: platform certificate not configured")
 	}
 	message := strings.Join([]string{timestamp, nonce, string(body), ""}, "\n")
-	if err := verifySHA256RSA(w.platformKey, message, signature); err != nil {
+	if err := signing.VerifySHA256RSA(w.platformKey, message, signature); err != nil {
 		return nil, errors.New("wechat pay notify: invalid signature")
 	}
 	// Replay protection: a notification older than five minutes is refused.
@@ -316,7 +317,7 @@ func (w *WeChatPay) authorization(method, path string, body []byte) (string, err
 		return "", err
 	}
 	message := strings.Join([]string{method, path, timestamp, nonce, string(body), ""}, "\n")
-	signature, err := signSHA256RSA(w.privateKey, message)
+	signature, err := signing.SignSHA256RSA(w.privateKey, message)
 	if err != nil {
 		return "", err
 	}

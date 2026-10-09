@@ -49,6 +49,9 @@ type AuthService struct {
 	// allowedRoles, when non-empty, restricts this surface's sessions to those
 	// roles so a storefront token cannot be used on ops and vice versa.
 	allowedRoles []domain.UserRole
+	// social links external identities; it is optional so the ops binary, which
+	// has no social sign-in, can build the same service.
+	social port.SocialAccountRepository
 }
 
 type AuthConfig struct {
@@ -69,11 +72,12 @@ func NewAuthService(
 	mailer port.Mailer,
 	cfg AuthConfig,
 	settings *SettingsService,
+	social port.SocialAccountRepository,
 ) *AuthService {
 	return &AuthService{
 		users: users, hasher: hasher, tokens: tokens, cache: cache, ids: ids, clock: clock, mailer: mailer,
 		accessTTL: cfg.AccessTTL, refreshTTL: cfg.RefreshTTL, settings: settings,
-		allowedRoles: cfg.AllowedRoles,
+		allowedRoles: cfg.AllowedRoles, social: social,
 	}
 }
 
@@ -239,6 +243,131 @@ func (s *AuthService) OIDC(ctx context.Context, identity *port.Identity) (*AuthR
 		return nil, fmt.Errorf("%w: account is not active", domain.ErrForbidden)
 	}
 	return s.issue(ctx, user, "")
+}
+
+// Social signs in (or links) a shopper using an external identity such as
+// WeChat or Alipay.
+//
+// Provider accounts are matched by their own subject first, because these
+// providers do not return an email address. Only a verified email may match an
+// existing account: matching an unverified address would let anybody take over
+// an account by registering the right address at a provider.
+func (s *AuthService) Social(ctx context.Context, identity *port.Identity) (*AuthResult, error) {
+	if identity == nil || strings.TrimSpace(identity.Subject) == "" {
+		return nil, domain.ErrUnauthorized
+	}
+	if s.social == nil {
+		return nil, domain.ErrNotFound
+	}
+	provider := strings.TrimSpace(identity.Provider)
+	if provider == "" {
+		return nil, domain.ErrUnauthorized
+	}
+	now := s.clock.Now()
+
+	// 1. Already linked: sign in.
+	if account, err := s.social.FindBySubject(ctx, provider, identity.Subject); err == nil {
+		user, err := s.users.FindByID(ctx, account.UserID)
+		if err != nil {
+			return nil, err
+		}
+		// Refresh the cached profile and record the sign-in.
+		account.Name, account.AvatarURL, account.Email = identity.Name, identity.AvatarURL, identity.Email
+		account.UpdatedAt = now
+		_ = s.social.Upsert(ctx, account)
+		if !s.roleAllowed(user.Role) || !user.CanLogin() {
+			return nil, domain.ErrForbidden
+		}
+		return s.issue(ctx, user, "")
+	}
+
+	// 2. Not linked: find or create the shop account.
+	var user *domain.User
+	if email := normalizeEmail(identity.Email); email != "" && identity.EmailVerified {
+		if existing, err := s.users.FindByEmail(ctx, email); err == nil {
+			user = existing
+		} else if !errors.Is(err, domain.ErrNotFound) {
+			return nil, err
+		}
+	}
+	if user == nil {
+		if s.settings != nil && !s.settings.Bool(ctx, "auth.allow_registration") {
+			return nil, domain.ErrRegistrationDisabled
+		}
+		// Only a provider-verified address may be used as the account email. An
+		// unverified one could belong to somebody else, so it falls back to the
+		// placeholder below; either way a new account never takes an address that
+		// already belongs to another account.
+		email := ""
+		if identity.EmailVerified {
+			email = normalizeEmail(identity.Email)
+		}
+		if email == "" || !s.emailAvailable(ctx, email) {
+			// These providers often return no email at all. A placeholder keeps
+			// the account usable and is obviously internal: the .invalid domain is
+			// reserved by RFC 2606 and can never receive mail.
+			email = provider + "+" + sanitizeLocalPart(identity.Subject) + "@social.invalid"
+		}
+		name := strings.TrimSpace(identity.Name)
+		if name == "" {
+			name = email
+		}
+		user = &domain.User{
+			ID: s.ids.NewID(), Email: email, Name: name, Role: domain.RoleCustomer,
+			Status: domain.UserActive, EmailVerified: identity.EmailVerified,
+			CreatedAt: now, UpdatedAt: now,
+		}
+		if identity.EmailVerified {
+			user.EmailVerifiedAt = &now
+		}
+		if err := s.users.Create(ctx, user); err != nil {
+			return nil, err
+		}
+	}
+
+	// 3. Link, so the next sign-in is a lookup.
+	if err := s.social.Upsert(ctx, &domain.SocialAccount{
+		ID: s.ids.NewID(), Provider: provider, Subject: identity.Subject, UserID: user.ID,
+		Email: identity.Email, Name: identity.Name, AvatarURL: identity.AvatarURL,
+		CreatedAt: now, UpdatedAt: now,
+	}); err != nil {
+		return nil, err
+	}
+	if !s.roleAllowed(user.Role) || !user.CanLogin() {
+		return nil, domain.ErrForbidden
+	}
+	return s.issue(ctx, user, "")
+}
+
+// emailAvailable reports whether no account uses the address yet.
+func (s *AuthService) emailAvailable(ctx context.Context, email string) bool {
+	if strings.TrimSpace(email) == "" {
+		return false
+	}
+	_, err := s.users.FindByEmail(ctx, email)
+	return errors.Is(err, domain.ErrNotFound)
+}
+
+// sanitizeLocalPart keeps a provider subject safe to embed in an email address.
+func sanitizeLocalPart(subject string) string {
+	out := make([]rune, 0, len(subject))
+	for _, r := range subject {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			out = append(out, r)
+		case r >= 'A' && r <= 'Z':
+			out = append(out, r+32)
+		case r == '.', r == '-', r == '_':
+			out = append(out, r)
+		}
+	}
+	if len(out) == 0 {
+		return "user"
+	}
+	if len(out) > 64 {
+		out = out[:64]
+	}
+	return string(out)
 }
 
 // Refresh rotates a refresh token within its family. If an already-rotated

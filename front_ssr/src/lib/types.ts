@@ -26,6 +26,8 @@ export interface SiteConfig {
   allowRegistration: boolean;
   oidcEnabled: boolean;
   oidcProviders: { id: string; name: string }[];
+  /** WeChat/Alipay sign-in buttons; an unusable provider is omitted. */
+  socialProviders?: { id: string; name: string }[];
 }
 
 export interface Category {

@@ -40,6 +40,15 @@ type CategoryRepository interface {
 }
 
 // ProductRepository persists products and owns atomic stock mutations.
+// SocialAccountRepository stores the link between an external identity and a
+// shop account.
+type SocialAccountRepository interface {
+	FindBySubject(ctx context.Context, provider, subject string) (*domain.SocialAccount, error)
+	ListByUser(ctx context.Context, userID string) ([]domain.SocialAccount, error)
+	// Upsert links the identity, refreshing the cached profile when it exists.
+	Upsert(ctx context.Context, account *domain.SocialAccount) error
+}
+
 type ProductRepository interface {
 	Create(ctx context.Context, p *domain.Product) error
 	Update(ctx context.Context, p *domain.Product) error

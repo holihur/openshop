@@ -15,16 +15,6 @@ const config: NextConfig = {
   // The storefront talks to the Go API. In production this is the internal
   // service address; the browser never needs to know it because every mutating
   // call goes through a route handler on this origin.
-  env: {
-    NEXT_PUBLIC_API_BASE: process.env.NEXT_PUBLIC_API_BASE ?? "/api/v1",
-  },
-  async rewrites() {
-    // Server-rendered pages call OPENSHOP_API_BASE directly; this rewrite only
-    // exists so client-side fetches on the same origin reach the API too.
-    const api = process.env.OPENSHOP_API_BASE;
-    if (!api) return [];
-    return [{ source: "/api/v1/:path*", destination: `${api}/api/v1/:path*` }];
-  },
 };
 
 export default config;

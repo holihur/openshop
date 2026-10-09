@@ -31,6 +31,8 @@ export interface Site {
   allowRegistration: boolean;
   oidcEnabled: boolean;
   oidcProviders: { id: string; name: string }[];
+  /** WeChat/Alipay sign-in buttons; an unusable provider is omitted. */
+  socialProviders?: { id: string; name: string }[];
   withdrawalEnabled: boolean;
   withdrawalMinCents: number;
   withdrawalInstructions: string;
