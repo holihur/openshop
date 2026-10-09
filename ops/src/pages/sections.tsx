@@ -353,14 +353,14 @@ export function AdminReviews() {
 
   return (
     <div className="space-y-4">
+      <OpsModuleStats module="reviews" />
+
       <Card className="py-0">
         <CardContent className="px-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("ops.rating")}</TableHead>
-
-      <OpsModuleStats module="reviews" />
                 <TableHead>{t("ops.review")}</TableHead>
                 <TableHead>{t("ops.product")}</TableHead>
                 <TableHead>{t("ops.date")}</TableHead>
@@ -722,11 +722,11 @@ export function AdminCoupons() {
 
   return (
     <div className="space-y-4">
+      <OpsModuleStats module="coupons" />
+
       <div className="flex justify-end">
         <Button size="sm" asChild>
           <Link to="/coupons/new">
-
-      <OpsModuleStats module="coupons" />
             <Plus className="size-4" />
             {t("ops.newCoupon")}
           </Link>
