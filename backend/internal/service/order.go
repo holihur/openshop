@@ -280,6 +280,7 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 			}
 
 			price := p.PriceCents
+			cost := p.CostCents
 			itemWeight := p.WeightGrams
 			item := domain.OrderItem{
 				ID: s.ids.NewID(), OrderID: order.ID, ProductID: p.ID, Title: p.Title,
@@ -297,6 +298,7 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 					return err
 				}
 				price = v.EffectivePrice(p.PriceCents)
+				cost = v.EffectiveCost(p.CostCents)
 				if v.WeightGrams > 0 {
 					itemWeight = v.WeightGrams
 				}
@@ -309,6 +311,9 @@ func (s *OrderService) Checkout(ctx context.Context, in CheckoutInput) (out *dom
 				}
 			}
 			item.PriceCents = domain.Convert(price, rate)
+			// Snapshot the cost so historical margin never shifts when the
+			// catalogue cost is later edited.
+			item.CostCents = domain.Convert(cost, rate)
 			item.Subtotal = item.PriceCents * int64(ci.Quantity)
 			total += item.Subtotal
 			weightGrams += int64(itemWeight) * int64(ci.Quantity)

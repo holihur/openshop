@@ -24,14 +24,17 @@ func (r *VariantRepository) Create(ctx context.Context, v *domain.Variant) error
 }
 
 func (r *VariantRepository) Update(ctx context.Context, v *domain.Variant) error {
+	// Every mutable column must be listed (there is a regression test).
 	res := r.db.session(ctx).Model(&variantModel{}).Where("id = ?", v.ID).Updates(map[string]any{
-		"sku":         v.SKU,
-		"name":        v.Name,
-		"price_cents": v.PriceCents,
-		"stock":       v.Stock,
-		"attributes":  jsonMap(v.Attributes),
-		"sort":        v.Sort,
-		"active":      v.Active,
+		"sku":          v.SKU,
+		"name":         v.Name,
+		"price_cents":  v.PriceCents,
+		"cost_cents":   v.CostCents,
+		"stock":        v.Stock,
+		"weight_grams": v.WeightGrams,
+		"attributes":   jsonMap(v.Attributes),
+		"sort":         v.Sort,
+		"active":       v.Active,
 	})
 	if res.Error != nil {
 		return translate(res.Error)

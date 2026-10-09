@@ -50,8 +50,10 @@ type Product struct {
 	Names       map[string]string
 	Description string
 	// PriceCents stores the price in the minor currency unit to avoid floating
-	// point money. Currency is an ISO-4217 code.
+	// point money. Currency is an ISO-4217 code. CostCents is the unit cost used
+	// for margin reporting; 0 means unknown.
 	PriceCents int64
+	CostCents  int64
 	// WeightGrams is used for weight-based shipping; 0 means unset.
 	WeightGrams int
 	Currency    string

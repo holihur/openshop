@@ -23,13 +23,14 @@ var ProductCSVLocales = []string{"en", "zh"}
 func productCSVColumns() []string {
 	cols := []string{
 		"handle", "title", "description", "status", "category",
-		"price", "stock", "weight_grams", "cover_image", "images",
+		"price", "cost", "stock", "weight_grams", "cover_image", "images",
 	}
 	for _, loc := range ProductCSVLocales {
 		cols = append(cols, "name_"+loc)
 	}
 	return append(cols,
-		"variant_sku", "variant_name", "variant_price", "variant_stock", "variant_weight", "variant_active")
+		"variant_sku", "variant_name", "variant_price", "variant_cost",
+		"variant_stock", "variant_weight", "variant_active")
 }
 
 // csvProductRow is one parsed line. Empty strings mean "not provided", which is
@@ -42,6 +43,7 @@ type csvProductRow struct {
 	Status  string
 	CatSlug string
 	Price   string
+	Cost    string
 	Stock   string
 	Weight  string
 	Cover   string
@@ -50,6 +52,7 @@ type csvProductRow struct {
 	VarSKU  string
 	VarName string
 	VarP    string
+	VarC    string
 	VarS    string
 	VarW    string
 	VarA    string
@@ -116,22 +119,22 @@ func (s *CatalogService) ExportProductCSV(ctx context.Context, w io.Writer) erro
 			}
 			product := []string{
 				p.Slug, p.Title, p.Description, string(p.Status), slugByCategory[p.CategoryID],
-				major(p.PriceCents), strconv.Itoa(p.Stock), strconv.Itoa(p.WeightGrams),
-				p.CoverImage, strings.Join(p.Images, "|"),
+				major(p.PriceCents), major(p.CostCents), strconv.Itoa(p.Stock),
+				strconv.Itoa(p.WeightGrams), p.CoverImage, strings.Join(p.Images, "|"),
 			}
 			for _, loc := range ProductCSVLocales {
 				product = append(product, p.Names[loc])
 			}
 
 			if len(variants) == 0 {
-				if err := cw.Write(append(product, "", "", "", "", "", "")); err != nil {
+				if err := cw.Write(append(product, "", "", "", "", "", "", "")); err != nil {
 					return err
 				}
 				continue
 			}
 			for _, v := range variants {
 				row := append(append([]string{}, product...),
-					v.SKU, v.Name, major(v.PriceCents), strconv.Itoa(v.Stock),
+					v.SKU, v.Name, major(v.PriceCents), major(v.CostCents), strconv.Itoa(v.Stock),
 					strconv.Itoa(v.WeightGrams), strconv.FormatBool(v.Active))
 				if err := cw.Write(row); err != nil {
 					return err
@@ -235,6 +238,10 @@ func (s *CatalogService) importGroup(
 	if err != nil {
 		return fmt.Errorf("price: %w", err)
 	}
+	cost, err := parseMajor(head.Cost)
+	if err != nil {
+		return fmt.Errorf("cost: %w", err)
+	}
 	stock, err := parseCount(head.Stock)
 	if err != nil {
 		return fmt.Errorf("stock: %w", err)
@@ -255,7 +262,7 @@ func (s *CatalogService) importGroup(
 	case err == nil:
 		input := UpdateProductInput{
 			Title: &head.Title, Description: &head.Desc, PriceCents: &price,
-			Stock: &stock, WeightGrams: &weight, Status: &status,
+			CostCents: &cost, Stock: &stock, WeightGrams: &weight, Status: &status,
 		}
 		if len(names) > 0 {
 			input.Names = names
@@ -290,7 +297,7 @@ func (s *CatalogService) importGroup(
 		}
 		product := &domain.Product{
 			ID: s.ids.NewID(), CategoryID: categoryID, Title: head.Title, Slug: handle,
-			Names: names, Description: head.Desc, PriceCents: price, Currency: s.currency,
+			Names: names, Description: head.Desc, PriceCents: price, CostCents: cost, Currency: s.currency,
 			CoverImage: head.Cover, Images: splitImages(head.Images), Status: status,
 			Stock: stock, WeightGrams: weight, CreatedAt: s.clock.Now(), UpdatedAt: s.clock.Now(),
 		}
@@ -332,6 +339,11 @@ func (s *CatalogService) importVariants(
 			report.addError(row.Line, "variant_price: %v", err)
 			continue
 		}
+		cost, err := parseMajor(row.VarC)
+		if err != nil {
+			report.addError(row.Line, "variant_cost: %v", err)
+			continue
+		}
 		stock, err := parseCount(row.VarS)
 		if err != nil {
 			report.addError(row.Line, "variant_stock: %v", err)
@@ -357,7 +369,8 @@ func (s *CatalogService) importVariants(
 				continue
 			}
 			if _, err := s.UpdateVariant(ctx, current.ID, UpdateVariantInput{
-				Name: &name, PriceCents: &price, Stock: &stock, WeightGrams: &weight, Active: &active,
+				Name: &name, PriceCents: &price, CostCents: &cost,
+				Stock: &stock, WeightGrams: &weight, Active: &active,
 			}); err != nil {
 				report.addError(row.Line, "%v", err)
 				continue
@@ -370,7 +383,7 @@ func (s *CatalogService) importVariants(
 			continue
 		}
 		if _, err := s.CreateVariant(ctx, CreateVariantInput{
-			ProductID: productID, SKU: row.VarSKU, Name: name, PriceCents: price,
+			ProductID: productID, SKU: row.VarSKU, Name: name, PriceCents: price, CostCents: cost,
 			Stock: stock, WeightGrams: weight, Active: active,
 		}); err != nil {
 			report.addError(row.Line, "%v", err)
@@ -444,6 +457,7 @@ func parseProductCSV(r io.Reader) ([]csvProductRow, error) {
 		row.Status = strings.ToLower(get(record, "status"))
 		row.CatSlug = get(record, "category")
 		row.Price = get(record, "price")
+		row.Cost = get(record, "cost")
 		row.Stock = get(record, "stock")
 		row.Weight = get(record, "weight_grams")
 		row.Cover = get(record, "cover_image")
@@ -451,6 +465,7 @@ func parseProductCSV(r io.Reader) ([]csvProductRow, error) {
 		row.VarSKU = get(record, "variant_sku")
 		row.VarName = get(record, "variant_name")
 		row.VarP = get(record, "variant_price")
+		row.VarC = get(record, "variant_cost")
 		row.VarS = get(record, "variant_stock")
 		row.VarW = get(record, "variant_weight")
 		row.VarA = strings.ToLower(get(record, "variant_active"))

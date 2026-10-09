@@ -33,6 +33,7 @@ type createProductRequest struct {
 	Slug        string            `json:"slug"`
 	Description string            `json:"description"`
 	PriceCents  int64             `json:"priceCents" binding:"gte=0"`
+	CostCents   int64             `json:"costCents" binding:"gte=0"`
 	Currency    string            `json:"currency"`
 	CoverImage  string            `json:"coverImage"`
 	Images      []string          `json:"images"`
@@ -46,6 +47,7 @@ type updateProductRequest struct {
 	Names       map[string]string `json:"names"`
 	Description *string           `json:"description"`
 	PriceCents  *int64            `json:"priceCents"`
+	CostCents   *int64            `json:"costCents"`
 	CoverImage  *string           `json:"coverImage"`
 	Images      []string          `json:"images"`
 	Status      *string           `json:"status"`
@@ -58,6 +60,7 @@ type createVariantRequest struct {
 	SKU         string            `json:"sku"`
 	Name        string            `json:"name" binding:"required"`
 	PriceCents  int64             `json:"priceCents" binding:"gte=0"`
+	CostCents   int64             `json:"costCents" binding:"gte=0"`
 	Stock       int               `json:"stock" binding:"gte=0"`
 	WeightGrams int               `json:"weightGrams" binding:"gte=0"`
 	Attributes  map[string]string `json:"attributes"`
@@ -69,6 +72,7 @@ type updateVariantRequest struct {
 	SKU         *string           `json:"sku"`
 	Name        *string           `json:"name"`
 	PriceCents  *int64            `json:"priceCents"`
+	CostCents   *int64            `json:"costCents"`
 	Stock       *int              `json:"stock"`
 	WeightGrams *int              `json:"weightGrams"`
 	Attributes  map[string]string `json:"attributes"`
@@ -127,7 +131,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 	}
 	p, err := h.Catalog.CreateProduct(c.Request.Context(), service.CreateProductInput{
 		CategoryID: req.CategoryID, Title: req.Title, Slug: req.Slug, Names: req.Names,
-		Description: req.Description, PriceCents: req.PriceCents, Currency: req.Currency,
+		Description: req.Description, PriceCents: req.PriceCents, CostCents: req.CostCents, Currency: req.Currency,
 		CoverImage: req.CoverImage, Images: req.Images,
 		Status: domain.ProductStatus(req.Status), Stock: req.Stock, WeightGrams: req.WeightGrams,
 	})
@@ -146,7 +150,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 	in := service.UpdateProductInput{
-		Title: req.Title, Names: req.Names, Description: req.Description, PriceCents: req.PriceCents,
+		Title: req.Title, Names: req.Names, Description: req.Description, PriceCents: req.PriceCents, CostCents: req.CostCents,
 		CoverImage: req.CoverImage, Images: req.Images, Stock: req.Stock, CategoryID: req.CategoryID,
 		WeightGrams: req.WeightGrams,
 	}
@@ -172,7 +176,7 @@ func (h *Handler) ListVariants(c *gin.Context) {
 	out := make([]handler.VariantView, 0, len(variants))
 	for _, v := range variants {
 		out = append(out, handler.VariantView{
-			ID: v.ID, SKU: v.SKU, Name: v.Name, PriceCents: v.PriceCents,
+			ID: v.ID, SKU: v.SKU, Name: v.Name, PriceCents: v.PriceCents, CostCents: v.CostCents,
 			Stock: v.Stock, Attributes: v.Attributes, Sort: v.Sort, Active: v.Active,
 		})
 	}
@@ -190,7 +194,7 @@ func (h *Handler) CreateVariant(c *gin.Context) {
 		active = *req.Active
 	}
 	v, err := h.Catalog.CreateVariant(c.Request.Context(), service.CreateVariantInput{
-		ProductID: c.Param("id"), SKU: req.SKU, Name: req.Name, PriceCents: req.PriceCents,
+		ProductID: c.Param("id"), SKU: req.SKU, Name: req.Name, PriceCents: req.PriceCents, CostCents: req.CostCents,
 		Stock: req.Stock, WeightGrams: req.WeightGrams, Attributes: req.Attributes, Sort: req.Sort, Active: active,
 	})
 	if err != nil {
@@ -211,7 +215,7 @@ func (h *Handler) UpdateVariant(c *gin.Context) {
 		return
 	}
 	v, err := h.Catalog.UpdateVariant(c.Request.Context(), c.Param("id"), service.UpdateVariantInput{
-		SKU: req.SKU, Name: req.Name, PriceCents: req.PriceCents, Stock: req.Stock,
+		SKU: req.SKU, Name: req.Name, PriceCents: req.PriceCents, CostCents: req.CostCents, Stock: req.Stock,
 		WeightGrams: req.WeightGrams, Attributes: req.Attributes, Sort: req.Sort, Active: req.Active,
 	})
 	if err != nil {

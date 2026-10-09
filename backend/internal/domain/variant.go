@@ -12,7 +12,9 @@ type Variant struct {
 	SKU       string
 	Name      string
 	// PriceCents is the variant price; 0 means inherit the product price.
-	PriceCents  int64
+	PriceCents int64
+	// CostCents is the variant cost; 0 means inherit the product cost.
+	CostCents   int64
 	Stock       int
 	WeightGrams int
 	Attributes  map[string]string
@@ -28,6 +30,14 @@ func (v *Variant) EffectivePrice(productPrice int64) int64 {
 		return v.PriceCents
 	}
 	return productPrice
+}
+
+// EffectiveCost returns the variant cost, falling back to the product cost.
+func (v *Variant) EffectiveCost(productCost int64) int64 {
+	if v.CostCents > 0 {
+		return v.CostCents
+	}
+	return productCost
 }
 
 func (v *Variant) Available() bool { return v.Active && v.Stock > 0 }

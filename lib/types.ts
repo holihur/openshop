@@ -66,6 +66,8 @@ export interface Product {
   slug: string;
   description: string;
   priceCents: number;
+  /** Unit cost, used for margin reporting; 0 means unknown. */
+  costCents: number;
   currency: string;
   coverImage: string;
   images: string[];
@@ -281,8 +283,11 @@ export interface OpsSummary {
     created: PeriodMetric;
     paid: PeriodMetric;
     revenueCents: PeriodMetric;
+    costCents: PeriodMetric;
+    profitCents: PeriodMetric;
     series: DailyPoint[];
     revenueSeries: DailyPoint[];
+    profitSeries: DailyPoint[];
   };
   customers: { total: number; disabled: number; new: PeriodMetric; series: DailyPoint[] };
   products: { total: number; published: number; draft: number; lowStock: number; outOfStock: number };

@@ -170,6 +170,7 @@ export function OpsModuleStats({ module }: { module: OpsModule }) {
               metric={data.orders.revenueCents}
               format={money}
             />
+            <Periods label={t("stats.profit")} metric={data.orders.profitCents} format={money} />
           </div>
           <Trend points={data.orders.series} label={t("stats.ordersCreated")} />
         </div>

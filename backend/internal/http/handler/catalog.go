@@ -25,6 +25,7 @@ type ProductView struct {
 	Slug        string            `json:"slug"`
 	Description string            `json:"description"`
 	PriceCents  int64             `json:"priceCents"`
+	CostCents   int64             `json:"costCents"`
 	Currency    string            `json:"currency"`
 	CoverImage  string            `json:"coverImage"`
 	Images      []string          `json:"images"`
@@ -48,6 +49,7 @@ type VariantView struct {
 	SKU         string            `json:"sku"`
 	Name        string            `json:"name"`
 	PriceCents  int64             `json:"priceCents"`
+	CostCents   int64             `json:"costCents"`
 	Stock       int               `json:"stock"`
 	WeightGrams int               `json:"weightGrams"`
 	Attributes  map[string]string `json:"attributes,omitempty"`
@@ -116,7 +118,7 @@ func ToProductView(p domain.Product) ProductView {
 	}
 	view := ProductView{
 		ID: p.ID, CategoryID: p.CategoryID, Title: p.Title, Names: p.Names, Slug: p.Slug,
-		Description: p.Description, PriceCents: p.PriceCents, Currency: p.Currency,
+		Description: p.Description, PriceCents: p.PriceCents, CostCents: p.CostCents, Currency: p.Currency,
 		CoverImage: p.CoverImage, Images: images, Status: string(p.Status), Stock: p.Stock,
 		WeightGrams: p.WeightGrams,
 	}
@@ -124,7 +126,7 @@ func ToProductView(p domain.Product) ProductView {
 		view.Variants = make([]VariantView, 0, len(p.Variants))
 		for _, v := range p.Variants {
 			view.Variants = append(view.Variants, VariantView{
-				ID: v.ID, SKU: v.SKU, Name: v.Name, PriceCents: v.PriceCents,
+				ID: v.ID, SKU: v.SKU, Name: v.Name, PriceCents: v.PriceCents, CostCents: v.CostCents,
 				Stock: v.Stock, Attributes: v.Attributes, Sort: v.Sort, Active: v.Active,
 				WeightGrams: v.WeightGrams,
 			})

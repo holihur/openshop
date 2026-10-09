@@ -29,6 +29,7 @@ export function VariantsEditor({ productId }: { productId: string }) {
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
   const [price, setPrice] = useState("");
+  const [cost, setCost] = useState("");
   const [stock, setStock] = useState("0");
   const [weight, setWeight] = useState("0");
 
@@ -39,6 +40,7 @@ export function VariantsEditor({ productId }: { productId: string }) {
         name,
         sku: sku || undefined,
         priceCents: Math.round(Number.parseFloat(price || "0") * 100),
+        costCents: Math.round(Number.parseFloat(cost || "0") * 100),
         stock: Number.parseInt(stock || "0", 10),
         weightGrams: Number.parseInt(weight || "0", 10),
         active: true,
@@ -85,6 +87,18 @@ export function VariantsEditor({ productId }: { productId: string }) {
               min="0"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
+              placeholder={t("ops.inherit")}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="v-cost">{t("ops.cost")}</Label>
+            <Input
+              id="v-cost"
+              type="number"
+              step="0.01"
+              min="0"
+              value={cost}
+              onChange={(e) => setCost(e.target.value)}
               placeholder={t("ops.inherit")}
             />
           </div>

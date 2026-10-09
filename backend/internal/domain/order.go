@@ -32,9 +32,12 @@ type OrderItem struct {
 	VariantName string
 	SKU         string
 	Title       string
-	PriceCents  int64
-	Quantity    int
-	Subtotal    int64
+	// PriceCents is the unit price charged; CostCents is the unit cost at the
+	// moment of purchase, snapshotted so historical margin never shifts.
+	PriceCents int64
+	CostCents  int64
+	Quantity   int
+	Subtotal   int64
 }
 
 type Order struct {

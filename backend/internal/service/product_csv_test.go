@@ -130,7 +130,8 @@ func TestProductCSVHeaderIsImportable(t *testing.T) {
 		}
 		b.WriteString(col)
 	}
-	b.WriteString("\npk-1,Backpack,Desc,published,,129.90,3,500,,,Backpack EN,背包,PK-1-RED,Red,99.50,2,480,true\n")
+	b.WriteString("\npk-1,Backpack,Desc,published,,129.90,100.00,3,500,,,Backpack EN,背包," +
+		"PK-1-RED,Red,99.50,70.00,2,480,true\n")
 
 	rows, err := parseProductCSV(strings.NewReader(b.String()))
 	if err != nil {
@@ -143,11 +144,17 @@ func TestProductCSVHeaderIsImportable(t *testing.T) {
 	if row.Handle != "pk-1" || row.Status != "published" || row.Price != "129.90" {
 		t.Errorf("unexpected row: %+v", row)
 	}
+	if row.Cost != "100.00" || row.Stock != "3" {
+		t.Errorf("cost/stock = %q / %q", row.Cost, row.Stock)
+	}
 	if row.Names["en"] != "Backpack EN" || row.Names["zh"] != "背包" {
 		t.Errorf("names = %v", row.Names)
 	}
 	if row.VarSKU != "PK-1-RED" || row.VarA != "true" {
 		t.Errorf("variant = %+v", row)
+	}
+	if row.VarP != "99.50" || row.VarC != "70.00" || row.VarS != "2" {
+		t.Errorf("variant money/stock = %q / %q / %q", row.VarP, row.VarC, row.VarS)
 	}
 }
 

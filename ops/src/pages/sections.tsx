@@ -532,7 +532,7 @@ export function AdminDashboard() {
   const { data, isLoading } = useDashboard();
   const { data: summary } = useOpsSummary();
   const { t } = useI18n();
-  const [trend, setTrend] = useState<"orders" | "revenue">("orders");
+  const [trend, setTrend] = useState<"orders" | "revenue" | "profit">("orders");
 
   if (isLoading || !data) {
     return (
@@ -544,8 +544,15 @@ export function AdminDashboard() {
     );
   }
 
+  const monthRevenue = summary?.orders.revenueCents.current.month ?? 0;
+  const monthProfit = summary?.orders.profitCents.current.month ?? 0;
+  const margin =
+    monthRevenue > 0 ? `${Math.round((monthProfit / monthRevenue) * 100)}%` : "—";
+
   const cards = [
     { label: t("ops.revenue"), value: formatMoney(data.revenueCents) },
+    { label: t("ops.profitMonth"), value: formatMoney(monthProfit) },
+    { label: t("ops.marginMonth"), value: margin },
     { label: t("ops.paidOrders"), value: data.paidOrders },
     { label: t("ops.pendingOrders"), value: data.pendingOrders },
     { label: t("ops.totalOrders"), value: data.totalOrders },
@@ -554,7 +561,11 @@ export function AdminDashboard() {
   ];
 
   const trendPoints =
-    trend === "orders" ? summary?.orders.series ?? [] : summary?.orders.revenueSeries ?? [];
+    trend === "orders"
+      ? summary?.orders.series ?? []
+      : trend === "revenue"
+        ? summary?.orders.revenueSeries ?? []
+        : summary?.orders.profitSeries ?? [];
 
   return (
     <div className="space-y-6">
@@ -576,18 +587,26 @@ export function AdminDashboard() {
             <select
               aria-label={t("ops.trend")}
               value={trend}
-              onChange={(e) => setTrend(e.target.value as "orders" | "revenue")}
+              onChange={(e) => setTrend(e.target.value as "orders" | "revenue" | "profit")}
               className="border-input bg-background h-8 rounded-md border px-2 text-sm"
             >
               <option value="orders">{t("stats.ordersCreated")}</option>
               <option value="revenue">{t("stats.revenueTrend")}</option>
+              <option value="profit">{t("stats.profitTrend")}</option>
             </select>
           </CardHeader>
           <CardContent>
             <LineChart
               points={trendPoints}
-              format={trend === "revenue" ? (n) => formatMoney(n) : undefined}
-              ariaLabel={t("stats.trend30", { label: trend === "orders" ? t("stats.ordersCreated") : t("stats.revenue") })}
+              format={trend === "orders" ? undefined : (n) => formatMoney(n)}
+              ariaLabel={t("stats.trend30", {
+                label:
+                  trend === "orders"
+                    ? t("stats.ordersCreated")
+                    : trend === "revenue"
+                      ? t("stats.revenue")
+                      : t("stats.profit"),
+              })}
             />
           </CardContent>
         </Card>

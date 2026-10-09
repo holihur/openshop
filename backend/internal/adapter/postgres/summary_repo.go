@@ -133,15 +133,24 @@ func (r *AnalyticsRepository) Summary(ctx context.Context, now time.Time, lowSto
 	if err != nil {
 		return out, err
 	}
-	revenue, err := r.dailyOrderRevenue(ctx, since)
+	revenue, cost, err := r.dailyOrderMoney(ctx, since)
 	if err != nil {
 		return out, err
+	}
+	// Gross profit is revenue minus the cost of the goods actually sold, using
+	// the cost snapshotted on each order item.
+	profit := make(map[time.Time]int64, len(revenue))
+	for day, total := range revenue {
+		profit[day] = total - cost[day]
 	}
 	out.Orders.Created = metric(created, b)
 	out.Orders.Paid = metric(paid, b)
 	out.Orders.RevenueCents = metric(revenue, b)
+	out.Orders.CostCents = metric(cost, b)
+	out.Orders.ProfitCents = metric(profit, b)
 	out.Orders.Series = series(created, b, 30)
 	out.Orders.RevenueSeries = series(revenue, b, 30)
+	out.Orders.ProfitSeries = series(profit, b, 30)
 
 	// --- customers ---------------------------------------------------------
 	if err := session.Model(&userModel{}).Where("role = ?", string(domain.RoleCustomer)).
@@ -305,21 +314,38 @@ func (r *AnalyticsRepository) dailyOrderCounts(ctx context.Context, since time.T
 	return toDayMap(rows), nil
 }
 
-func (r *AnalyticsRepository) dailyOrderRevenue(ctx context.Context, since time.Time) (map[time.Time]int64, error) {
-	var rows []dayTotal
+// dailyOrderMoney returns the daily paid revenue and the daily cost of the goods
+// sold. They are separate queries because joining order_items would multiply the
+// order total by the number of items.
+func (r *AnalyticsRepository) dailyOrderMoney(ctx context.Context, since time.Time) (map[time.Time]int64, map[time.Time]int64, error) {
+	var revenueRows []dayTotal
 	if err := r.db.session(ctx).Raw(`
 		SELECT date_trunc('day', created_at AT TIME ZONE 'UTC') AS day,
 		       coalesce(sum(total_cents), 0) AS total
 		FROM orders
 		WHERE created_at >= ? AND status IN ('paid','shipped','completed')
-		GROUP BY 1`, since).Scan(&rows).Error; err != nil {
-		return nil, translate(err)
+		GROUP BY 1`, since).Scan(&revenueRows).Error; err != nil {
+		return nil, nil, translate(err)
 	}
+	var costRows []dayTotal
+	if err := r.db.session(ctx).Raw(`
+		SELECT date_trunc('day', o.created_at AT TIME ZONE 'UTC') AS day,
+		       coalesce(sum(i.cost_cents * i.quantity), 0) AS total
+		FROM order_items i
+		JOIN orders o ON o.id = i.order_id
+		WHERE o.created_at >= ? AND o.status IN ('paid','shipped','completed')
+		GROUP BY 1`, since).Scan(&costRows).Error; err != nil {
+		return nil, nil, translate(err)
+	}
+	return toTotalMap(revenueRows), toTotalMap(costRows), nil
+}
+
+func toTotalMap(rows []dayTotal) map[time.Time]int64 {
 	out := make(map[time.Time]int64, len(rows))
 	for _, row := range rows {
 		out[row.Day] = row.Total
 	}
-	return out, nil
+	return out
 }
 
 // dailyTableCounts buckets a module's rows per day. table and extraWhere are

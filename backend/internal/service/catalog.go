@@ -145,6 +145,7 @@ type CreateProductInput struct {
 	Names       map[string]string
 	Description string
 	PriceCents  int64
+	CostCents   int64
 	Currency    string
 	CoverImage  string
 	Images      []string
@@ -159,6 +160,9 @@ func (s *CatalogService) CreateProduct(ctx context.Context, in CreateProductInpu
 	}
 	if in.PriceCents < 0 {
 		return nil, fmt.Errorf("%w: price cannot be negative", domain.ErrInvalidArgument)
+	}
+	if in.CostCents < 0 {
+		return nil, fmt.Errorf("%w: cost cannot be negative", domain.ErrInvalidArgument)
 	}
 	slug := in.Slug
 	if slug == "" {
@@ -176,7 +180,7 @@ func (s *CatalogService) CreateProduct(ctx context.Context, in CreateProductInpu
 	p := &domain.Product{
 		ID: s.ids.NewID(), CategoryID: in.CategoryID, Title: in.Title, Slug: slug,
 		Names:       cleanNames(in.Names),
-		Description: in.Description, PriceCents: in.PriceCents, Currency: currency,
+		Description: in.Description, PriceCents: in.PriceCents, CostCents: in.CostCents, Currency: currency,
 		CoverImage: in.CoverImage, Images: in.Images, Status: status, Stock: in.Stock,
 		WeightGrams: in.WeightGrams,
 		CreatedAt:   now, UpdatedAt: now,
@@ -192,6 +196,7 @@ type UpdateProductInput struct {
 	Names       map[string]string
 	Description *string
 	PriceCents  *int64
+	CostCents   *int64
 	CoverImage  *string
 	Images      []string
 	Status      *domain.ProductStatus
@@ -216,6 +221,9 @@ func (s *CatalogService) UpdateProduct(ctx context.Context, id string, in Update
 	}
 	if in.PriceCents != nil {
 		p.PriceCents = *in.PriceCents
+	}
+	if in.CostCents != nil {
+		p.CostCents = *in.CostCents
 	}
 	if in.CoverImage != nil {
 		p.CoverImage = *in.CoverImage
@@ -338,6 +346,7 @@ type CreateVariantInput struct {
 	SKU         string
 	Name        string
 	PriceCents  int64
+	CostCents   int64
 	Stock       int
 	WeightGrams int
 	Attributes  map[string]string
@@ -349,8 +358,8 @@ func (s *CatalogService) CreateVariant(ctx context.Context, in CreateVariantInpu
 	if in.Name == "" {
 		return nil, fmt.Errorf("%w: variant name is required", domain.ErrInvalidArgument)
 	}
-	if in.PriceCents < 0 || in.Stock < 0 {
-		return nil, fmt.Errorf("%w: price and stock must be non-negative", domain.ErrInvalidArgument)
+	if in.PriceCents < 0 || in.CostCents < 0 || in.Stock < 0 {
+		return nil, fmt.Errorf("%w: price, cost and stock must be non-negative", domain.ErrInvalidArgument)
 	}
 	if _, err := s.products.FindByID(ctx, in.ProductID); err != nil {
 		return nil, err
@@ -362,7 +371,7 @@ func (s *CatalogService) CreateVariant(ctx context.Context, in CreateVariantInpu
 	now := s.clock.Now()
 	v := &domain.Variant{
 		ID: s.ids.NewID(), ProductID: in.ProductID, SKU: sku, Name: in.Name,
-		PriceCents: in.PriceCents, Stock: in.Stock, Attributes: in.Attributes,
+		PriceCents: in.PriceCents, CostCents: in.CostCents, Stock: in.Stock, Attributes: in.Attributes,
 		WeightGrams: in.WeightGrams,
 		Sort:        in.Sort, Active: in.Active, CreatedAt: now, UpdatedAt: now,
 	}
@@ -377,6 +386,7 @@ type UpdateVariantInput struct {
 	SKU         *string
 	Name        *string
 	PriceCents  *int64
+	CostCents   *int64
 	Stock       *int
 	WeightGrams *int
 	Attributes  map[string]string
@@ -397,6 +407,9 @@ func (s *CatalogService) UpdateVariant(ctx context.Context, id string, in Update
 	}
 	if in.PriceCents != nil {
 		v.PriceCents = *in.PriceCents
+	}
+	if in.CostCents != nil {
+		v.CostCents = *in.CostCents
 	}
 	if in.Stock != nil {
 		v.Stock = *in.Stock

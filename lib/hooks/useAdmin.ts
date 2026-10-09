@@ -298,6 +298,8 @@ export interface VariantInput {
   sku?: string;
   name: string;
   priceCents: number;
+  /** Unit cost, used for margin reporting; 0 inherits the product cost. */
+  costCents?: number;
   stock: number;
   weightGrams?: number;
   active?: boolean;

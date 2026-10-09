@@ -147,6 +147,7 @@ type productModel struct {
 	Slug        string            `gorm:"size:255;uniqueIndex;not null"`
 	Description string            `gorm:"type:text"`
 	PriceCents  int64             `gorm:"not null;default:0"`
+	CostCents   int64             `gorm:"not null;default:0"`
 	WeightGrams int               `gorm:"not null;default:0"`
 	Currency    string            `gorm:"size:8;not null;default:CNY"`
 	CoverImage  string            `gorm:"size:512"`
@@ -204,6 +205,7 @@ type orderItemModel struct {
 	SKU         string     `gorm:"size:64;not null;default:''"`
 	Title       string     `gorm:"size:255;not null"`
 	PriceCents  int64      `gorm:"not null"`
+	CostCents   int64      `gorm:"not null;default:0"`
 	Quantity    int        `gorm:"not null"`
 	Subtotal    int64      `gorm:"not null"`
 }
@@ -332,6 +334,7 @@ type variantModel struct {
 	SKU         string    `gorm:"size:64;not null"`
 	Name        string    `gorm:"size:160;not null"`
 	PriceCents  int64     `gorm:"not null;default:0"`
+	CostCents   int64     `gorm:"not null;default:0"`
 	Stock       int       `gorm:"not null;default:0"`
 	WeightGrams int       `gorm:"not null;default:0"`
 	Attributes  jsonMap   `gorm:"type:jsonb"`
@@ -441,7 +444,7 @@ func toProduct(m *productModel) *domain.Product {
 	return &domain.Product{
 		ID: m.ID, CategoryID: string(m.CategoryID), Title: m.Title, Slug: m.Slug,
 		Names:       m.Names,
-		Description: m.Description, PriceCents: m.PriceCents, Currency: m.Currency,
+		Description: m.Description, PriceCents: m.PriceCents, CostCents: m.CostCents, Currency: m.Currency,
 		WeightGrams: m.WeightGrams,
 		CoverImage:  m.CoverImage, Images: []string(m.Images), Status: domain.ProductStatus(m.Status),
 		Stock: m.Stock, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
@@ -452,7 +455,7 @@ func fromProduct(p *domain.Product) *productModel {
 	return &productModel{
 		ID: p.ID, CategoryID: uuidString(p.CategoryID), Title: p.Title, Slug: p.Slug,
 		Names:       p.Names,
-		Description: p.Description, PriceCents: p.PriceCents, Currency: p.Currency,
+		Description: p.Description, PriceCents: p.PriceCents, CostCents: p.CostCents, Currency: p.Currency,
 		WeightGrams: p.WeightGrams,
 		CoverImage:  p.CoverImage, Images: stringList(p.Images), Status: string(p.Status),
 		Stock: p.Stock, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
@@ -465,7 +468,8 @@ func toOrder(m *orderModel) *domain.Order {
 		items = append(items, domain.OrderItem{
 			ID: it.ID, OrderID: it.OrderID, ProductID: it.ProductID,
 			VariantID: string(it.VariantID), VariantName: it.VariantName, SKU: it.SKU,
-			Title: it.Title, PriceCents: it.PriceCents, Quantity: it.Quantity, Subtotal: it.Subtotal,
+			Title: it.Title, PriceCents: it.PriceCents, CostCents: it.CostCents,
+			Quantity: it.Quantity, Subtotal: it.Subtotal,
 		})
 	}
 	return &domain.Order{
@@ -512,7 +516,8 @@ func fromOrder(o *domain.Order) *orderModel {
 		items = append(items, orderItemModel{
 			ID: it.ID, OrderID: o.ID, ProductID: it.ProductID,
 			VariantID: uuidString(it.VariantID), VariantName: it.VariantName, SKU: it.SKU,
-			Title: it.Title, PriceCents: it.PriceCents, Quantity: it.Quantity, Subtotal: it.Subtotal,
+			Title: it.Title, PriceCents: it.PriceCents, CostCents: it.CostCents,
+			Quantity: it.Quantity, Subtotal: it.Subtotal,
 		})
 	}
 	return &orderModel{
@@ -595,7 +600,7 @@ func fromReview(r *domain.Review) *reviewModel {
 func toVariant(m *variantModel) *domain.Variant {
 	return &domain.Variant{
 		ID: m.ID, ProductID: m.ProductID, SKU: m.SKU, Name: m.Name,
-		PriceCents: m.PriceCents, Stock: m.Stock, WeightGrams: m.WeightGrams,
+		PriceCents: m.PriceCents, CostCents: m.CostCents, Stock: m.Stock, WeightGrams: m.WeightGrams,
 		Attributes: map[string]string(m.Attributes),
 		Sort:       m.Sort, Active: m.Active, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
@@ -604,7 +609,7 @@ func toVariant(m *variantModel) *domain.Variant {
 func fromVariant(v *domain.Variant) *variantModel {
 	return &variantModel{
 		ID: v.ID, ProductID: v.ProductID, SKU: v.SKU, Name: v.Name,
-		PriceCents: v.PriceCents, Stock: v.Stock, WeightGrams: v.WeightGrams,
+		PriceCents: v.PriceCents, CostCents: v.CostCents, Stock: v.Stock, WeightGrams: v.WeightGrams,
 		Attributes: jsonMap(v.Attributes),
 		Sort:       v.Sort, Active: v.Active, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt,
 	}

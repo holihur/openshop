@@ -24,17 +24,22 @@ func (r *ProductRepository) Create(ctx context.Context, p *domain.Product) error
 }
 
 func (r *ProductRepository) Update(ctx context.Context, p *domain.Product) error {
+	// Every mutable column must be listed: an omitted one is silently dropped on
+	// update (there is a regression test for this).
 	res := r.db.session(ctx).Model(&productModel{}).Where("id = ?", p.ID).Updates(map[string]any{
-		"category_id": nullableUUID(p.CategoryID),
-		"title":       p.Title,
-		"slug":        p.Slug,
-		"description": p.Description,
-		"price_cents": p.PriceCents,
-		"currency":    p.Currency,
-		"cover_image": p.CoverImage,
-		"images":      stringList(p.Images),
-		"status":      string(p.Status),
-		"stock":       p.Stock,
+		"category_id":  nullableUUID(p.CategoryID),
+		"title":        p.Title,
+		"names":        p.Names,
+		"slug":         p.Slug,
+		"description":  p.Description,
+		"price_cents":  p.PriceCents,
+		"cost_cents":   p.CostCents,
+		"weight_grams": p.WeightGrams,
+		"currency":     p.Currency,
+		"cover_image":  p.CoverImage,
+		"images":       stringList(p.Images),
+		"status":       string(p.Status),
+		"stock":        p.Stock,
 	})
 	if res.Error != nil {
 		return translate(res.Error)

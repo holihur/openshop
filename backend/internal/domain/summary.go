@@ -62,10 +62,16 @@ type OrdersSummary struct {
 	Paid     PeriodMetric     `json:"paid"`
 	// RevenueCents is the paid revenue per window, in the settlement currency.
 	RevenueCents PeriodMetric `json:"revenueCents"`
+	// CostCents is the cost of the goods sold and ProfitCents is the gross
+	// profit (revenue minus cost). The margin is profit over revenue.
+	CostCents   PeriodMetric `json:"costCents"`
+	ProfitCents PeriodMetric `json:"profitCents"`
 	// Series is the last 30 days of created orders, for the trend chart.
 	Series []DailyPoint `json:"series"`
 	// RevenueSeries is the same window for paid revenue.
 	RevenueSeries []DailyPoint `json:"revenueSeries"`
+	// ProfitSeries is the same window for gross profit.
+	ProfitSeries []DailyPoint `json:"profitSeries"`
 }
 
 // CustomersSummary is the customers module header.

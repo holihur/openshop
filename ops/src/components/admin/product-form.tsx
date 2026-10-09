@@ -17,6 +17,7 @@ interface FormState {
   names: Record<string, string>;
   description: string;
   price: string; // in major units, converted to cents on submit
+  cost: string; // unit cost, used for margin reporting
   stock: string;
   weight: string; // grams
   status: string;
@@ -32,6 +33,7 @@ function initialState(product?: Product): FormState {
     names: { ...(product?.names ?? {}) },
     description: product?.description ?? "",
     price: product ? (product.priceCents / 100).toFixed(2) : "",
+    cost: product ? (product.costCents / 100).toFixed(2) : "",
     stock: product ? String(product.stock) : "0",
     weight: product ? String(product.weightGrams ?? 0) : "0",
     status: product?.status ?? "draft",
@@ -61,11 +63,13 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     const priceCents = Math.round(Number.parseFloat(form.price || "0") * 100);
+    const costCents = Math.round(Number.parseFloat(form.cost || "0") * 100);
     const input = {
       title: form.title,
       names: form.names,
       description: form.description,
       priceCents,
+      costCents,
       stock: Number.parseInt(form.stock || "0", 10),
       weightGrams: Number.parseInt(form.weight || "0", 10),
       status: form.status,
@@ -134,6 +138,19 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
               onChange={(e) => set({ price: e.target.value })}
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cost">{t("ops.cost")}</Label>
+            <Input
+              id="cost"
+              type="number"
+              step="0.01"
+              min="0"
+              value={form.cost}
+              onChange={(e) => set({ cost: e.target.value })}
+            />
+            <p className="text-muted-foreground text-xs">{t("ops.costHint")}</p>
           </div>
 
           <div className="space-y-2">

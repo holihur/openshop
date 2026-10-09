@@ -23,6 +23,21 @@ build() { # build <package-dir> <binary>
   go build -o "$BIN_DIR/$2" "./cmd/$1"
 }
 
+# The suite gets its own database so it is unaffected by (and does not pollute)
+# whatever is in the development database. Without this the console pages churn
+# through a developer's accumulated orders and the first navigation can time out.
+if [ -z "${POSTGRES_DSN:-}" ]; then
+  E2E_DB="${E2E_DB:-openshop_e2e}"
+  export POSTGRES_DSN="host=localhost port=5432 user=${POSTGRES_USER:-openshop} password=${POSTGRES_PASSWORD:-openshop} dbname=$E2E_DB sslmode=disable TimeZone=UTC"
+  if command -v psql >/dev/null 2>&1; then
+    if ! PGPASSWORD="${POSTGRES_PASSWORD:-openshop}" psql -h localhost -U "${POSTGRES_USER:-openshop}" -d postgres -tAc \
+        "SELECT 1 FROM pg_database WHERE datname='$E2E_DB'" | grep -q 1; then
+      PGPASSWORD="${POSTGRES_PASSWORD:-openshop}" psql -h localhost -U "${POSTGRES_USER:-openshop}" -d postgres \
+        -c "CREATE DATABASE $E2E_DB" >/dev/null 2>&1 || true
+    fi
+  fi
+fi
+
 if [ "$MODE" = "server" ]; then
   export HTTP_ADDR="${HTTP_ADDR:-:18081}"
   export INSTANCE_ID="${INSTANCE_ID:-e2e}"
