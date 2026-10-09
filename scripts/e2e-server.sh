@@ -13,9 +13,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODE="${1:-server}"
 BIN_DIR="$ROOT/.dev/e2e-bin"
 
-if [ ! -f "$ROOT/backend/internal/http/front/assets/dist/index.html" ]; then
-  "$ROOT/scripts/embed-frontend.sh"
-fi
+# Always rebuild: embedding only when the bundle was missing meant an edit to the
+# storefront, or to lib/, was silently not what the suite tested.
+"$ROOT/scripts/embed-frontend.sh"
 
 mkdir -p "$BIN_DIR"
 cd "$ROOT/backend"

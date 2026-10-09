@@ -53,8 +53,10 @@ export function FreeShippingProgress({
   const { t } = useI18n();
   if (thresholdCents <= 0) return null;
   if (remainingCents <= 0) {
+    // green-600 on white is 3.1:1, below the 4.5:1 minimum for body text, so
+    // the accessible tones are used instead (axe: color-contrast).
     return (
-      <p className="text-sm font-medium text-green-600 dark:text-green-500" role="status">
+      <p className="text-sm font-medium text-green-700 dark:text-green-400" role="status">
         {t("delivery.freeShippingReached")}
       </p>
     );

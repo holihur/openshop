@@ -69,7 +69,9 @@ export function ReviewForm({
       >
         {pending ? labels.sending : labels.submit}
       </button>
-      {state.ok ? <p className="text-sm text-green-600">{labels.thanks}</p> : null}
+      {state.ok ? (
+        <p className="text-sm text-green-700 dark:text-green-400">{labels.thanks}</p>
+      ) : null}
       {state.message && !state.ok ? (
         <p className="text-sm text-red-600">{state.message === "unauthenticated" ? labels.failed : state.message}</p>
       ) : null}
