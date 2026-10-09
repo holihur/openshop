@@ -747,6 +747,29 @@ verifies its checksum.
 
 `.github/workflows/release.yml` publishes a GitHub Release on every `v*` tag.
 
+## Two storefronts
+
+There are two storefronts and they iterate independently:
+
+| | `front/` | `front_ssr/` |
+| --- | --- | --- |
+| Rendering | Single-page app (Vite + React) | Server-rendered (Next.js App Router) |
+| Shipped as | Assets embedded in the Go binary | Its own Node container and deployment |
+| First paint | After JavaScript boots | Complete HTML |
+| SEO | Client-side metadata | Server metadata and JSON-LD |
+| Sessions | Tokens in the browser | `httpOnly` cookies, read on the server |
+
+They consume the same Go API, so a change on the server side reaches both. The
+SSR app talks to the API from the server (`OPENSHOP_API_BASE`) and proxies
+mutations through route handlers on its own origin, which is what keeps tokens
+out of the browser. It deliberately does not import code from `front/`, so the
+two can be deployed and evolved without coupling; see `front_ssr/README.md`.
+
+Both are covered by CI (type-check, build) and by browser tests — `pnpm
+--filter @openshop/e2e test` for the SPA, `test:ssr` for the server-rendered
+storefront, which includes a run with JavaScript disabled to prove the HTML
+really is server-rendered.
+
 ## Search
 
 The catalog search is backed by a stored `tsvector` generated column that uses

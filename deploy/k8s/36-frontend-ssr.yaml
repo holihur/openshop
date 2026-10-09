@@ -1,0 +1,54 @@
+# The server-rendered storefront runs as its own deployment: it is a Node
+# process, not an embedded asset bundle, and it renders from the API on the
+# server. Scale it like the API (it is stateless).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshop-front-ssr
+  namespace: openshop
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: openshop-front-ssr
+  template:
+    metadata:
+      labels:
+        app: openshop-front-ssr
+    spec:
+      containers:
+        - name: front-ssr
+          image: ghcr.io/holihur/openshop-front-ssr:latest
+          ports:
+            - containerPort: 3000
+          env:
+            # Server-side only: the browser never sees the API address.
+            - name: OPENSHOP_API_BASE
+              value: http://openshop:8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshop-front-ssr
+  namespace: openshop
+spec:
+  selector:
+    app: openshop-front-ssr
+  ports:
+    - port: 3000
+      targetPort: 3000

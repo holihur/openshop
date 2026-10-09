@@ -1,0 +1,171 @@
+/**
+ * Minimal catalogue for the server-rendered storefront. Keeping it here rather
+ * than importing the SPA catalogue is deliberate: this app is deployed on its
+ * own, so it must not break when the SPA's keys change.
+ */
+export type Locale = "en" | "zh";
+
+export const LOCALES: Locale[] = ["en", "zh"];
+
+const messages: Record<Locale, Record<string, string>> = {
+  en: {
+    "nav.home": "Home",
+    "nav.products": "Products",
+    "nav.cart": "Cart",
+    "nav.account": "Account",
+    "nav.signIn": "Sign in",
+    "nav.signOut": "Sign out",
+    "nav.register": "Create account",
+    "home.featured": "Featured products",
+    "home.browse": "Browse the catalog",
+    "products.title": "Products",
+    "products.search": "Search products",
+    "products.allCategories": "All categories",
+    "products.sort": "Sort",
+    "products.sortRelevance": "Most relevant",
+    "products.sortNewest": "Newest",
+    "products.sortPriceAsc": "Price: low to high",
+    "products.sortPriceDesc": "Price: high to low",
+    "products.resultCount": "{count} products",
+    "products.empty": "Nothing matched. Try another search.",
+    "products.fuzzy": "No exact match — showing similar products.",
+    "products.priceRange": "Price range",
+    "products.apply": "Apply",
+    "product.addToCart": "Add to cart",
+    "product.adding": "Adding…",
+    "product.outOfStock": "Out of stock",
+    "product.inStock": "{count} in stock",
+    "product.description": "Description",
+    "product.faq": "Frequently asked questions",
+    "product.reviews": "{count} reviews",
+    "delivery.arrives": "Arrives {earliest} – {latest}",
+    "delivery.businessDays": "Arrives in {min}–{max} business days",
+    "delivery.freeRemaining": "Add {amount} more for free shipping",
+    "delivery.freeReached": "You have earned free shipping",
+    "cart.title": "Your cart",
+    "cart.empty": "Your cart is empty.",
+    "cart.subtotal": "Subtotal",
+    "cart.quantity": "Quantity",
+    "cart.remove": "Remove",
+    "cart.shipping": "Shipping",
+    "cart.total": "Total",
+    "cart.checkout": "Checkout",
+    "cart.updating": "Updating…",
+    "auth.email": "Email",
+    "auth.password": "Password",
+    "auth.name": "Name",
+    "auth.signIn": "Sign in",
+    "auth.register": "Create account",
+    "auth.haveAccount": "Already have an account?",
+    "auth.noAccount": "New here?",
+    "orders.title": "Your orders",
+    "orders.empty": "You have no orders yet.",
+    "orders.order": "Order",
+    "orders.status": "Status",
+    "orders.total": "Total",
+    "orders.date": "Date",
+    "checkout.address": "Delivery address",
+    "checkout.payment": "Payment method",
+    "checkout.recipient": "Recipient",
+    "checkout.phone": "Phone",
+    "checkout.province": "Province",
+    "checkout.city": "City",
+    "checkout.line1": "Street address",
+    "checkout.postalCode": "Postal code",
+    "checkout.deliveryIn": "Delivery in",
+    "checkout.confirming": "Confirming your payment…",
+    "checkout.paid": "Payment confirmed. Thank you!",
+    "checkout.failed": "We could not confirm the payment.",
+    "error.generic": "Something went wrong.",
+  },
+  zh: {
+    "nav.home": "首页",
+    "nav.products": "全部商品",
+    "nav.cart": "购物车",
+    "nav.account": "账户",
+    "nav.signIn": "登录",
+    "nav.signOut": "退出登录",
+    "nav.register": "注册",
+    "home.featured": "精选商品",
+    "home.browse": "浏览商品",
+    "products.title": "商品",
+    "products.search": "搜索商品",
+    "products.allCategories": "全部分类",
+    "products.sort": "排序",
+    "products.sortRelevance": "最相关",
+    "products.sortNewest": "最新",
+    "products.sortPriceAsc": "价格从低到高",
+    "products.sortPriceDesc": "价格从高到低",
+    "products.resultCount": "共 {count} 件商品",
+    "products.empty": "没有找到商品，试试其他关键词。",
+    "products.fuzzy": "没有精确匹配，为您显示相似商品。",
+    "products.priceRange": "价格区间",
+    "products.apply": "应用",
+    "product.addToCart": "加入购物车",
+    "product.adding": "加入中…",
+    "product.outOfStock": "已售罄",
+    "product.inStock": "库存 {count}",
+    "product.description": "商品描述",
+    "product.faq": "常见问题",
+    "product.reviews": "{count} 条评价",
+    "delivery.arrives": "预计 {earliest} – {latest} 送达",
+    "delivery.businessDays": "预计 {min}–{max} 个工作日送达",
+    "delivery.freeRemaining": "再买 {amount} 即可免运费",
+    "delivery.freeReached": "已满足免运费条件",
+    "cart.title": "购物车",
+    "cart.empty": "购物车是空的。",
+    "cart.subtotal": "小计",
+    "cart.quantity": "数量",
+    "cart.remove": "移除",
+    "cart.shipping": "运费",
+    "cart.total": "合计",
+    "cart.checkout": "去结算",
+    "cart.updating": "更新中…",
+    "auth.email": "邮箱",
+    "auth.password": "密码",
+    "auth.name": "姓名",
+    "auth.signIn": "登录",
+    "auth.register": "注册",
+    "auth.haveAccount": "已有账号？",
+    "auth.noAccount": "还没有账号？",
+    "orders.title": "我的订单",
+    "orders.empty": "暂无订单。",
+    "orders.order": "订单",
+    "orders.status": "状态",
+    "orders.total": "合计",
+    "orders.date": "日期",
+    "checkout.address": "收货地址",
+    "checkout.payment": "支付方式",
+    "checkout.recipient": "收件人",
+    "checkout.phone": "手机号",
+    "checkout.province": "省份",
+    "checkout.city": "城市",
+    "checkout.line1": "详细地址",
+    "checkout.postalCode": "邮编",
+    "checkout.deliveryIn": "预计送达",
+    "checkout.confirming": "正在确认支付…",
+    "checkout.paid": "支付已确认，感谢您的购买！",
+    "checkout.failed": "无法确认支付。",
+    "error.generic": "出错了。",
+  },
+};
+
+/** A translator bound to a locale, usable in server components. */
+export function translator(locale: Locale) {
+  const table = messages[locale] ?? messages.en;
+  return function t(key: string, vars?: Record<string, string | number>): string {
+    let text = table[key] ?? messages.en[key] ?? key;
+    if (vars) {
+      for (const [name, value] of Object.entries(vars)) {
+        text = text.replaceAll(`{${name}}`, String(value));
+      }
+    }
+    return text;
+  };
+}
+
+/** Reads the preferred locale from an Accept-Language header. */
+export function localeFromHeader(header: string | null): Locale {
+  if (!header) return "en";
+  return header.toLowerCase().startsWith("zh") ? "zh" : "en";
+}

@@ -2,6 +2,7 @@
 # Boots a server for the Playwright suite.
 #   e2e-server.sh server  -> storefront binary on :18081 (migrates + seeds)
 #   e2e-server.sh ops     -> admin binary on :18082
+#   e2e-server.sh ssr     -> Next.js storefront on :18083, API at $E2E_API_BASE
 # PostgreSQL, Redis and NATS must be reachable (the CI e2e job provides them).
 #
 # The binaries are built once into .dev/e2e-bin and reused, so a re-run does not
@@ -36,6 +37,16 @@ if [ -z "${POSTGRES_DSN:-}" ]; then
         -c "CREATE DATABASE $E2E_DB" >/dev/null 2>&1 || true
     fi
   fi
+fi
+
+if [ "$MODE" = "ssr" ]; then
+  # Server-rendered storefront. It needs the API (start it with the "server"
+  # mode); the browser only ever talks to this origin.
+  export OPENSHOP_API_BASE="${E2E_API_BASE:-http://localhost:18081}"
+  export PORT="${SSR_PORT:-18083}"
+  cd "$ROOT/front_ssr"
+  pnpm build
+  exec pnpm exec next start -p "$PORT"
 fi
 
 if [ "$MODE" = "server" ]; then

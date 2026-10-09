@@ -5,10 +5,11 @@
   "type": "module",
   "packageManager": "pnpm@11.25.0",
   "scripts": {
-    "build": "pnpm --filter @openshop/front build && pnpm --filter @openshop/ops build",
+    "build": "pnpm --filter @openshop/front build && pnpm --filter @openshop/ops build && pnpm --filter @openshop/front-ssr build",
     "dev:front": "pnpm --filter @openshop/front dev",
     "dev:ops": "pnpm --filter @openshop/ops dev",
-    "lint": "pnpm --filter @openshop/front lint && pnpm --filter @openshop/ops lint",
+    "dev:ssr": "pnpm --filter @openshop/front-ssr dev",
+    "lint": "pnpm --filter @openshop/front lint && pnpm --filter @openshop/ops lint && pnpm --filter @openshop/front-ssr lint",
     "test": "pnpm --filter @openshop/lib test && pnpm --filter @openshop/front test"
   }
 }

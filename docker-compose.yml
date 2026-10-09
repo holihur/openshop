@@ -113,6 +113,20 @@ services:
 
   # Operations console + admin API. A separate binary so it can be exposed only
   # on an internal network. It shares the JWT secret and database with the
+  # Server-rendered storefront. It renders from the API on the server, so it is
+  # reachable even before any JavaScript runs.
+  front-ssr:
+    build:
+      context: .
+      dockerfile: front_ssr/Dockerfile
+    environment:
+      OPENSHOP_API_BASE: http://openshop:8080
+    ports: ["3000:3000"]
+    depends_on:
+      openshop:
+        condition: service_healthy
+    restart: unless-stopped
+
   # storefront but runs no background workers.
   ops:
     <<: *backend-image

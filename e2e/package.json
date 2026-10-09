@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
+    "test:ssr": "playwright test -c playwright.ssr.config.ts",
     "report": "playwright show-report"
   },
   "devDependencies": {

@@ -1,6 +1,7 @@
 packages:
   - lib
   - front
+  - front_ssr
   - ops
   - e2e
 
