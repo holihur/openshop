@@ -106,6 +106,20 @@ type PaymentConfig struct {
 	// environment (never in the settings table).
 	StripeSecretKey     string
 	StripeWebhookSecret string
+	// Alipay and WeChat Pay are configured with an app id from the environment
+	// plus their signing material. The private keys and the API v3 key are
+	// secrets and never reach the settings table.
+	AlipayAppID        string
+	AlipayPrivateKey   string
+	AlipayPublicKey    string
+	AlipayGateway      string
+	WeChatMchID        string
+	WeChatAppID        string
+	WeChatSerialNo     string
+	WeChatPrivateKey   string
+	WeChatAPIv3Key     string
+	WeChatPlatformCert string
+	WeChatGateway      string
 }
 
 // OIDCConfig holds the secret half of the OIDC configuration; the rest lives in
@@ -229,6 +243,19 @@ func Load() (*Config, error) {
 			MockReturnURL:       env("PAYMENT_MOCK_RETURN_URL", "http://localhost:8080/payment/result"),
 			StripeSecretKey:     env("STRIPE_SECRET_KEY", ""),
 			StripeWebhookSecret: env("STRIPE_WEBHOOK_SECRET", ""),
+			// Empty values keep the gateway out of the payment registry, so an
+			// unconfigured deployment never offers a broken option.
+			AlipayAppID:        env("ALIPAY_APP_ID", ""),
+			AlipayPrivateKey:   env("ALIPAY_PRIVATE_KEY", ""),
+			AlipayPublicKey:    env("ALIPAY_PUBLIC_KEY", ""),
+			AlipayGateway:      env("ALIPAY_GATEWAY", ""),
+			WeChatMchID:        env("WECHAT_PAY_MCH_ID", ""),
+			WeChatAppID:        env("WECHAT_PAY_APP_ID", ""),
+			WeChatSerialNo:     env("WECHAT_PAY_SERIAL_NO", ""),
+			WeChatPrivateKey:   env("WECHAT_PAY_PRIVATE_KEY", ""),
+			WeChatAPIv3Key:     env("WECHAT_PAY_API_V3_KEY", ""),
+			WeChatPlatformCert: env("WECHAT_PAY_PLATFORM_CERT", ""),
+			WeChatGateway:      env("WECHAT_PAY_GATEWAY", ""),
 		},
 		OIDC: OIDCConfig{
 			ClientSecret:  env("OIDC_CLIENT_SECRET", ""),

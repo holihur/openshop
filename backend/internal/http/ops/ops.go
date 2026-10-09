@@ -167,6 +167,7 @@ func New(
 			admin.POST("/outbox/:id/replay", middleware.RequirePermission(domain.PermOutboxWrite), fh.ReplayOutbox)
 
 			admin.GET("/settings", middleware.RequirePermission(domain.PermSettingsRead), fh.ListSettings)
+			admin.GET("/payment-gateways", middleware.RequirePermission(domain.PermSettingsRead), fh.PaymentGateways)
 			admin.PUT("/settings", middleware.RequirePermission(domain.PermSettingsWrite), fh.UpdateSettings)
 
 			admin.GET("/shipping-methods", middleware.RequirePermission(domain.PermShippingRead), fh.AdminListShippingMethods)

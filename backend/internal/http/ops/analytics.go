@@ -86,3 +86,10 @@ func (h *Handler) LowStock(c *gin.Context) {
 	}
 	response.OK(c, toLowStockViews(items))
 }
+
+// PaymentGateways reports each registered gateway and whether it is ready and
+// currently offered, so an operator can tell a switched-off gateway from one
+// whose credentials were never configured. No credential is ever returned.
+func (h *Handler) PaymentGateways(c *gin.Context) {
+	response.OK(c, h.Payments.Gateways(c.Request.Context()))
+}

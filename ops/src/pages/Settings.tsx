@@ -3,6 +3,7 @@ import { NavLink, useParams } from "react-router-dom";
 import { RotateCcw, Save } from "lucide-react";
 
 import { Button } from "@lib/components/ui/button";
+import { Badge } from "@lib/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@lib/components/ui/card";
 import { Input } from "@lib/components/ui/input";
 import { Label } from "@lib/components/ui/label";
@@ -10,7 +11,7 @@ import { Skeleton } from "@lib/components/ui/skeleton";
 import { useI18n } from "@lib/i18n";
 import type { MessageKey } from "@lib/i18n/messages";
 import { cn } from "@lib/utils";
-import { useSettings, useUpdateSettings } from "@lib/hooks/useAdmin";
+import { usePaymentGateways, useSettings, useUpdateSettings } from "@lib/hooks/useAdmin";
 import type { Setting } from "@lib/types";
 
 const GROUP_ORDER = ["store", "checkout", "inventory", "auth", "security", "payment", "mail"];
@@ -20,6 +21,7 @@ const GROUP_ORDER = ["store", "checkout", "inventory", "auth", "security", "paym
 export function SettingsPage() {
   const { t } = useI18n();
   const { data, isLoading } = useSettings();
+  const { data: gateways } = usePaymentGateways();
   const save = useUpdateSettings();
   const [draft, setDraft] = useState<Record<string, string>>({});
   const { group: groupParam } = useParams();
@@ -98,6 +100,30 @@ export function SettingsPage() {
         </nav>
 
         <div className="min-w-0 flex-1 space-y-4">
+          {/* A gateway that is switched off and one that has no credentials look
+              identical at checkout; this tells them apart. */}
+          {gateways && gateways.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("settings.paymentGateways")}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {gateways.map((g) => (
+                  <div key={g.name} className="flex items-center justify-between text-sm">
+                    <span className="font-mono">{g.name}</span>
+                    <span className="flex items-center gap-2">
+                      <Badge variant={g.configured ? "success" : "secondary"}>
+                        {g.configured ? t("settings.gatewayConfigured") : t("settings.gatewayMissing")}
+                      </Badge>
+                      <Badge variant={g.enabled ? "success" : "secondary"}>
+                        {g.enabled ? t("common.active") : t("common.inactive")}
+                      </Badge>
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
           {current && (
             <Card key={current[0]}>
               <CardHeader>

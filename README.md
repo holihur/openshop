@@ -770,6 +770,29 @@ Both are covered by CI (type-check, build) and by browser tests — `pnpm
 storefront, which includes a run with JavaScript disabled to prove the HTML
 really is server-rendered.
 
+## Payment gateways
+
+Every gateway is an adapter behind `port.PaymentProvider`, so the service layer
+never sees a provider-specific payload. Four are built in:
+
+| Gateway | Flow | Notes |
+| --- | --- | --- |
+| `offline` | Recorded manually | Bank transfer; staff confirm in the console |
+| `mock` | Hosted sandbox | Development only |
+| `stripe` | Stripe Checkout | `STRIPE_SECRET_KEY`, webhook signature verified |
+| `alipay` | Signed redirect (page pay) | RSA2; notifications verified with Alipay's public key |
+| `wechat` | Native (QR) | API v3; requests signed with the merchant key, notifications verified and decrypted (AES-256-GCM) |
+
+A gateway is only registered when its credentials are present, and only offered
+at checkout when it is listed in `payment.enabled_providers`. The ops console
+shows both states per gateway, so a switched-off gateway cannot be mistaken for
+one that was never configured.
+
+The two Chinese gateways need no third-party SDK: RSA signing, signature
+verification and notification decryption are implemented with the standard
+library, and are covered by tests that generate a key pair, sign a request or a
+notification, and assert both the happy path and the forged-signature rejection.
+
 ## Search
 
 The catalog search is backed by a stored `tsvector` generated column that uses

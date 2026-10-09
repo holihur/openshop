@@ -32,6 +32,7 @@ import (
 	"github.com/holihur/openshop/internal/service"
 	"github.com/holihur/openshop/internal/version"
 	"github.com/holihur/openshop/internal/worker"
+	"strings"
 )
 
 // App holds every long-lived resource so it can be shut down deterministically.
@@ -65,13 +66,39 @@ const (
 // storefront only signs in customers, ops only administrators.
 // paymentProviders registers the payment adapters. Stripe is only registered
 // when a secret key is configured; the key itself stays in the environment.
-func paymentProviders(cfg *config.Config) []port.PaymentProvider {
+func paymentProviders(cfg *config.Config, log *logger.Slog) []port.PaymentProvider {
 	providers := []port.PaymentProvider{
 		payment.NewMock(cfg.Payment.MockReturnURL, cfg.JWT.Secret),
 		payment.NewOffline(),
 	}
 	if cfg.Payment.StripeSecretKey != "" {
 		providers = append(providers, payment.NewStripe(cfg.Payment.StripeSecretKey, cfg.Payment.StripeWebhookSecret))
+	}
+	// Alipay and WeChat Pay sign every request with the merchant key. A gateway
+	// with incomplete credentials is left out of the registry rather than
+	// offered and then failing when a shopper picks it.
+	notifyBase := strings.TrimSuffix(cfg.App.PublicSiteURL, "/")
+	if alipay, err := payment.NewAlipay(payment.AlipayOptions{
+		AppID:           cfg.Payment.AlipayAppID,
+		Gateway:         cfg.Payment.AlipayGateway,
+		PrivateKey:      cfg.Payment.AlipayPrivateKey,
+		AlipayPublicKey: cfg.Payment.AlipayPublicKey,
+		NotifyURL:       notifyBase + "/api/v1/webhooks/payments/alipay",
+	}); err != nil {
+		log.Error("alipay adapter disabled", "error", err)
+	} else if alipay.Configured() {
+		providers = append(providers, alipay)
+	}
+	if wechat, err := payment.NewWeChatPay(payment.WeChatOptions{
+		MchID: cfg.Payment.WeChatMchID, AppID: cfg.Payment.WeChatAppID,
+		SerialNo: cfg.Payment.WeChatSerialNo, Gateway: cfg.Payment.WeChatGateway,
+		PrivateKey: cfg.Payment.WeChatPrivateKey, PlatformCert: cfg.Payment.WeChatPlatformCert,
+		APIv3Key:  cfg.Payment.WeChatAPIv3Key,
+		NotifyURL: notifyBase + "/api/v1/webhooks/payments/wechat",
+	}); err != nil {
+		log.Error("wechat pay adapter disabled", "error", err)
+	} else if wechat.Configured() {
+		providers = append(providers, wechat)
 	}
 	return providers
 }
@@ -164,7 +191,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	ids := security.NewUUIDGenerator()
 	clock := port.SystemClock{}
 
-	payments := payment.NewRegistry(cfg.Payment.DefaultProvider, paymentProviders(cfg)...)
+	payments := payment.NewRegistry(cfg.Payment.DefaultProvider, paymentProviders(cfg, log)...)
 
 	objectStore, err := storage.New(ctx, cfg.Storage)
 	if err != nil {

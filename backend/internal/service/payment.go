@@ -114,7 +114,10 @@ func (s *PaymentService) HandleWebhook(ctx context.Context, providerName string,
 	}
 	evt, err := provider.ParseWebhook(ctx, headers, body)
 	if err != nil {
-		return err
+		// An unverifiable notification is a client error, not a server fault:
+		// returning 500 would hide a forged callback among real incidents.
+		s.logger.Warn("payment webhook rejected", "provider", provider.Name(), "error", err)
+		return fmt.Errorf("%w: payment notification rejected", domain.ErrInvalidArgument)
 	}
 
 	payment, err := s.payments.FindByProviderRef(ctx, provider.Name(), evt.ProviderRef)
@@ -238,6 +241,35 @@ func (s *PaymentService) provider(ctx context.Context, name string) (port.Paymen
 		return nil, domain.ErrInvalidArgument
 	}
 	return s.registry.Get(name)
+}
+
+// GatewayStatus describes a registered gateway for the ops console: whether its
+// credentials are complete and whether it is currently offered to shoppers.
+type GatewayStatus struct {
+	Name       string `json:"name"`
+	Configured bool   `json:"configured"`
+	Enabled    bool   `json:"enabled"`
+}
+
+// Gateways reports the state of every registered gateway. It deliberately never
+// exposes a credential: only whether the gateway has one.
+func (s *PaymentService) Gateways(ctx context.Context) []GatewayStatus {
+	names := s.registry.Names()
+	enabled := make(map[string]bool, len(names))
+	for _, name := range s.Methods(ctx) {
+		enabled[name] = true
+	}
+	out := make([]GatewayStatus, 0, len(names))
+	for _, name := range names {
+		status := GatewayStatus{Name: name, Configured: true, Enabled: enabled[name]}
+		if provider, err := s.registry.Get(name); err == nil {
+			if ready, ok := provider.(port.ReadinessProvider); ok {
+				status.Configured = ready.Configured()
+			}
+		}
+		out = append(out, status)
+	}
+	return out
 }
 
 // Methods lists the payment channels a shopper can choose: the registered

@@ -343,6 +343,20 @@ export function useUpdateVariant(productId: string) {
   });
 }
 
+export interface PaymentGatewayStatus {
+  name: string;
+  configured: boolean;
+  enabled: boolean;
+}
+
+/** Gateway readiness for the ops console: credentials present and offered. */
+export function usePaymentGateways() {
+  return useQuery({
+    queryKey: ["admin", "payment-gateways"],
+    queryFn: () => api.get<PaymentGatewayStatus[]>("/ops/payment-gateways"),
+  });
+}
+
 export function useSettings() {
   return useQuery({
     queryKey: ["admin", "settings"],

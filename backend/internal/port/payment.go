@@ -61,6 +61,13 @@ type PaymentRegistry interface {
 	Names() []string
 }
 
+// ReadinessProvider is implemented by gateways whose credentials may be missing.
+// The ops console shows the state, so an operator can tell a gateway that is
+// switched off from one that was never configured.
+type ReadinessProvider interface {
+	Configured() bool
+}
+
 // SandboxProvider is implemented by test/sandbox gateways that can fabricate a
 // signed callback. It lets the storefront exercise the full payment flow in
 // development without a real gateway. Real providers do not implement it.

@@ -129,9 +129,11 @@ var SettingDefs = []SettingDef{
 	{Key: "security.rate_limit_user_rps", Group: "security", Type: SettingInt,
 		Default: "100", Description: "Per-authenticated-user requests per second", Min: 1, Max: 1000000},
 	{Key: "payment.default_provider", Group: "payment", Type: SettingString,
-		Default: "mock", Description: "Active payment gateway (mock, stripe)"},
+		Default: "mock", Description: "Active payment gateway (mock, offline, stripe, alipay, wechat)"},
 	{Key: "payment.enabled_providers", Group: "payment", Type: SettingString,
-		Default: "", Description: "Comma-separated channels offered at checkout (empty = all registered)"},
+		Default: "",
+		Description: "Comma-separated channels offered at checkout: mock, offline, stripe, alipay, wechat " +
+			"(empty = every registered gateway). A gateway only appears once its credentials are set."},
 	{Key: "payment.stripe_public_key", Group: "payment", Type: SettingString,
 		Default: "", Description: "Stripe publishable key (public)"},
 	{Key: "payment.stripe_return_url", Group: "payment", Type: SettingString,
