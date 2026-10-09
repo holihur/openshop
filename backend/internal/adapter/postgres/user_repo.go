@@ -98,6 +98,13 @@ func (r *UserRepository) List(ctx context.Context, f domain.UserFilter) (domain.
 	if f.Role != nil {
 		q = q.Where("role = ?", string(*f.Role))
 	}
+	if f.OpsOnly {
+		roles := make([]string, 0, len(domain.OpsRoles()))
+		for _, role := range domain.OpsRoles() {
+			roles = append(roles, string(role))
+		}
+		q = q.Where("role IN ?", roles)
+	}
 	if f.Status != nil {
 		q = q.Where("status = ?", string(*f.Status))
 	}

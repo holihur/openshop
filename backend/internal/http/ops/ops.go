@@ -166,6 +166,11 @@ func New(
 			admin.GET("/outbox/stats", middleware.RequirePermission(domain.PermAuditRead), fh.OutboxStats)
 			admin.POST("/outbox/:id/replay", middleware.RequirePermission(domain.PermOutboxWrite), fh.ReplayOutbox)
 
+			admin.GET("/staff", middleware.RequirePermission(domain.PermStaffRead), fh.ListStaff)
+			admin.POST("/staff", middleware.RequirePermission(domain.PermStaffWrite), fh.CreateStaff)
+			admin.PATCH("/staff/:id", middleware.RequirePermission(domain.PermStaffWrite), fh.UpdateStaff)
+			admin.POST("/staff/:id/password", middleware.RequirePermission(domain.PermStaffWrite), fh.ResetStaffPassword)
+			admin.GET("/roles", middleware.RequirePermission(domain.PermStaffRead), fh.ListRoles)
 			admin.GET("/settings", middleware.RequirePermission(domain.PermSettingsRead), fh.ListSettings)
 			admin.GET("/payment-gateways", middleware.RequirePermission(domain.PermSettingsRead), fh.PaymentGateways)
 			admin.PUT("/settings", middleware.RequirePermission(domain.PermSettingsWrite), fh.UpdateSettings)

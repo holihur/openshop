@@ -20,6 +20,7 @@ import {
   Store,
   Tags,
   Truck,
+  UserCog,
   Users,
   Wallet,
   X,
@@ -54,6 +55,7 @@ const nav: { to: string; label: MessageKey; icon: LucideIcon; end?: boolean; per
   { to: "/shipping", label: "ops.shipping", icon: Truck, perm: "shipping:read" },
   { to: "/currency", label: "ops.currency", icon: Wallet, perm: "currency:write" },
   { to: "/audit", label: "ops.audit", icon: ScrollText, perm: "audit:read" },
+  { to: "/staff", label: "staff.title", icon: UserCog, perm: "staff:read" },
   { to: "/settings", label: "ops.settings", icon: SlidersHorizontal, perm: "settings:read" },
 ];
 

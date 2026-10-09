@@ -793,6 +793,27 @@ verification and notification decryption are implemented with the standard
 library, and are covered by tests that generate a key pair, sign a request or a
 notification, and assert both the happy path and the forged-signature rejection.
 
+## Staff and roles
+
+The console manages the people who operate it under **Staff & roles**
+(`/staff`, admin only):
+
+- **Staff** lists every console user with their role, status and how many
+  permissions the role grants; you can add a user (a password is generated and
+  shown exactly once if you leave it blank), change a role, enable or disable an
+  account, and reset a password.
+- **Roles** shows the permission matrix the API actually enforces — the same
+  list `HasPermission` checks — so the screen cannot drift from the truth.
+
+The guards are deliberate: you cannot change your own role or status, and the
+service refuses to remove the last active administrator. Every change writes an
+audit entry. A password reset also ends every existing session for that user,
+because the session that prompted the reset must not keep working.
+
+Roles are fixed in code (`admin` is a superuser; `support`, `catalog` and
+`finance` hold the subsets defined in `internal/domain/rbac.go`); each API route
+is guarded by a permission, and the sidebar hides what the caller cannot use.
+
 ## Social sign-in
 
 WeChat and Alipay sign-in are adapters behind `port.IdentityProvider`, the same

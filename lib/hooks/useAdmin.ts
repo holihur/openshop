@@ -465,3 +465,86 @@ export function useConfirmOrderPayment() {
     onError: (error: Error) => toast.error(errorMessage(error)),
   });
 }
+
+export interface StaffMember {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  status: string;
+  createdAt: string;
+  permissions: string[];
+}
+
+export interface RoleMatrix {
+  role: string;
+  permissions: string[];
+  description: string;
+  members: number;
+  catalog: string[];
+}
+
+export interface StaffInput {
+  email: string;
+  name?: string;
+  role: string;
+  password?: string;
+}
+
+export interface StaffUpdate {
+  name?: string;
+  role?: string;
+  status?: string;
+}
+
+/** Console users only; shoppers live on the customers screen. */
+export function useStaff(params: { keyword?: string; role?: string } = {}) {
+  const query = new URLSearchParams();
+  if (params.keyword) query.set("keyword", params.keyword);
+  if (params.role) query.set("role", params.role);
+  const suffix = query.toString();
+  return useQuery({
+    queryKey: ["admin", "staff", suffix],
+    queryFn: () => api.getPage<StaffMember[]>(`/ops/staff${suffix ? `?${suffix}` : ""}`),
+  });
+}
+
+/** The role matrix the middleware enforces, for the roles tab. */
+export function useRoleMatrix() {
+  return useQuery({
+    queryKey: ["admin", "roles"],
+    queryFn: () => api.get<RoleMatrix[]>("/ops/roles"),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useCreateStaff() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: StaffInput) =>
+      api.post<{ staff: StaffMember; generatedPassword?: string }>("/ops/staff", input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "roles"] });
+    },
+  });
+}
+
+export function useUpdateStaff() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: StaffUpdate }) =>
+      api.patch<StaffMember>(`/ops/staff/${id}`, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "roles"] });
+    },
+  });
+}
+
+export function useResetStaffPassword() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<{ staff: StaffMember; generatedPassword?: string }>(`/ops/staff/${id}/password`),
+  });
+}

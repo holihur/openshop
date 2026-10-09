@@ -42,6 +42,7 @@ type Handler struct {
 	Customers     *service.CustomerService
 	OIDC          *service.OIDCService
 	Social        *service.SocialService
+	Staff         *service.StaffService
 	Storage       port.ObjectStorage
 	Cache         port.Cache
 	IDs           port.IDGenerator

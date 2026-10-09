@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,6 +21,7 @@ const (
 	resetKeyPrefix        = "auth:reset:"
 	verifyKeyPrefix       = "auth:verify:"
 	denyListKeyPrefix     = "auth:denylist:"
+	revokedBeforePrefix   = "auth:revoked-before:"
 	refreshTokenBytes     = 32
 	resetTokenBytes       = 32
 	verifyTokenBytes      = 32
@@ -436,6 +438,38 @@ func (s *AuthService) Logout(ctx context.Context, claims *port.TokenClaims, refr
 		}
 	}
 	return nil
+}
+
+// RevokeSessions invalidates every session a user already has, which a password
+// reset must do: otherwise the very session that prompted the reset keeps
+// working. Tokens carry an issue time, so a single marker is enough.
+func (s *AuthService) RevokeSessions(ctx context.Context, userID string) error {
+	if userID == "" {
+		return nil
+	}
+	key := revokedBeforePrefix + userID
+	// Outlive the longest possible refresh token, so nothing issued earlier can
+	// be used once this is set.
+	return s.cache.Set(ctx, key, strconv.FormatInt(s.clock.Now().Unix(), 10), 60*24*time.Hour)
+}
+
+// SessionValid reports whether a token issued at issuedAt is still within the
+// user's session window. A cache miss means no revocation was requested.
+func (s *AuthService) SessionValid(ctx context.Context, userID string, issuedAt time.Time) (bool, error) {
+	raw, err := s.cache.Get(ctx, revokedBeforePrefix+userID)
+	if err != nil {
+		if errors.Is(err, port.ErrCacheMiss) {
+			return true, nil
+		}
+		return false, err
+	}
+	revokedBefore, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		// An unreadable marker must not lock everybody out, but it must not be
+		// ignored either: treat it as a miss and let the audit surface it.
+		return true, nil
+	}
+	return issuedAt.Unix() >= revokedBefore, nil
 }
 
 // IsRevoked reports whether an access-token jti has been deny-listed.

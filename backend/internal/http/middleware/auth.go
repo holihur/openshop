@@ -64,6 +64,17 @@ func Auth(tokens port.TokenIssuer, auth *service.AuthService, pats *service.PATS
 			unauthorized(c, "token revoked")
 			return
 		}
+		// A password reset invalidates every session issued before it, so the
+		// session that prompted the reset cannot keep working.
+		valid, err := auth.SessionValid(c.Request.Context(), claims.Subject, claims.IssuedAt)
+		if err != nil {
+			unauthorized(c, "cannot validate session")
+			return
+		}
+		if !valid {
+			unauthorized(c, "session ended")
+			return
+		}
 		c.Set(ctxUserID, claims.Subject)
 		c.Set(ctxRole, claims.Role)
 		c.Set(ctxClaims, claims)

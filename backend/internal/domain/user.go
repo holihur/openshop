@@ -49,9 +49,12 @@ func (u *User) CanLogin() bool { return u.Status == UserActive }
 
 // UserFilter selects a page of users for the ops console.
 type UserFilter struct {
-	Keyword  string
-	Role     *UserRole
-	Status   *UserStatus
+	Keyword string
+	Role    *UserRole
+	Status  *UserStatus
+	// OpsOnly restricts the result to the roles that may operate the console,
+	// which is what the staff screen shows.
+	OpsOnly  bool
 	Page     int
 	PageSize int
 }

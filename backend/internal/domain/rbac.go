@@ -35,6 +35,10 @@ const (
 	PermSettingsWrite      Permission = "settings:write"
 	PermCustomersRead      Permission = "customers:read"
 	PermCustomersWrite     Permission = "customers:write"
+	// PermStaffRead/PermStaffWrite are deliberately not granted to any role but
+	// admin: managing who can operate the console is not a support task.
+	PermStaffRead  Permission = "staff:read"
+	PermStaffWrite Permission = "staff:write"
 )
 
 // allPermissions is the full catalogue, granted to the admin superuser role.
@@ -53,6 +57,7 @@ var allPermissions = []Permission{
 	PermAnalyticsRead, PermAuditRead,
 	PermSettingsRead, PermSettingsWrite,
 	PermCustomersRead, PermCustomersWrite,
+	PermStaffRead, PermStaffWrite,
 }
 
 // rolePermissions maps the non-superuser ops roles to their capabilities.
@@ -92,6 +97,21 @@ func set(perms ...Permission) map[Permission]bool {
 		m[p] = true
 	}
 	return m
+}
+
+// OpsRoles lists the roles that may sign in to the console, in the order the
+// staff screen should present them (least privileged first, admin last).
+func OpsRoles() []UserRole {
+	return []UserRole{RoleSupport, RoleCatalog, RoleFinance, RoleAdmin}
+}
+
+// AllPermissions returns the permission catalogue in a stable order. The
+// console shows it as the role matrix, so it must be the same list the
+// middleware enforces.
+func AllPermissions() []Permission {
+	out := make([]Permission, len(allPermissions))
+	copy(out, allPermissions)
+	return out
 }
 
 // IsOpsRole reports whether a role may sign in to the operations console.

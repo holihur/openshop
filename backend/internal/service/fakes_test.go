@@ -69,6 +69,14 @@ func (r *fakeUserRepo) List(_ context.Context, f domain.UserFilter) (domain.Page
 		if f.Status != nil && u.Status != *f.Status {
 			continue
 		}
+		if f.OpsOnly && !domain.IsOpsRole(u.Role) {
+			continue
+		}
+		if kw := strings.ToLower(strings.TrimSpace(f.Keyword)); kw != "" &&
+			!strings.Contains(strings.ToLower(u.Email), kw) &&
+			!strings.Contains(strings.ToLower(u.Name), kw) {
+			continue
+		}
 		out = append(out, *u)
 	}
 	return domain.Page[domain.User]{Items: out, Total: int64(len(out)), Page: 1, PageSize: len(out)}, nil
