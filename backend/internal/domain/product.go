@@ -76,13 +76,39 @@ func (p *Product) Available() bool {
 
 // ProductFilter describes a catalog query. It is storage agnostic so the
 // service layer never builds SQL.
+// ProductFacets summarises the filters a shopper can apply: the price range and
+// the variant attributes (colour, size, ...) that actually occur.
+type ProductFacets struct {
+	MinPriceCents int64            `json:"minPriceCents"`
+	MaxPriceCents int64            `json:"maxPriceCents"`
+	Attributes    []AttributeFacet `json:"attributes"`
+}
+
+// AttributeFacet is one attribute name with its distinct values, sorted.
+type AttributeFacet struct {
+	Name   string   `json:"name"`
+	Values []string `json:"values"`
+}
+
 type ProductFilter struct {
 	CategoryID string
 	Keyword    string
 	Status     *ProductStatus
 	Page       int
 	PageSize   int
-	Sort       string // "newest", "price_asc", "price_desc"
+	Sort       string // "newest", "relevance", "price_asc", "price_desc"
+	// Synonyms are alternative search terms for the keyword, supplied by the
+	// service from the runtime configuration.
+	Synonyms map[string][]string
+	// MinPriceCents/MaxPriceCents bound the product price when set.
+	MinPriceCents *int64
+	MaxPriceCents *int64
+	// Attributes filters to products having a variant whose attributes contain
+	// every given key/value pair (e.g. {"color": "red"}).
+	Attributes map[string]string
+	// Fuzzy relaxes the keyword match to near-miss words. It is set by the
+	// service only when the exact search returned nothing.
+	Fuzzy bool
 	// Cursor, when set, switches to keyset pagination (stable and O(1) at any
 	// depth). Page is ignored in that mode.
 	Cursor string
@@ -96,6 +122,9 @@ type Page[T any] struct {
 	Total    int64
 	Page     int
 	PageSize int
+	// Fuzzy reports that the keyword only matched approximately, so the
+	// storefront can say "no exact match, showing similar results".
+	Fuzzy bool
 	// NextCursor is set by keyset (cursor) listings; empty for offset listings.
 	NextCursor string
 }

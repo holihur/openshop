@@ -107,13 +107,7 @@ func (d *DB) AutoMigrate() error {
 	); err != nil {
 		return err
 	}
-	// GORM cannot express a stored generated tsvector column, so add it here to
-	// keep AutoMigrate (development) consistent with the SQL migrations.
-	if err := d.gorm.Exec(`
-		ALTER TABLE products ADD COLUMN IF NOT EXISTS search_vector tsvector
-		GENERATED ALWAYS AS (
-			to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(description, ''))
-		) STORED`).Error; err != nil {
+	if err := d.ensureSearchSchema(); err != nil {
 		return err
 	}
 	// Ticket numbers come from a sequence declared in the SQL migrations; create
@@ -128,6 +122,51 @@ func (d *DB) AutoMigrate() error {
 		return err
 	}
 	return d.gorm.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_audit_logs_seq ON audit_logs (seq)`).Error
+}
+
+// ensureSearchSchema brings the search objects up to what the SQL migrations
+// declare: GORM cannot express a stored generated tsvector column or a
+// functional index, so they are created here. It is a repair, not just a
+// creation: a database built by an older AutoMigrate still carries the
+// unstemmed 'simple' vector, which would silently return worse results.
+func (d *DB) ensureSearchSchema() error {
+	if err := d.gorm.Exec(`CREATE EXTENSION IF NOT EXISTS pg_trgm`).Error; err != nil {
+		return err
+	}
+
+	var expr string
+	if err := d.gorm.Raw(`
+		SELECT coalesce(pg_get_expr(ad.adbin, ad.adrelid), '')
+		FROM pg_attribute a
+		LEFT JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
+		WHERE a.attrelid = 'products'::regclass AND a.attname = 'search_vector'`).Scan(&expr).Error; err != nil {
+		return err
+	}
+	// Rebuild the column unless it already stems with the english dictionary.
+	if !strings.Contains(expr, "english") {
+		if err := d.gorm.Exec(`ALTER TABLE products DROP COLUMN IF EXISTS search_vector`).Error; err != nil {
+			return err
+		}
+		if err := d.gorm.Exec(`
+			ALTER TABLE products ADD COLUMN search_vector tsvector
+			GENERATED ALWAYS AS (
+				to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, ''))
+			) STORED`).Error; err != nil {
+			return err
+		}
+	}
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_products_search ON products USING GIN (search_vector)`,
+		`CREATE INDEX IF NOT EXISTS idx_products_title_trgm ON products USING GIN (title gin_trgm_ops)`,
+		`CREATE INDEX IF NOT EXISTS idx_products_price ON products (price_cents)`,
+		`CREATE INDEX IF NOT EXISTS idx_variants_attributes ON product_variants USING GIN (attributes)`,
+	}
+	for _, stmt := range indexes {
+		if err := d.gorm.Exec(stmt).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *DB) Close() error {

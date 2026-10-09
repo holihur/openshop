@@ -45,6 +45,13 @@ export interface Category {
   sort: number;
 }
 
+/** ProductFacets are the filters that apply to the current catalog slice. */
+export interface ProductFacets {
+  minPriceCents: number;
+  maxPriceCents: number;
+  attributes: { name: string; values: string[] }[];
+}
+
 export interface Variant {
   id: string;
   sku: string;

@@ -237,7 +237,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL,
 		AllowedRoles: allowedRoles(surface),
 	}, settingsSvc)
-	catalogSvc := service.NewCatalogService(categories, products, variantRepo, faqRepo, cache, ids, clock, cfg.App.Currency)
+	catalogSvc := service.NewCatalogService(categories, products, variantRepo, faqRepo, cache, ids, clock, cfg.App.Currency, settingsSvc)
 	couponSvc := service.NewCouponService(couponRepo, ids, clock)
 	reviewSvc := service.NewReviewService(reviewRepo, products, orders, cache, ids, clock)
 	shippingSvc := service.NewShippingService(shippingRepo, zoneRepo, ids, clock)

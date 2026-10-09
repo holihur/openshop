@@ -22,3 +22,14 @@ func (h *Handler) GetProduct(c *gin.Context) {
 	}
 	response.OK(c, view)
 }
+
+// ListProductFacets returns the price range and variant attributes available in
+// a category, so the storefront can offer the filters that actually apply.
+func (h *Handler) ListProductFacets(c *gin.Context) {
+	facets, err := h.Catalog.Facets(c.Request.Context(), c.Query("categoryId"))
+	if err != nil {
+		response.Fail(c, err)
+		return
+	}
+	response.OK(c, facets)
+}

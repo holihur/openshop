@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -136,6 +137,8 @@ func (r *fakeUserRepo) FindByPhone(_ context.Context, phone string) (*domain.Use
 type fakeProductRepo struct {
 	mu   sync.Mutex
 	data map[string]*domain.Product
+	// fuzzyHits is what an approximate (misspelling) search returns.
+	fuzzyHits []domain.Product
 }
 
 func newFakeProductRepo() *fakeProductRepo {
@@ -181,14 +184,36 @@ func (r *fakeProductRepo) FindBySlug(_ context.Context, slug string) (*domain.Pr
 	return nil, domain.ErrNotFound
 }
 
-func (r *fakeProductRepo) List(_ context.Context, _ domain.ProductFilter) (domain.Page[domain.Product], error) {
+func (r *fakeProductRepo) List(_ context.Context, f domain.ProductFilter) (domain.Page[domain.Product], error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if f.Fuzzy {
+		items := append([]domain.Product(nil), r.fuzzyHits...)
+		return domain.Page[domain.Product]{Items: items, Total: int64(len(items))}, nil
+	}
 	out := make([]domain.Product, 0, len(r.data))
 	for _, p := range r.data {
+		if f.Keyword != "" && !strings.Contains(strings.ToLower(p.Title), strings.ToLower(f.Keyword)) {
+			continue
+		}
 		out = append(out, *p)
 	}
 	return domain.Page[domain.Product]{Items: out, Total: int64(len(out))}, nil
+}
+
+func (r *fakeProductRepo) Facets(_ context.Context, _ string) (domain.ProductFacets, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := domain.ProductFacets{Attributes: []domain.AttributeFacet{}}
+	for _, p := range r.data {
+		if out.MinPriceCents == 0 || p.PriceCents < out.MinPriceCents {
+			out.MinPriceCents = p.PriceCents
+		}
+		if p.PriceCents > out.MaxPriceCents {
+			out.MaxPriceCents = p.PriceCents
+		}
+	}
+	return out, nil
 }
 
 func (r *fakeProductRepo) DecreaseStock(_ context.Context, id string, qty int) error {

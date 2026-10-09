@@ -44,6 +44,8 @@ type Meta struct {
 	PageSize int   `json:"pageSize"`
 	// NextCursor is present for keyset (cursor) listings.
 	NextCursor string `json:"nextCursor,omitempty"`
+	// Fuzzy reports that the keyword only matched approximately.
+	Fuzzy bool `json:"fuzzy,omitempty"`
 }
 
 // Paginated writes a list response with pagination metadata.
@@ -52,12 +54,20 @@ func Paginated(c *gin.Context, items any, total int64, page, pageSize int) {
 }
 
 // PaginatedCursor writes a list response that also carries a keyset cursor.
-func PaginatedCursor(c *gin.Context, items any, total int64, page, pageSize int, nextCursor string) {
-	c.JSON(http.StatusOK, envelope{
-		Data: items,
-		Meta: Meta{Total: total, Page: page, PageSize: pageSize, NextCursor: nextCursor},
-	})
+func PaginatedCursor(c *gin.Context, items any, total int64, page, pageSize int, nextCursor string, opts ...MetaOption) {
+	meta := Meta{Total: total, Page: page, PageSize: pageSize, NextCursor: nextCursor}
+	for _, opt := range opts {
+		opt(&meta)
+	}
+	c.JSON(http.StatusOK, envelope{Data: items, Meta: meta})
 }
+
+// MetaOption adjusts the pagination metadata of a listing response.
+type MetaOption func(*Meta)
+
+// WithFuzzy marks a result set as an approximate keyword match, so the
+// storefront can tell the shopper that nothing matched exactly.
+func WithFuzzy() MetaOption { return func(m *Meta) { m.Fuzzy = true } }
 
 // Fail maps a domain error to an HTTP status code and writes the envelope.
 func Fail(c *gin.Context, err error) {

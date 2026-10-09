@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -28,6 +29,7 @@ type CatalogService struct {
 	ids        port.IDGenerator
 	clock      port.Clock
 	currency   string
+	settings   *SettingsService
 }
 
 func NewCatalogService(
@@ -39,8 +41,33 @@ func NewCatalogService(
 	ids port.IDGenerator,
 	clock port.Clock,
 	currency string,
+	settings *SettingsService,
 ) *CatalogService {
-	return &CatalogService{categories: categories, products: products, variants: variants, faqs: faqs, cache: cache, ids: ids, clock: clock, currency: currency}
+	return &CatalogService{categories: categories, products: products, variants: variants, faqs: faqs, cache: cache, ids: ids, clock: clock, currency: currency, settings: settings}
+}
+
+// searchSynonyms reads the operator-configured synonym map. Keys are matched
+// case-insensitively against the whole search keyword, so a misconfigured entry
+// can only ever add results, never break the query.
+func (s *CatalogService) searchSynonyms(ctx context.Context) map[string][]string {
+	if s.settings == nil {
+		return nil
+	}
+	raw := strings.TrimSpace(s.settings.String(ctx, "search.synonyms"))
+	if raw == "" {
+		return nil
+	}
+	var configured map[string][]string
+	if err := json.Unmarshal([]byte(raw), &configured); err != nil {
+		return nil
+	}
+	out := make(map[string][]string, len(configured))
+	for key, values := range configured {
+		if key = strings.ToLower(strings.TrimSpace(key)); key != "" {
+			out[key] = values
+		}
+	}
+	return out
 }
 
 type CreateCategoryInput struct {
@@ -326,7 +353,31 @@ func (s *CatalogService) ReplaceFAQs(ctx context.Context, productID string, in [
 
 func (s *CatalogService) ListProducts(ctx context.Context, f domain.ProductFilter) (domain.Page[domain.Product], error) {
 	f.Page, f.PageSize = clampPage(f.Page, f.PageSize, 20)
-	return s.products.List(ctx, f)
+	if f.Keyword != "" {
+		f.Synonyms = s.searchSynonyms(ctx)
+	}
+	page, err := s.products.List(ctx, f)
+	if err != nil {
+		return page, err
+	}
+	// Nothing matched exactly: try to guess what the shopper meant. A typo then
+	// yields a suggestion instead of an empty page, without polluting the
+	// results when the exact search already succeeded.
+	if len(page.Items) == 0 && f.Keyword != "" && !f.Fuzzy {
+		fuzzy := f
+		fuzzy.Fuzzy = true
+		fuzzy.Cursor, fuzzy.CursorMode = "", false
+		if alt, err := s.products.List(ctx, fuzzy); err == nil && len(alt.Items) > 0 {
+			alt.Fuzzy = true
+			return alt, nil
+		}
+	}
+	return page, nil
+}
+
+// Facets lists the available price range and attribute filters for a category.
+func (s *CatalogService) Facets(ctx context.Context, categoryID string) (domain.ProductFacets, error) {
+	return s.products.Facets(ctx, categoryID)
 }
 
 // InvalidateProductCache is used after stock changes so the catalog reflects

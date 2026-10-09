@@ -46,6 +46,9 @@ type ProductRepository interface {
 	FindByID(ctx context.Context, id string) (*domain.Product, error)
 	FindBySlug(ctx context.Context, slug string) (*domain.Product, error)
 	List(ctx context.Context, f domain.ProductFilter) (domain.Page[domain.Product], error)
+	// Facets returns the price range and variant attributes available for a
+	// category, used to build the storefront filter sidebar.
+	Facets(ctx context.Context, categoryID string) (domain.ProductFacets, error)
 	// DecreaseStock atomically decrements stock when enough is available. It
 	// returns ErrInsufficientStock when the guard fails, which makes it safe for
 	// concurrent, multi-instance checkouts.

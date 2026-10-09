@@ -61,7 +61,7 @@ export const tokenStore = {
 
 interface Envelope<T> {
   data?: T;
-  meta?: { total: number; page: number; pageSize: number };
+  meta?: { total: number; page: number; pageSize: number; fuzzy?: boolean };
   error?: { code: string; message: string };
 }
 
@@ -70,6 +70,8 @@ export interface Page<T> {
   total: number;
   page: number;
   pageSize: number;
+  /** The keyword only matched approximately (a misspelling was corrected). */
+  fuzzy?: boolean;
 }
 
 let refreshPromise: Promise<boolean> | null = null;
@@ -174,6 +176,7 @@ export const api = {
       total: meta?.total ?? 0,
       page: meta?.page ?? 1,
       pageSize: meta?.pageSize ?? 20,
+      fuzzy: meta?.fuzzy,
     };
   },
   async post<T>(path: string, body?: unknown): Promise<T> {

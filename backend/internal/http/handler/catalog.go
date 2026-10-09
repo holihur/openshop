@@ -81,6 +81,9 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		Sort:       c.Query("sort"),
 		Cursor:     c.Query("cursor"),
 	}
+	filter.MinPriceCents = ParseOptionalCents(c.Query("minPrice"))
+	filter.MaxPriceCents = ParseOptionalCents(c.Query("maxPrice"))
+	filter.Attributes = ParseAttributes(c, "attr.")
 	filter.Page, filter.PageSize = ParsePage(c, 20)
 	_, filter.CursorMode = c.GetQuery("cursor")
 
@@ -101,7 +104,11 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.PaginatedCursor(c, ToProductViews(page.Items), page.Total, page.Page, page.PageSize, page.NextCursor)
+	var opts []response.MetaOption
+	if page.Fuzzy {
+		opts = append(opts, response.WithFuzzy())
+	}
+	response.PaginatedCursor(c, ToProductViews(page.Items), page.Total, page.Page, page.PageSize, page.NextCursor, opts...)
 }
 
 func ToCategoryView(cat domain.Category, locale string) CategoryView {

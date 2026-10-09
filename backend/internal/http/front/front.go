@@ -95,6 +95,7 @@ func New(
 		api.GET("/categories", fh.ListCategories)
 		api.GET("/site", fh.GetSite)
 		api.GET("/products", fh.ListProducts)
+		api.GET("/products/facets", fh.ListProductFacets)
 		api.GET("/products/:id", fh.GetProduct)
 		api.GET("/products/:id/reviews", fh.ListReviews)
 		api.GET("/shipping-methods", fh.ListShippingMethods)

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"sort"
 
 	"gorm.io/gorm"
 
@@ -27,9 +28,10 @@ func (r *ProductRepository) Update(ctx context.Context, p *domain.Product) error
 	// Every mutable column must be listed: an omitted one is silently dropped on
 	// update (there is a regression test for this).
 	res := r.db.session(ctx).Model(&productModel{}).Where("id = ?", p.ID).Updates(map[string]any{
-		"category_id":  nullableUUID(p.CategoryID),
-		"title":        p.Title,
-		"names":        p.Names,
+		"category_id": nullableUUID(p.CategoryID),
+		"title":       p.Title,
+		// jsonMap keeps a nil map from writing SQL NULL into a NOT NULL column.
+		"names":        jsonMap(p.Names),
 		"slug":         p.Slug,
 		"description":  p.Description,
 		"price_cents":  p.PriceCents,
@@ -74,21 +76,41 @@ func (r *ProductRepository) List(ctx context.Context, f domain.ProductFilter) (d
 		q = q.Where("category_id = ?", f.CategoryID)
 	}
 	if f.Keyword != "" {
-		// Indexed full-text search plus a substring fallback for partial words
-		// and CJK text, which the 'simple' configuration does not tokenise.
-		like := "%" + f.Keyword + "%"
-		q = q.Where(
-			"search_vector @@ plainto_tsquery('simple', ?) OR title ILIKE ? OR description ILIKE ?",
-			f.Keyword, like, like,
-		)
+		if f.Fuzzy {
+			where, args := fuzzyClause(f.Keyword)
+			q = q.Where(where, args...)
+		} else {
+			where, args := searchClause(f.Keyword, expandSynonyms(f.Keyword, f.Synonyms))
+			q = q.Where(where, args...)
+		}
 	}
 	if f.Status != nil {
 		q = q.Where("status = ?", string(*f.Status))
 	}
+	if f.MinPriceCents != nil {
+		q = q.Where("price_cents >= ?", *f.MinPriceCents)
+	}
+	if f.MaxPriceCents != nil {
+		q = q.Where("price_cents <= ?", *f.MaxPriceCents)
+	}
+	if len(f.Attributes) > 0 {
+		// Match a variant carrying every requested attribute. Variants are
+		// scanned per product, so this is an EXISTS rather than a join (which
+		// would multiply the product rows).
+		q = q.Where(
+			"EXISTS (SELECT 1 FROM product_variants v WHERE v.product_id = products.id AND v.attributes @> ?)",
+			jsonMap(f.Attributes),
+		)
+	}
+
+	// A keyword search defaults to relevance so the best matches come first.
+	relevance := f.Keyword != "" && (f.Sort == "" || f.Sort == "relevance")
 
 	// Keyset (cursor) mode: stable and O(1) at any depth. Only the newest
 	// ordering is supported; other sorts fall back to offset paging.
-	if f.CursorMode && (f.Sort == "" || f.Sort == "newest") {
+	// Relevance ranking cannot be keyset paginated: the rank depends on the
+	// keyword, so offset paging is used instead.
+	if f.CursorMode && !relevance && (f.Sort == "" || f.Sort == "newest") {
 		if f.Cursor != "" {
 			createdAt, id, err := decodeCursor(f.Cursor)
 			if err != nil {
@@ -119,13 +141,17 @@ func (r *ProductRepository) List(ctx context.Context, f domain.ProductFilter) (d
 		return domain.Page[domain.Product]{}, translate(err)
 	}
 
-	switch f.Sort {
-	case "price_asc":
-		q = q.Order("price_cents asc")
-	case "price_desc":
-		q = q.Order("price_cents desc")
+	switch {
+	case f.Fuzzy:
+		q = q.Order(fuzzyOrder(f.Keyword)).Order("created_at desc, id desc")
+	case relevance:
+		q = q.Order(relevanceOrder(f.Keyword)).Order("created_at desc, id desc")
+	case f.Sort == "price_asc":
+		q = q.Order("price_cents asc, id desc")
+	case f.Sort == "price_desc":
+		q = q.Order("price_cents desc, id desc")
 	default:
-		q = q.Order("created_at desc")
+		q = q.Order("created_at desc, id desc")
 	}
 
 	var models []productModel
@@ -181,3 +207,65 @@ func normalizePage(page, size, defSize int) (int, int) {
 }
 
 var _ port.ProductRepository = (*ProductRepository)(nil)
+
+// Facets returns the price range and the variant attributes that occur in a
+// category. Values are collected in Go because the attribute map is free-form
+// JSON: an operator can invent any attribute without a migration.
+func (r *ProductRepository) Facets(ctx context.Context, categoryID string) (domain.ProductFacets, error) {
+	out := domain.ProductFacets{Attributes: []domain.AttributeFacet{}}
+
+	bounds := r.db.session(ctx).Model(&productModel{}).Where("status = ?", string(domain.ProductPublished))
+	if categoryID != "" {
+		bounds = bounds.Where("category_id = ?", categoryID)
+	}
+	var rangeRow struct {
+		Min int64
+		Max int64
+	}
+	if err := bounds.Select("coalesce(min(price_cents), 0) AS min, coalesce(max(price_cents), 0) AS max").
+		Scan(&rangeRow).Error; err != nil {
+		return out, translate(err)
+	}
+	out.MinPriceCents, out.MaxPriceCents = rangeRow.Min, rangeRow.Max
+
+	var rows []struct {
+		Attributes jsonMap
+	}
+	q := r.db.session(ctx).Table("product_variants AS v").
+		Joins("JOIN products p ON p.id = v.product_id").
+		Where("p.status = ? AND v.active = true", string(domain.ProductPublished)).
+		Where("jsonb_typeof(v.attributes) = 'object'")
+	if categoryID != "" {
+		q = q.Where("p.category_id = ?", categoryID)
+	}
+	if err := q.Select("v.attributes").Scan(&rows).Error; err != nil {
+		return out, translate(err)
+	}
+
+	values := map[string]map[string]bool{}
+	for _, row := range rows {
+		for name, value := range row.Attributes {
+			if name == "" || value == "" {
+				continue
+			}
+			if values[name] == nil {
+				values[name] = map[string]bool{}
+			}
+			values[name][value] = true
+		}
+	}
+	names := make([]string, 0, len(values))
+	for name := range values {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		facet := domain.AttributeFacet{Name: name, Values: make([]string, 0, len(values[name]))}
+		for value := range values[name] {
+			facet.Values = append(facet.Values, value)
+		}
+		sort.Strings(facet.Values)
+		out.Attributes = append(out.Attributes, facet)
+	}
+	return out, nil
+}

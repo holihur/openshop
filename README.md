@@ -747,6 +747,29 @@ verifies its checksum.
 
 `.github/workflows/release.yml` publishes a GitHub Release on every `v*` tag.
 
+## Search
+
+The catalog search is backed by a stored `tsvector` generated column that uses
+the **english** dictionary, so plurals and inflections match (`lamps` finds
+`Lamp`). A keyword is matched by three strategies, combined with OR:
+
+1. the stemmed index (`search_vector @@ plainto_tsquery('english', ...)`);
+2. operator-configured synonyms (`search.synonyms`, e.g.
+   `{"sofa":["couch","settee"]}`);
+3. a case-insensitive substring match, which covers CJK and partial words
+   (`desk la`), since the text-search parsers do not tokenise CJK.
+
+A keyword search defaults to **relevance** ordering (`ts_rank`, then newest).
+When the exact search returns nothing, one approximate pass runs with
+`word_similarity > 0.35` and the response is flagged with `meta.fuzzy`, so the
+storefront can say *"no exact match — showing similar products"* instead of
+showing an empty page.
+
+Listings accept `minPrice`/`maxPrice` (major units) and any number of
+`attr.<name>=<value>` filters (matched against a variant's JSONB attributes).
+`GET /products/facets` returns the price range and the attribute values that
+actually occur, which is what the storefront filter panel renders.
+
 ## Known limitations
 
 Honest gaps a buyer should know about:
