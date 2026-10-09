@@ -7,7 +7,7 @@ FROM node:24-alpine AS deps
 WORKDIR /app
 RUN corepack enable
 # Only the workspace manifests are needed to resolve the dependency graph.
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY front_ssr/package.json ./front_ssr/package.json
 RUN pnpm install --frozen-lockfile --filter @openshop/front-ssr...
 
@@ -25,6 +25,10 @@ FROM node:24-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
+# Next's standalone server binds to $HOSTNAME, which Docker sets to the
+# container id: without this the process listens on an address nothing can
+# reach from outside the container.
+ENV HOSTNAME=0.0.0.0
 # Next's standalone output is a self-contained server plus its traced deps.
 COPY --from=build /app/front_ssr/.next/standalone ./
 COPY --from=build /app/front_ssr/.next/static ./front_ssr/.next/static

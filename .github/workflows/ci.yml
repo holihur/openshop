@@ -166,10 +166,17 @@ jobs:
       - name: Verify the SSR image serves HTML
         run: |
           docker run -d --name ssr --network host -e OPENSHOP_API_BASE=http://127.0.0.1:1 openshop-front-ssr:ci
-          for i in $(seq 1 30); do
+          ready=""
+          for i in $(seq 1 45); do
             sleep 2
-            if curl -fsS http://127.0.0.1:3000/ >/dev/null 2>&1; then break; fi
+            if curl -fsS http://127.0.0.1:3000/ >/dev/null 2>&1; then ready=yes; break; fi
           done
+          if [ -z "$ready" ]; then
+            echo "::error::the SSR container never served a response"
+            docker logs ssr || true
+            docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}}' ssr || true
+            exit 1
+          fi
           # The API address is deliberately unreachable: the page must still
           # render, because failing to reach the API degrades content instead of
           # returning an error page.

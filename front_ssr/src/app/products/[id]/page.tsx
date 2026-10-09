@@ -218,7 +218,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
             {reviews.items.map((review) => (
               <li key={review.id} className="rounded-lg border p-4">
                 <div className="flex items-center gap-2">
-                  <span aria-label={`${review.rating} / 5`}>
+                  {/* role="img" makes the aria-label valid on an otherwise
+                      generic element (axe: aria-prohibited-attr). */}
+                  <span role="img" aria-label={`${review.rating} / 5`}>
                     {"★".repeat(review.rating)}
                     {"☆".repeat(Math.max(0, 5 - review.rating))}
                   </span>

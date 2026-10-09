@@ -18,7 +18,14 @@ import { cn } from "@lib/utils";
 
 function Stars({ value, className }: { value: number; className?: string }) {
   return (
-    <span className={cn("inline-flex", className)} aria-label={translate("reviews.ratingAria", { value })}>
+    // role="img" is what makes an aria-label valid here: a bare span is a
+    // generic element, and labelling it is an axe violation
+    // (aria-prohibited-attr).
+    <span
+      role="img"
+      className={cn("inline-flex", className)}
+      aria-label={translate("reviews.ratingAria", { value })}
+    >
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
           key={n}
