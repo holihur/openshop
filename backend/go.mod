@@ -1,6 +1,6 @@
 module github.com/holihur/openshop
 
-go 1.26.8
+go 1.26.9
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.47.1
@@ -91,7 +91,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	go.uber.org/atomic v1.12.0 // indirect
 	golang.org/x/arch v0.31.0 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
