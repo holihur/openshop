@@ -170,3 +170,14 @@ export interface ShippingMethod {
   active: boolean;
   sort: number;
 }
+
+export interface Review {
+  id: string;
+  productId: string;
+  userId: string;
+  rating: number;
+  title: string;
+  body: string;
+  verifiedPurchase: boolean;
+  createdAt: string;
+}

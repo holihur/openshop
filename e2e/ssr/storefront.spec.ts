@@ -43,11 +43,42 @@ test.describe("server-rendered storefront", () => {
   test("adds a product to the cart from a product page", async ({ page }) => {
     await page.goto("/products");
     await page.locator('a[href^="/products/"]').first().click();
-    await page.getByRole("button", { name: /add to cart/i }).click();
+    // Wait for the mutation to complete: navigating away mid-request would
+    // cancel it and the cart would legitimately still be empty.
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (res) => res.url().includes("/api/cart/items") && res.request().method() === "POST",
+      ),
+      page.getByRole("button", { name: /add to cart/i }).click(),
+    ]);
+    expect(response.ok()).toBeTruthy();
+
     await page.goto("/cart");
     await expect(page.locator("li").first()).toBeVisible();
-    // Free-shipping guidance comes from the delivery estimate endpoint.
     await expect(page.getByText(/subtotal/i).first()).toBeVisible();
+  });
+
+  test("registers, writes a review and reads it back immediately", async ({ page }) => {
+    // A fresh account each run: the API allows one review per customer per
+    // product, so reusing the seeded customer would fail on the second run.
+    const stamp = Date.now();
+    await page.goto("/register");
+    await page.getByLabel("Email").fill(`reviewer+${stamp}@openshop.local`);
+    await page.getByLabel("Password").fill("reviewer12345");
+    await page.getByRole("button", { name: /create account/i }).click();
+    await expect(page).toHaveURL(/\/account\/orders$/);
+
+    await page.goto("/products");
+    await page.locator('a[href^="/products/"]').first().click();
+
+    const title = `Review ${stamp}`;
+    await page.getByLabel("Review title").fill(title);
+    await page.getByLabel("What did you think?").fill("Written from the server-rendered storefront.");
+    await page.getByRole("button", { name: /publish review/i }).click();
+
+    // The action invalidates the reviews cache tag, so the new review must be
+    // visible on the next render rather than a revalidation window later.
+    await expect(page.getByText(title)).toBeVisible();
   });
 
   test("signs a customer in and keeps the session on the server", async ({ page }) => {

@@ -1,15 +1,20 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { apiGet } from "@/lib/api";
+import Link from "next/link";
+
+import { apiGet, apiList, type Page } from "@/lib/api";
 import { AddToCartButton } from "@/components/add-to-cart";
+import { ReviewForm } from "@/components/review-form";
 import { formatMoney, localizedName } from "@/lib/format";
 import { translator } from "@/lib/i18n";
 import { resolveLocale } from "@/app/layout";
-import type { DeliveryEstimate, Product } from "@/lib/types";
+import { isSignedIn } from "@/lib/session";
+import type { DeliveryEstimate, Product, Review } from "@/lib/types";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ reviewPage?: string }>;
 }
 
 async function loadProduct(id: string): Promise<Product | null> {
@@ -40,13 +45,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ProductPage({ params }: Props) {
+export default async function ProductPage({ params, searchParams }: Props) {
   const { id } = await params;
   const product = await loadProduct(id);
   if (!product) notFound();
 
   const locale = await resolveLocale();
   const t = translator(locale);
+  const reviewPage = Math.max(1, Number.parseInt((await searchParams).reviewPage ?? "1", 10) || 1);
+  const [reviews, signedIn] = await Promise.all([
+    apiList<Review>(`/products/${id}/reviews?page=${reviewPage}&pageSize=5`, {
+      revalidate: 30,
+      tags: ["reviews", `reviews:${id}`],
+    })
+      .catch(() => ({ items: [] as Review[], total: 0, page: 1, pageSize: 5 }) as Page<Review>),
+    isSignedIn(),
+  ]);
+  const reviewPages = Math.max(1, Math.ceil(reviews.total / reviews.pageSize));
   const title = localizedName(product, locale);
   const outOfStock = product.stock <= 0;
 
@@ -169,6 +184,76 @@ export default async function ProductPage({ params }: Props) {
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">{t("product.description")}</h2>
         <p className="text-muted-foreground whitespace-pre-line">{product.description}</p>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold">{t("product.reviews", { count: reviews.total })}</h2>
+
+        {signedIn ? (
+          <ReviewForm
+            productId={product.id}
+            labels={{
+              title: t("review.title"),
+              body: t("review.body"),
+              rating: t("review.rating"),
+              submit: t("review.submit"),
+              sending: t("review.sending"),
+              failed: t("error.generic"),
+              thanks: t("review.thanks"),
+            }}
+          />
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            <Link href="/login" className="underline">
+              {t("nav.signIn")}
+            </Link>{" "}
+            {t("review.signInHint")}
+          </p>
+        )}
+
+        {reviews.items.length === 0 ? (
+          <p className="text-muted-foreground text-sm">{t("review.empty")}</p>
+        ) : (
+          <ul className="space-y-3">
+            {reviews.items.map((review) => (
+              <li key={review.id} className="rounded-lg border p-4">
+                <div className="flex items-center gap-2">
+                  <span aria-label={`${review.rating} / 5`}>
+                    {"★".repeat(review.rating)}
+                    {"☆".repeat(Math.max(0, 5 - review.rating))}
+                  </span>
+                  <span className="font-medium">{review.title}</span>
+                  {review.verifiedPurchase ? (
+                    <span className="bg-muted rounded-full px-2 text-xs">
+                      {t("review.verified")}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-muted-foreground mt-1 text-sm whitespace-pre-line">
+                  {review.body}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {reviewPages > 1 ? (
+          <nav className="flex items-center justify-center gap-3 text-sm" aria-label="Reviews">
+            {reviewPage > 1 ? (
+              <Link href={`/products/${id}?reviewPage=${reviewPage - 1}`} className="rounded-md border px-3 py-1">
+                ‹
+              </Link>
+            ) : null}
+            <span>
+              {reviewPage} / {reviewPages}
+            </span>
+            {reviewPage < reviewPages ? (
+              <Link href={`/products/${id}?reviewPage=${reviewPage + 1}`} className="rounded-md border px-3 py-1">
+                ›
+              </Link>
+            ) : null}
+          </nav>
+        ) : null}
       </section>
 
       {product.faqs?.length ? (

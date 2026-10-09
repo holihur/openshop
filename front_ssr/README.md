@@ -39,6 +39,15 @@ This app renders the HTML on the server and sends it complete.
 | `/login`, `/register` | Server shell, tokens stored as cookies by a route handler |
 | `/account/orders`, `/account/orders/[id]` | Server, reads the token cookie |
 
+## Server actions
+
+Writing a review is a **server action**, not a fetch from the browser. That
+keeps the write on the server, and it lets the action invalidate exactly what
+changed (`updateTag("reviews:<productId>")` plus `revalidatePath`), so the new
+review is visible on the next render rather than one revalidation window later.
+The form is a plain `<form action={...}>`, which the state hook only decorates
+with inline feedback.
+
 ## Environment
 
 | Variable | Purpose |

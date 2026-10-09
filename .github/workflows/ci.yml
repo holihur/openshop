@@ -159,6 +159,32 @@ jobs:
           vuln-type: os,library
           exit-code: '1'
 
+      # The server-rendered storefront is a Node application, so it ships as its
+      # own image and must be built and scanned like the API.
+      - name: Build the SSR storefront image
+        run: docker build --progress=plain -f front_ssr/Dockerfile -t openshop-front-ssr:ci .
+      - name: Verify the SSR image serves HTML
+        run: |
+          docker run -d --name ssr --network host -e OPENSHOP_API_BASE=http://127.0.0.1:1 openshop-front-ssr:ci
+          for i in $(seq 1 30); do
+            sleep 2
+            if curl -fsS http://127.0.0.1:3000/ >/dev/null 2>&1; then break; fi
+          done
+          # The API address is deliberately unreachable: the page must still
+          # render, because failing to reach the API degrades content instead of
+          # returning an error page.
+          curl -fsS http://127.0.0.1:3000/ | grep -qi "<html"
+          docker rm -f ssr
+      - name: Scan the SSR image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: openshop-front-ssr:ci
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          vuln-type: os,library
+          exit-code: '1'
+
   e2e:
     name: Browser E2E
     runs-on: ubuntu-latest
