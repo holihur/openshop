@@ -33,6 +33,9 @@ export interface Site {
   oidcProviders: { id: string; name: string }[];
   /** WeChat/Alipay sign-in buttons; an unusable provider is omitted. */
   socialProviders?: { id: string; name: string }[];
+  walletTopUpEnabled?: boolean;
+  walletMinTopUpCents?: number;
+  walletMaxTopUpCents?: number;
   withdrawalEnabled: boolean;
   withdrawalMinCents: number;
   withdrawalInstructions: string;

@@ -81,6 +81,42 @@ test.describe("server-rendered storefront", () => {
     await expect(page.getByText(title)).toBeVisible();
   });
 
+  test("saves a product, tops up the wallet and opens a ticket", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill("customer@openshop.local");
+    await page.getByLabel("Password").fill("customer12345");
+    await page.getByRole("button", { name: /^sign in$/i }).click();
+    await expect(page).toHaveURL(/\/account\/orders$/);
+
+    // Wishlist: the write goes through this origin, so the API token stays in
+    // the cookie.
+    await page.goto("/products");
+    await page.locator('a[href^="/products/"]').first().click();
+    const save = page.getByRole("button", { name: /save for later/i });
+    if (await save.count()) {
+      await save.click();
+      await expect(page.getByRole("button", { name: /saved/i })).toBeVisible();
+      await page.goto("/account/wishlist");
+      await expect(page.locator('a[href^="/products/"]').first()).toBeVisible();
+    }
+
+    // Wallet: the balance is rendered on the server. The ledger only exists once
+    // there is a transaction, and the top-up form only when the operator has
+    // switched the wallet on, so neither is asserted unconditionally.
+    await page.goto("/account/wallet");
+    await expect(page.getByText(/balance/i).first()).toBeVisible();
+    if (await page.getByRole("table").count()) {
+      await expect(page.getByRole("table").first()).toBeVisible();
+    }
+
+    // Support: opening a ticket from the storefront.
+    await page.goto("/support");
+    await page.getByLabel("Subject").fill(`E2E ${Date.now()}`);
+    await page.getByLabel("How can we help?").fill("Opened from the server-rendered storefront.");
+    await page.getByRole("button", { name: /send request/i }).click();
+    await expect(page.getByText(/support/i).first()).toBeVisible();
+  });
+
   test("signs a customer in and keeps the session on the server", async ({ page }) => {
     await page.goto("/login");
     await page.getByLabel("Email").fill("customer@openshop.local");

@@ -31,6 +31,11 @@ type siteView struct {
 	WithdrawalEnabled      bool   `json:"withdrawalEnabled"`
 	WithdrawalMinCents     int64  `json:"withdrawalMinCents"`
 	WithdrawalInstructions string `json:"withdrawalInstructions"`
+	// Wallet top-up bounds let the storefront build the form without a second
+	// request, and keep the input inside what the API accepts.
+	WalletTopUpEnabled  bool  `json:"walletTopUpEnabled"`
+	WalletMinTopUpCents int64 `json:"walletMinTopUpCents"`
+	WalletMaxTopUpCents int64 `json:"walletMaxTopUpCents"`
 	// OIDCProviders lists the single sign-on buttons to render.
 	OIDCProviders []oidcProviderView `json:"oidcProviders"`
 	// SocialProviders lists the WeChat/Alipay sign-in buttons to render. An
@@ -114,6 +119,9 @@ func (h *Handler) GetSite(c *gin.Context) {
 		OIDCEnabled:            h.OIDC != nil && h.OIDC.Enabled(ctx),
 		OIDCProviders:          h.oidcProviderViews(ctx),
 		SocialProviders:        socialViews(ctx, h),
+		WalletTopUpEnabled:     h.Settings.Bool(ctx, "wallet.enabled"),
+		WalletMinTopUpCents:    int64(h.Settings.Int(ctx, "wallet.min_topup_cents")),
+		WalletMaxTopUpCents:    int64(h.Settings.Int(ctx, "wallet.max_topup_cents")),
 		WithdrawalEnabled:      h.Settings.Bool(ctx, "wallet.withdrawal_enabled"),
 		WithdrawalMinCents:     int64(h.Settings.Int(ctx, "wallet.min_withdrawal_cents")),
 		WithdrawalInstructions: h.Settings.String(ctx, "wallet.withdrawal_instructions"),

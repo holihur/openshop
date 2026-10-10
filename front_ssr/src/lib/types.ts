@@ -25,6 +25,9 @@ export interface SiteConfig {
   themeColor: string;
   allowRegistration: boolean;
   oidcEnabled: boolean;
+  walletTopUpEnabled: boolean;
+  walletMinTopUpCents: number;
+  walletMaxTopUpCents: number;
   oidcProviders: { id: string; name: string }[];
   /** WeChat/Alipay sign-in buttons; an unusable provider is omitted. */
   socialProviders?: { id: string; name: string }[];
@@ -155,10 +158,11 @@ export interface Address {
   phone: string;
   province: string;
   city: string;
+  district: string;
   line1: string;
   line2?: string;
-  postalCode?: string;
-  default?: boolean;
+  postalCode: string;
+  default: boolean;
 }
 
 export interface ShippingMethod {
@@ -182,4 +186,84 @@ export interface Review {
   body: string;
   verifiedPurchase: boolean;
   createdAt: string;
+}
+
+/** A product the shopper saved for later. */
+export type WishlistItem = Product;
+
+export interface Wallet {
+  currency: string;
+  balanceCents: number;
+}
+
+export interface WalletTransaction {
+  id: string;
+  type: string;
+  amountCents: number;
+  balanceAfter: number;
+  referenceType?: string;
+  referenceId?: string;
+  description: string;
+  createdAt: string;
+}
+
+export interface PointsAccount {
+  balance: number;
+  lifetimeEarned: number;
+}
+
+export interface PointsTransaction {
+  id: string;
+  type: string;
+  points: number;
+  balanceAfter: number;
+  description: string;
+  createdAt: string;
+}
+
+export interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  body?: string;
+  link?: string;
+  read: boolean;
+  readAt?: string;
+  createdAt: string;
+  data?: Record<string, unknown>;
+}
+
+export interface TicketMessage {
+  id: string;
+  authorId?: string;
+  authorRole: "customer" | "staff" | "system";
+  authorName?: string;
+  body: string;
+  internal: boolean;
+  createdAt: string;
+}
+
+export interface Ticket {
+  id: string;
+  number: number;
+  reference: string;
+  userId?: string;
+  email: string;
+  name: string;
+  subject: string;
+  kind: string;
+  priority: string;
+  status: string;
+  orderId?: string;
+  productId?: string;
+  createdAt: string;
+  updatedAt: string;
+  messages?: TicketMessage[];
+}
+
+/** The cart preview of a coupon, before it is attached to an order. */
+export interface CouponPreview {
+  code: string;
+  discountCents: number;
+  totalCents: number;
 }

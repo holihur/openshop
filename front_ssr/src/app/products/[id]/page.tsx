@@ -9,7 +9,8 @@ import { ReviewForm } from "@/components/review-form";
 import { formatMoney, localizedName } from "@/lib/format";
 import { translator } from "@/lib/i18n";
 import { resolveLocale } from "@/app/layout";
-import { isSignedIn } from "@/lib/session";
+import { getShopper, isSignedIn } from "@/lib/session";
+import { WishlistButton } from "@/components/wishlist-button";
 import type { DeliveryEstimate, Product, Review } from "@/lib/types";
 
 interface Props {
@@ -53,13 +54,19 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const locale = await resolveLocale();
   const t = translator(locale);
   const reviewPage = Math.max(1, Number.parseInt((await searchParams).reviewPage ?? "1", 10) || 1);
-  const [reviews, signedIn] = await Promise.all([
+  const shopper = await getShopper();
+  const [reviews, signedIn, saved] = await Promise.all([
     apiList<Review>(`/products/${id}/reviews?page=${reviewPage}&pageSize=5`, {
       revalidate: 30,
       tags: ["reviews", `reviews:${id}`],
     })
       .catch(() => ({ items: [] as Review[], total: 0, page: 1, pageSize: 5 }) as Page<Review>),
     isSignedIn(),
+    shopper.token
+      ? apiGet<Product[]>("/wishlist", { token: shopper.token })
+          .then((items) => items.some((item) => item.id === id))
+          .catch(() => false)
+      : Promise.resolve(false),
   ]);
   const reviewPages = Math.max(1, Math.ceil(reviews.total / reviews.pageSize));
   const title = localizedName(product, locale);
@@ -160,6 +167,10 @@ export default async function ProductPage({ params, searchParams }: Props) {
               </p>
             </div>
           ) : null}
+
+          <div className="flex items-center gap-2">
+            <WishlistButton productId={product.id} saved={saved} locale={locale} />
+          </div>
 
           <AddToCartButton
             productId={product.id}

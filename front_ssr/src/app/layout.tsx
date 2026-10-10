@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 
 import { CartBadge } from "@/components/cart-badge";
+import { NotificationBadge } from "@/components/notification-badge";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { getSiteConfig, isSignedIn } from "@/lib/session";
 import { brandColor, contrastForeground, withAlpha } from "@/lib/theme";
@@ -90,10 +91,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 {t("nav.cart")}
                 <CartBadge />
               </Link>
+              <Link href="/support" className="hover:opacity-70">
+                {t("nav.support")}
+              </Link>
               {signedIn ? (
-                <Link href="/account/orders" className="hover:opacity-70">
-                  {t("nav.account")}
-                </Link>
+                <>
+                  <NotificationBadge label={t("account.notifications")} />
+                  <Link href="/account" className="hover:opacity-70">
+                    {t("nav.account")}
+                  </Link>
+                </>
               ) : (
                 <Link
                   href="/login"
@@ -132,7 +139,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Link href="/products" className="hover:opacity-70">
                 {t("nav.products")}
               </Link>
-              <Link href="/account/orders" className="hover:opacity-70">
+              <Link href="/support" className="hover:opacity-70">
+                {t("nav.support")}
+              </Link>
+              <Link href="/account" className="hover:opacity-70">
                 {t("nav.account")}
               </Link>
             </span>
