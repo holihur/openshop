@@ -22,6 +22,9 @@ type PaymentService struct {
 	logger   port.Logger
 	metrics  port.Metrics
 	settings *SettingsService
+	// gatewaySettings reports the settings a gateway still needs, which is what
+	// the console can act on.
+	gatewaySettings func(ctx context.Context, provider string) []string
 }
 
 func NewPaymentService(
@@ -43,6 +46,13 @@ func NewPaymentService(
 		payments: payments, refunds: refunds, orders: orders, registry: registry, orderSvc: orderSvc,
 		ids: ids, clock: clock, logger: logger, metrics: metrics, settings: settings,
 	}
+}
+
+// SetGatewaySettingsReporter attaches the report of which settings a gateway
+// still needs. It is optional so the ops binary can build the service without
+// the payment adapters.
+func (s *PaymentService) SetGatewaySettingsReporter(report func(ctx context.Context, provider string) []string) {
+	s.gatewaySettings = report
 }
 
 type CreatePaymentInput struct {
@@ -243,12 +253,21 @@ func (s *PaymentService) provider(ctx context.Context, name string) (port.Paymen
 	return s.registry.Get(name)
 }
 
-// GatewayStatus describes a registered gateway for the ops console: whether its
-// credentials are complete and whether it is currently offered to shoppers.
+// GatewayStatus describes a registered gateway for the ops console. It separates
+// what the console can verify (the settings, which it owns) from what only the
+// API can (the signing secrets in its environment), so the screen never claims a
+// secret is missing when it is merely invisible from here.
 type GatewayStatus struct {
-	Name       string `json:"name"`
-	Configured bool   `json:"configured"`
-	Enabled    bool   `json:"enabled"`
+	Name string `json:"name"`
+	// IdentifiersSet reports whether the settings this gateway needs are filled
+	// in. Those are the fields the operator can fix on this page.
+	IdentifiersSet bool `json:"identifiersSet"`
+	// Enabled reports whether the operator has offered the gateway at checkout.
+	Enabled bool `json:"enabled"`
+	// Missing lists the settings that are still empty.
+	Missing []string `json:"missing,omitempty"`
+	// NeedsEnv lists the environment variables the API process must provide.
+	NeedsEnv []string `json:"needsEnv,omitempty"`
 }
 
 // Gateways reports the state of every registered gateway. It deliberately never
@@ -261,15 +280,29 @@ func (s *PaymentService) Gateways(ctx context.Context) []GatewayStatus {
 	}
 	out := make([]GatewayStatus, 0, len(names))
 	for _, name := range names {
-		status := GatewayStatus{Name: name, Configured: true, Enabled: enabled[name]}
-		if provider, err := s.registry.Get(name); err == nil {
-			if ready, ok := provider.(port.ReadinessProvider); ok {
-				status.Configured = ready.Configured()
-			}
+		status := GatewayStatus{Name: name, IdentifiersSet: true, Enabled: enabled[name]}
+		if s.gatewaySettings != nil {
+			status.Missing = s.gatewaySettings(ctx, name)
+			status.IdentifiersSet = len(status.Missing) == 0
 		}
+		status.NeedsEnv = paymentNeedsEnv(name)
 		out = append(out, status)
 	}
 	return out
+}
+
+// paymentNeedsEnv lists the secrets a gateway reads from the API's environment.
+// It is declared here so the console can show what to configure without the
+// service importing an adapter.
+func paymentNeedsEnv(provider string) []string {
+	switch provider {
+	case "alipay":
+		return []string{"ALIPAY_PRIVATE_KEY", "ALIPAY_PUBLIC_KEY"}
+	case "wechat":
+		return []string{"WECHAT_PAY_PRIVATE_KEY", "WECHAT_PAY_API_V3_KEY", "WECHAT_PAY_PLATFORM_CERT"}
+	default:
+		return nil
+	}
 }
 
 // Methods lists the payment channels a shopper can choose: the registered
@@ -280,19 +313,33 @@ func (s *PaymentService) Methods(ctx context.Context) []string {
 	if s.settings != nil {
 		configured = strings.TrimSpace(s.settings.String(ctx, "payment.enabled_providers"))
 	}
-	if configured == "" {
-		return registered
-	}
 	known := make(map[string]bool, len(registered))
 	for _, name := range registered {
 		known[name] = true
 	}
-	out := make([]string, 0, len(registered))
-	for _, name := range strings.Split(configured, ",") {
-		name = strings.TrimSpace(name)
-		if name != "" && known[name] {
-			out = append(out, name)
+	names := registered
+	if configured != "" {
+		names = nil
+		for _, name := range strings.Split(configured, ",") {
+			name = strings.TrimSpace(name)
+			if name != "" && known[name] {
+				names = append(names, name)
+			}
 		}
+	}
+
+	// A gateway whose credentials are incomplete is never offered: it would fail
+	// at the last step of checkout. The ops console reports it instead.
+	out := make([]string, 0, len(names))
+	for _, name := range names {
+		provider, err := s.registry.Get(name)
+		if err != nil {
+			continue
+		}
+		if ready, ok := provider.(port.ReadinessProvider); ok && !ready.Configured() {
+			continue
+		}
+		out = append(out, name)
 	}
 	return out
 }

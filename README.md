@@ -803,10 +803,22 @@ never sees a provider-specific payload. Four are built in:
 | `alipay` | Signed redirect (page pay) | RSA2; notifications verified with Alipay's public key |
 | `wechat` | Native (QR) | API v3; requests signed with the merchant key, notifications verified and decrypted (AES-256-GCM). The `weixin://` payload is returned as an inline SVG QR in `qrSvg`, so the storefront has an image to show instead of a URL it cannot open |
 
-A gateway is only registered when its credentials are present, and only offered
-at checkout when it is listed in `payment.enabled_providers`. The ops console
-shows both states per gateway, so a switched-off gateway cannot be mistaken for
-one that was never configured.
+Everything except the signing material is a **runtime setting**: the app id,
+merchant id, certificate serial and endpoints live in the ops console under
+Payment, and only the private keys and the API v3 key stay in the environment
+(they are secrets, not configuration). The adapters are therefore rebuilt on the
+next request when a setting changes — no restart.
+
+The console separates what it can verify from what it cannot: it lists the
+settings that are still empty (which it owns, and which an operator can fix on
+that page) and, separately, the environment variables the API process must
+provide. It never claims a secret is missing when it is merely invisible from
+the console.
+
+A gateway that is not fully configured is not offered at checkout at all — a
+half-configured gateway would fail at the last step of checkout — and
+`payment.enabled_providers` decides which of the configured ones a shopper may
+pick.
 
 The two Chinese gateways need no third-party SDK: RSA signing, signature
 verification and notification decryption are implemented with the standard

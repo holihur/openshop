@@ -345,8 +345,14 @@ export function useUpdateVariant(productId: string) {
 
 export interface PaymentGatewayStatus {
   name: string;
-  configured: boolean;
+  /** Whether the settings this gateway reads are filled in. */
+  identifiersSet: boolean;
+  /** Whether the operator has offered it at checkout. */
   enabled: boolean;
+  /** Settings that are still empty — what this page can fix. */
+  missing?: string[];
+  /** Environment variables the API process must provide. */
+  needsEnv?: string[];
 }
 
 /** Gateway readiness for the ops console: credentials present and offered. */

@@ -75,32 +75,8 @@ func paymentProviders(cfg *config.Config, log *logger.Slog) []port.PaymentProvid
 	if cfg.Payment.StripeSecretKey != "" {
 		providers = append(providers, payment.NewStripe(cfg.Payment.StripeSecretKey, cfg.Payment.StripeWebhookSecret))
 	}
-	// Alipay and WeChat Pay sign every request with the merchant key. A gateway
-	// with incomplete credentials is left out of the registry rather than
-	// offered and then failing when a shopper picks it.
-	notifyBase := strings.TrimSuffix(cfg.App.PublicSiteURL, "/")
-	if alipay, err := payment.NewAlipay(payment.AlipayOptions{
-		AppID:           cfg.Payment.AlipayAppID,
-		Gateway:         cfg.Payment.AlipayGateway,
-		PrivateKey:      cfg.Payment.AlipayPrivateKey,
-		AlipayPublicKey: cfg.Payment.AlipayPublicKey,
-		NotifyURL:       notifyBase + "/api/v1/webhooks/payments/alipay",
-	}); err != nil {
-		log.Error("alipay adapter disabled", "error", err)
-	} else if alipay.Configured() {
-		providers = append(providers, alipay)
-	}
-	if wechat, err := payment.NewWeChatPay(payment.WeChatOptions{
-		MchID: cfg.Payment.WeChatMchID, AppID: cfg.Payment.WeChatAppID,
-		SerialNo: cfg.Payment.WeChatSerialNo, Gateway: cfg.Payment.WeChatGateway,
-		PrivateKey: cfg.Payment.WeChatPrivateKey, PlatformCert: cfg.Payment.WeChatPlatformCert,
-		APIv3Key:  cfg.Payment.WeChatAPIv3Key,
-		NotifyURL: notifyBase + "/api/v1/webhooks/payments/wechat",
-	}); err != nil {
-		log.Error("wechat pay adapter disabled", "error", err)
-	} else if wechat.Configured() {
-		providers = append(providers, wechat)
-	}
+	// Alipay and WeChat Pay are built from runtime settings by gatewayResolver,
+	// which is attached to the registry below.
 	return providers
 }
 
@@ -254,6 +230,20 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		"mail.port":                       strconv.Itoa(cfg.Mail.Port),
 		"mail.user":                       cfg.Mail.User,
 	})
+	// The Chinese gateways are resolved from settings on every use, so an
+	// operator can enable or reconfigure them without a restart. Only their
+	// signing material stays in the environment.
+	gatewayResolver := payment.NewResolver(settingsSvc, payment.Secrets{
+		AlipayPrivateKey:   cfg.Payment.AlipayPrivateKey,
+		AlipayPublicKey:    cfg.Payment.AlipayPublicKey,
+		WeChatPrivateKey:   cfg.Payment.WeChatPrivateKey,
+		WeChatAPIv3Key:     cfg.Payment.WeChatAPIv3Key,
+		WeChatPlatformCert: cfg.Payment.WeChatPlatformCert,
+	}, func(provider string) string {
+		return strings.TrimSuffix(cfg.App.PublicSiteURL, "/") + "/api/v1/webhooks/payments/" + provider
+	})
+	payments.WithResolver(gatewayResolver)
+
 	// The mail transport is resolved from settings on every send.
 	mailer := mail.NewDynamic(settingsSvc, cfg.Mail.Pass, log)
 	oidcSvc := service.NewOIDCService(settingsSvc, cfg.OIDC.ClientSecret, cfg.OIDC.ClientSecrets,
@@ -279,9 +269,15 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 					})
 					return wechat, wechat.Configured()
 				case "alipay":
+					// The API endpoint follows the payment setting, so there is
+					// one place to point at the sandbox.
+					gateway := ""
+					if settingsSvc != nil {
+						gateway = settingsSvc.String(ctx, "payment.alipay.gateway")
+					}
 					alipay := social.NewAlipay(social.AlipayOptions{
 						AppID: opts.AppID, PrivateKey: opts.AppSecret,
-						RedirectURL: opts.RedirectURL, Gateway: cfg.Social.AlipayGateway,
+						RedirectURL: opts.RedirectURL, Gateway: gateway,
 						AuthURL: cfg.Social.AlipayAuthURL,
 					})
 					return alipay, alipay.Configured()
@@ -326,6 +322,9 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	retentionRepo := postgres.NewRetentionRepository(db)
 	orderSvc := service.NewOrderService(orders, users, products, couponRepo, variantRepo, addressRepo, shippingRepo, zoneRepo, currencySvc, cartRepo, locker, db, outbox, ids, clock, log, catalogSvc, promMetrics, tracer, invoice.NewPDFRenderer(), settingsSvc, cfg.App.Currency)
 	paymentSvc := service.NewPaymentService(paymentRepo, refundRepo, orders, payments, orderSvc, ids, clock, log, promMetrics, settingsSvc)
+	// The console shows which settings a gateway still needs, and which secrets
+	// the API's environment must supply.
+	paymentSvc.SetGatewaySettingsReporter(gatewayResolver.MissingSettings)
 
 	// Wallet, loyalty points and referral commissions settle into the wallet.
 	walletSvc := service.NewWalletService(postgres.NewWalletRepository(db), ids, clock, settingsSvc, cfg.App.Currency)

@@ -109,16 +109,34 @@ export function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {gateways.map((g) => (
-                  <div key={g.name} className="flex items-center justify-between text-sm">
-                    <span className="font-mono">{g.name}</span>
-                    <span className="flex items-center gap-2">
-                      <Badge variant={g.configured ? "success" : "secondary"}>
-                        {g.configured ? t("settings.gatewayConfigured") : t("settings.gatewayMissing")}
-                      </Badge>
-                      <Badge variant={g.enabled ? "success" : "secondary"}>
-                        {g.enabled ? t("common.active") : t("common.inactive")}
-                      </Badge>
-                    </span>
+                  <div key={g.name} className="space-y-1 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono">{g.name}</span>
+                      <span className="flex items-center gap-2">
+                        <Badge variant={g.identifiersSet ? "success" : "secondary"}>
+                          {g.identifiersSet
+                            ? t("settings.gatewayConfigured")
+                            : t("settings.gatewayMissing")}
+                        </Badge>
+                        <Badge variant={g.enabled ? "success" : "secondary"}>
+                          {g.enabled ? t("common.active") : t("common.inactive")}
+                        </Badge>
+                      </span>
+                    </div>
+                    {/* Naming what is missing turns "it does not work" into a
+                        checklist an operator can act on. */}
+                    {g.missing && g.missing.length > 0 && (
+                      <p className="text-muted-foreground text-xs">
+                        {t("settings.gatewayNeeds")}{" "}
+                        <span className="font-mono">{g.missing.join(", ")}</span>
+                      </p>
+                    )}
+                    {g.needsEnv && g.needsEnv.length > 0 && (
+                      <p className="text-muted-foreground text-xs">
+                        {t("settings.gatewayEnv")}{" "}
+                        <span className="font-mono">{g.needsEnv.join(", ")}</span>
+                      </p>
+                    )}
                   </div>
                 ))}
               </CardContent>

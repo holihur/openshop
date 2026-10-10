@@ -146,10 +146,14 @@ var _ port.SandboxProvider = (*Mock)(nil)
 // ErrNoProvider indicates a registry lookup failed.
 var ErrNoProvider = errors.New("payment provider not found")
 
-// Registry resolves providers by name.
+// Registry resolves providers by name. Alipay and WeChat Pay are resolved from
+// runtime settings on each call (and cached until the configuration changes),
+// so an operator can enable or reconfigure them without a restart; the other
+// gateways are fixed at startup.
 type Registry struct {
 	providers map[string]port.PaymentProvider
 	def       string
+	dynamic   *Resolver
 }
 
 func NewRegistry(def string, providers ...port.PaymentProvider) *Registry {
@@ -160,9 +164,20 @@ func NewRegistry(def string, providers ...port.PaymentProvider) *Registry {
 	return &Registry{providers: m, def: def}
 }
 
+// WithResolver attaches the settings-driven gateways.
+func (r *Registry) WithResolver(resolver *Resolver) *Registry {
+	r.dynamic = resolver
+	return r
+}
+
 func (r *Registry) Get(name string) (port.PaymentProvider, error) {
 	if p, ok := r.providers[name]; ok {
 		return p, nil
+	}
+	if r.dynamic != nil {
+		if p := r.dynamic.Build(context.Background(), name); p != nil {
+			return p, nil
+		}
 	}
 	return nil, fmt.Errorf("%w: %s", ErrNoProvider, name)
 }
@@ -178,9 +193,20 @@ func (r *Registry) Default() port.PaymentProvider {
 }
 
 func (r *Registry) Names() []string {
-	out := make([]string, 0, len(r.providers))
+	out := make([]string, 0, len(r.providers)+2)
 	for name := range r.providers {
 		out = append(out, name)
+	}
+	// The settings-driven gateways are always listed, even before they are
+	// configured: the ops console has to be able to tell an operator what is
+	// missing. Whether a shopper can choose one is decided by readiness, not by
+	// this list.
+	if r.dynamic != nil {
+		for _, name := range []string{"alipay", "wechat"} {
+			if _, ok := r.providers[name]; !ok {
+				out = append(out, name)
+			}
+		}
 	}
 	sort.Strings(out)
 	return out
