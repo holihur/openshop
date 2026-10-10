@@ -185,6 +185,8 @@ type WorkerConfig struct {
 	AuditRetention    time.Duration
 	// CommissionSettleInterval is how often held referral commissions are paid out.
 	CommissionSettleInterval time.Duration
+	// ReconcileInterval is how often the money invariants are verified.
+	ReconcileInterval time.Duration
 }
 
 // Load reads configuration from the environment, applying safe development
@@ -306,6 +308,7 @@ func Load() (*Config, error) {
 			OutboxRetention:          envDuration("OUTBOX_RETENTION", 7*24*time.Hour),
 			AuditRetention:           envDuration("AUDIT_RETENTION", 90*24*time.Hour),
 			CommissionSettleInterval: envDuration("COMMISSION_SETTLE_INTERVAL", 10*time.Minute),
+			ReconcileInterval:        envDuration("RECONCILE_INTERVAL", 6*time.Hour),
 		},
 	}
 

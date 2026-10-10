@@ -10,6 +10,7 @@ import { ProductDetailPage } from "@/pages/ProductDetail";
 import { CategoriesPage } from "@/pages/Categories";
 import { SettingsPage } from "@/pages/Settings";
 import { StaffPage } from "./pages/Staff";
+import { ReconciliationPage } from "./pages/Reconciliation";
 import { CouponsPage } from "@/pages/Coupons";
 import { ReviewsPage } from "@/pages/Reviews";
 import { ReturnsPage } from "@/pages/Returns";
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="outbox" element={<OutboxPage />} />
           <Route path="shipping" element={<ShippingPage />} />
           <Route path="audit" element={<AuditPage />} />
+          <Route path="reconciliation" element={<ReconciliationPage />} />
           <Route path="staff" element={<StaffPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="settings/:group" element={<SettingsPage />} />

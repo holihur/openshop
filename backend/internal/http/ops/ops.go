@@ -158,6 +158,7 @@ func New(
 			admin.GET("/stats", middleware.RequirePermission(domain.PermAnalyticsRead), fh.Dashboard)
 			admin.GET("/stats/summary", middleware.RequirePermission(domain.PermAnalyticsRead), fh.Summary)
 			admin.GET("/inventory/low-stock", middleware.RequirePermission(domain.PermAnalyticsRead), fh.LowStock)
+			admin.GET("/reconciliation", middleware.RequirePermission(domain.PermAuditRead), fh.ReconciliationReport)
 			admin.GET("/audit-logs", middleware.RequirePermission(domain.PermAuditRead), fh.ListAuditLogs)
 			admin.GET("/audit-logs/verify", middleware.RequirePermission(domain.PermAuditRead), fh.VerifyAuditChain)
 

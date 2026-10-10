@@ -299,6 +299,9 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	currencySvc := service.NewCurrencyService(currencyRepo, cfg.App.Currency, cache)
 	customerSvc := service.NewCustomerService(users, clock)
 	staffSvc := service.NewStaffService(users, hasher, ids, clock, authSvc)
+	// The money invariants: used by the background check and by the console.
+	reconciliationSvc := service.NewReconciliationService(
+		postgres.NewReconciliationRepository(db), auditSvc, promMetrics, log, 200)
 
 	// Surface-specific services: only the binary that serves them builds them, so
 	// e.g. the ops binary never constructs cart/wishlist/address services.
@@ -342,7 +345,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Orders: orderSvc, Payments: paymentSvc,
 		Coupons: couponSvc, Reviews: reviewSvc, Shipping: shippingSvc, Audit: auditSvc,
-		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Wallet: walletSvc, Points: pointsSvc, Commission: commissionSvc, Withdrawals: withdrawalSvc, Notifications: notificationSvc, PATs: patSvc, Outbox: outbox, Settings: settingsSvc, Customers: customerSvc, Staff: staffSvc, OIDC: oidcSvc, Social: socialSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
+		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Wallet: walletSvc, Points: pointsSvc, Commission: commissionSvc, Withdrawals: withdrawalSvc, Notifications: notificationSvc, PATs: patSvc, Outbox: outbox, Settings: settingsSvc, Customers: customerSvc, Staff: staffSvc, Reconciliation: reconciliationSvc, OIDC: oidcSvc, Social: socialSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
 			{Name: "postgres", Check: db.Ping},
@@ -415,6 +418,16 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 			go func() {
 				defer app.wg.Done()
 				app.runWorker(workerCtx, "retention", retention.Run)
+			}()
+
+			// The money invariants (wallet and points balances against their
+			// ledgers, settled orders against collected payments) are verified
+			// periodically and reported, never silently corrected.
+			reconciler := worker.NewReconciler(reconciliationSvc, locker, log, cfg.Worker.ReconcileInterval)
+			app.wg.Add(1)
+			go func() {
+				defer app.wg.Done()
+				app.runWorker(workerCtx, "reconciler", reconciler.Run)
 			}()
 
 			// Referral commissions are paid into the referrer's wallet once the

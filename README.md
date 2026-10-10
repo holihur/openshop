@@ -825,6 +825,23 @@ verification and notification decryption are implemented with the standard
 library, and are covered by tests that generate a key pair, sign a request or a
 notification, and assert both the happy path and the forged-signature rejection.
 
+## Money reconciliation
+
+A background job (`RECONCILE_INTERVAL`, default six hours, leader-locked) verifies
+three invariants and reports what it finds:
+
+* every wallet balance equals the sum of its ledger entries;
+* every points balance equals the sum of its points entries;
+* every settled order collected what it said it charged.
+
+It never repairs anything: silently rewriting a balance would hide the bug that
+caused the drift. Each mismatch is counted in the
+`openshop_reconciliation_mismatches` gauge and written to the audit trail, and the
+console shows the offending rows under **Money reconciliation**. The check is
+deliberately conservative — it flags money that definitively did not arrive or
+definitively arrived twice, rather than demanding exact equality, so a legitimate
+partial-refund sequence is not reported as a fault.
+
 ## Staff and roles
 
 The console manages the people who operate it under **Staff & roles**

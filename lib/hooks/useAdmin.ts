@@ -554,3 +554,20 @@ export function useResetStaffPassword() {
       api.post<{ staff: StaffMember; generatedPassword?: string }>(`/ops/staff/${id}/password`),
   });
 }
+
+export interface ReconciliationReport {
+  clean: boolean;
+  mismatches: number;
+  walletDrift?: { id: string; ownerId: string; unit: string; stored: number; expected: number }[];
+  pointsDrift?: { id: string; ownerId: string; unit: string; stored: number; expected: number }[];
+  orderDrift?: { id: string; orderNo: string; expectedCents: number; actualCents: number }[];
+}
+
+/** The money invariants, checked on read so the console shows live state. */
+export function useReconciliation() {
+  return useQuery({
+    queryKey: ["admin", "reconciliation"],
+    queryFn: () => api.get<ReconciliationReport>("/ops/reconciliation"),
+    staleTime: 30_000,
+  });
+}
