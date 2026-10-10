@@ -187,7 +187,11 @@ export default async function ProductPage({ params, searchParams }: Props) {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold">{t("product.reviews", { count: reviews.total })}</h2>
+        <h2 className="text-xl font-semibold">
+          {reviews.total === 1
+            ? t("product.reviewOne")
+            : t("product.reviews", { count: reviews.total })}
+        </h2>
 
         {signedIn ? (
           <ReviewForm

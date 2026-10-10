@@ -1,10 +1,25 @@
-/** Formats an amount in the storefront's settlement currency. */
+/**
+ * Formats an amount in the storefront's settlement currency.
+ *
+ * narrowSymbol is used so a price reads "¥329.00" rather than "CN¥329.00": the
+ * short form is what shoppers expect and it keeps cards aligned.
+ */
 export function formatMoney(cents: number, currency = "CNY", locale = "en"): string {
   const locales: Record<string, string> = { en: "en-US", zh: "zh-CN" };
-  return new Intl.NumberFormat(locales[locale] ?? "en-US", {
+  const options: Intl.NumberFormatOptions = {
     style: "currency",
     currency,
-  }).format(cents / 100);
+    currencyDisplay: "narrowSymbol",
+  };
+  try {
+    return new Intl.NumberFormat(locales[locale] ?? "en-US", options).format(cents / 100);
+  } catch {
+    // An unknown currency code should not blank the price out.
+    return new Intl.NumberFormat(locales[locale] ?? "en-US", {
+      style: "decimal",
+      minimumFractionDigits: 2,
+    }).format(cents / 100);
+  }
 }
 
 /** Formats an ISO date in the current locale. */

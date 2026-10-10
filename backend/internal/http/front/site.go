@@ -2,6 +2,7 @@ package front
 
 import (
 	"context"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -40,6 +41,22 @@ type siteView struct {
 type oidcProviderView struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+// siteFeatureViews returns only the feature cards that have content. An empty
+// card would otherwise render as an empty box on the home page, which is what a
+// half-configured store used to show.
+func siteFeatureViews(ctx context.Context, h *Handler) []siteFeatureView {
+	out := make([]siteFeatureView, 0, 3)
+	for _, key := range []string{"1", "2", "3"} {
+		title := strings.TrimSpace(h.Settings.String(ctx, "store.feature"+key+"_title"))
+		text := strings.TrimSpace(h.Settings.String(ctx, "store.feature"+key+"_text"))
+		if title == "" && text == "" {
+			continue
+		}
+		out = append(out, siteFeatureView{Title: title, Text: text})
+	}
+	return out
 }
 
 // socialViews lists the configured WeChat/Alipay sign-in providers.
@@ -90,11 +107,7 @@ func (h *Handler) GetSite(c *gin.Context) {
 			Message: h.Settings.String(ctx, "store.announcement"),
 			URL:     h.Settings.String(ctx, "store.announcement_url"),
 		},
-		Features: []siteFeatureView{
-			{Title: h.Settings.String(ctx, "store.feature1_title"), Text: h.Settings.String(ctx, "store.feature1_text")},
-			{Title: h.Settings.String(ctx, "store.feature2_title"), Text: h.Settings.String(ctx, "store.feature2_text")},
-			{Title: h.Settings.String(ctx, "store.feature3_title"), Text: h.Settings.String(ctx, "store.feature3_text")},
-		},
+		Features:               siteFeatureViews(ctx, h),
 		Tagline:                h.Settings.String(ctx, "store.tagline"),
 		ThemeColor:             h.Settings.String(ctx, "store.theme_color"),
 		AllowRegistration:      h.Settings.Bool(ctx, "auth.allow_registration"),

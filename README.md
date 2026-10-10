@@ -747,6 +747,26 @@ verifies its checksum.
 
 `.github/workflows/release.yml` publishes a GitHub Release on every `v*` tag.
 
+## First-run appearance
+
+A fresh install should look like a shop, not an empty shell, so the storefront
+settings carry real defaults in code (`internal/domain/setting.go`): a brand
+colour (`store.theme_color`), a header/footer name (`store.tagline`), hero copy
+and three feature cards. An operator overrides or clears any of them in the ops
+console, and clearing one is respected.
+
+Two rules keep a half-configured store presentable:
+
+* a feature card with neither a title nor text is not rendered at all, rather
+  than appearing as an empty box;
+* both storefronts fall back to built-in hero copy when the operator has not
+  written any.
+
+The server-rendered storefront derives everything else from the brand colour: it
+picks black or white text for contrast (so a pale brand stays readable), washes
+the hero and announcement in it, and uses it for buttons and links. Prices use
+the narrow currency symbol, so a card reads `¥199.00` rather than `CN¥199.00`.
+
 ## Two storefronts
 
 There are two storefronts and they iterate independently:

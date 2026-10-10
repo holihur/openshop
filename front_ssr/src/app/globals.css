@@ -6,8 +6,10 @@
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --border: oklch(0.922 0 0);
+  /* Both default to the brand colour injected by the layout, so a header,
+     button or link that uses "primary" follows the operator's choice. */
   --primary: var(--brand, oklch(0.205 0 0));
-  --primary-foreground: oklch(0.985 0 0);
+  --primary-foreground: var(--brand-foreground, oklch(0.985 0 0));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -29,9 +31,42 @@
   --color-border: var(--border);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-card: var(--background);
+  --radius-card: 0.75rem;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Inputs and selects share one look, so a form built from plain elements still
+   matches the buttons around it. */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  background: var(--background);
+  color: var(--foreground);
+  outline-color: var(--brand-ring, transparent);
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--brand-ring, var(--foreground));
+  outline-offset: 2px;
+}
+
+/* A card treatment used by the product tiles and the summary panels. */
+.card-surface {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--background);
+  transition: box-shadow 150ms ease, transform 150ms ease, border-color 150ms ease;
+}
+.card-surface:hover {
+  border-color: var(--brand-ring, var(--border));
+  box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.25);
 }

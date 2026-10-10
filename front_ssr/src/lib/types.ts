@@ -19,7 +19,7 @@ export interface SiteFeature {
 export interface SiteConfig {
   publicUrl: string;
   hero: SiteHero;
-  announcement: { title: string; text: string };
+  announcement: { message: string; url: string };
   features: SiteFeature[];
   tagline: string;
   themeColor: string;
