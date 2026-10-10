@@ -861,7 +861,9 @@ export const en = {
 
   // ops admin sections
   "ops.setExchangeRate": "Set exchange rate",
-  "ops.unitsOfBase": "Units of {base} per 1",
+  "ops.unitsOfBase": "Rate: how much 1 {base} buys in this currency",
+  "ops.rateMeaning": "Meaning",
+  "ops.rateExample": "1 {base} = {value} {currency}",
   "ops.saveRate": "Save rate",
   "ops.rateMicro": "Rate (micro)",
   "ops.rate": "Rate",
@@ -1819,7 +1821,9 @@ export const zh: Record<MessageKey, string> = {
   "toast.variantAdded": "规格已添加",
 
   "ops.setExchangeRate": "设置汇率",
-  "ops.unitsOfBase": "每 1 {base} 可兑换",
+  "ops.unitsOfBase": "汇率：1 {base} 可兑换多少该币种",
+  "ops.rateMeaning": "含义",
+  "ops.rateExample": "1 {base} = {value} {currency}",
   "ops.saveRate": "保存汇率",
   "ops.rateMicro": "汇率（微）",
   "ops.rate": "汇率",

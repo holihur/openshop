@@ -2,6 +2,7 @@ import { apiGet } from "@/lib/api";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { formatDate, formatMoney } from "@/lib/format";
 import { translator } from "@/lib/i18n";
+import { getPricing } from "@/lib/pricing";
 import { resolveLocale } from "@/app/layout";
 import type { Order } from "@/lib/types";
 
@@ -20,9 +21,12 @@ export default async function GuestOrderPage({
   const t = translator(locale);
   const token = (params.token ?? "").trim();
 
-  const order = token
-    ? await apiGet<Order>(`/guest/orders/${encodeURIComponent(token)}`).catch(() => null)
-    : null;
+  const [order, pricing] = await Promise.all([
+    token
+      ? apiGet<Order>(`/guest/orders/${encodeURIComponent(token)}`).catch(() => null)
+      : Promise.resolve(null),
+    getPricing(locale),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -68,7 +72,7 @@ export default async function GuestOrderPage({
                   {item.title}
                   {item.variantName ? ` · ${item.variantName}` : ""} × {item.quantity}
                 </span>
-                <span>{formatMoney(item.priceCents * item.quantity, order.currency, locale)}</span>
+                <span>{pricing.format(item.priceCents * item.quantity)}</span>
               </li>
             ))}
           </ul>
@@ -76,15 +80,15 @@ export default async function GuestOrderPage({
           <dl className="ml-auto w-full max-w-sm space-y-1 text-sm">
             <div className="flex justify-between">
               <dt className="text-muted-foreground">{t("cart.subtotal")}</dt>
-              <dd>{formatMoney(order.subtotalCents, order.currency, locale)}</dd>
+              <dd>{pricing.format(order.subtotalCents)}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">{t("cart.shipping")}</dt>
-              <dd>{formatMoney(order.shippingCents, order.currency, locale)}</dd>
+              <dd>{pricing.format(order.shippingCents)}</dd>
             </div>
             <div className="flex justify-between border-t pt-1 text-base font-semibold">
               <dt>{t("cart.total")}</dt>
-              <dd>{formatMoney(order.totalCents, order.currency, locale)}</dd>
+              <dd>{pricing.format(order.totalCents)}</dd>
             </div>
           </dl>
         </div>

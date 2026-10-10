@@ -4,6 +4,7 @@ import { apiGet, apiList, type Page } from "@/lib/api";
 import { ProductCard } from "@/components/product-card";
 import { translateCategoryName } from "@/lib/format";
 import { translator } from "@/lib/i18n";
+import { getPricing } from "@/lib/pricing";
 import { resolveLocale } from "@/app/layout";
 import type { Category, Product, ProductFacets } from "@/lib/types";
 
@@ -46,7 +47,7 @@ export default async function ProductsPage({
   if (params.maxPrice) query.set("maxPrice", params.maxPrice);
   for (const [key, value] of attributes) if (value) query.set(key, value);
 
-  const [products, categories, facets] = await Promise.all([
+  const [products, categories, facets, pricing] = await Promise.all([
     apiList<Product>(`/products?${query.toString()}`, { revalidate: 30, tags: ["catalog"] }).catch(
       () => ({ items: [] as Product[], total: 0, page: 1, pageSize: 12, fuzzy: undefined }) as Page<Product>,
     ),
@@ -55,6 +56,7 @@ export default async function ProductsPage({
       revalidate: 60,
       tags: ["catalog"],
     }).catch(() => ({ minPriceCents: 0, maxPriceCents: 0, attributes: [] })),
+    getPricing(locale),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(products.total / products.pageSize));
@@ -167,7 +169,7 @@ export default async function ProductsPage({
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {products.items.map((product) => (
-            <ProductCard key={product.id} product={product} locale={locale} />
+            <ProductCard key={product.id} product={product} locale={locale} format={pricing.format} />
           ))}
         </div>
       )}

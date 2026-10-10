@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { formatMoney, localizedName } from "@/lib/format";
+import { localizedName } from "@/lib/format";
 import type { Product } from "@/lib/types";
 import type { Locale } from "@/lib/i18n";
 
@@ -8,7 +8,16 @@ import type { Locale } from "@/lib/i18n";
  * A server-rendered product tile. Everything a shopper needs to decide is in
  * the HTML: image, name, price and availability.
  */
-export function ProductCard({ product, locale }: { product: Product; locale: Locale }) {
+export function ProductCard({
+  product,
+  locale,
+  format,
+}: {
+  product: Product;
+  locale: Locale;
+  /** Formats a base-currency amount in the shopper's display currency. */
+  format: (baseCents: number) => string;
+}) {
   const outOfStock = product.stock <= 0;
   return (
     <Link href={`/products/${product.id}`} className="card-surface group block overflow-hidden">
@@ -35,7 +44,7 @@ export function ProductCard({ product, locale }: { product: Product; locale: Loc
           {localizedName(product, locale)}
         </h3>
         <div className="flex items-baseline justify-between gap-2">
-          <p className="font-semibold">{formatMoney(product.priceCents, product.currency, locale)}</p>
+          <p className="font-semibold">{format(product.priceCents)}</p>
           {product.reviewCount ? (
             <p className="text-muted-foreground text-xs" aria-label={`${product.rating ?? 0} / 5`}>
               ★ {product.rating?.toFixed(1)}

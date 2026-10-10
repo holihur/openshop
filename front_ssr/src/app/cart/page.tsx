@@ -4,6 +4,7 @@ import { apiGet } from "@/lib/api";
 import { CartLineActions } from "@/components/cart-line-actions";
 import { formatMoney } from "@/lib/format";
 import { translator } from "@/lib/i18n";
+import { getPricing } from "@/lib/pricing";
 import { getShopper } from "@/lib/session";
 import { resolveLocale } from "@/app/layout";
 import type { Cart } from "@/lib/types";
@@ -17,9 +18,12 @@ export default async function CartPage() {
   const locale = await resolveLocale();
   const t = translator(locale);
   const shopper = await getShopper();
-  const cart = await apiGet<Cart>("/cart", { ...shopper }).catch(
-    () => ({ items: [], totalCents: 0, totalCount: 0 }) as Cart,
-  );
+  const [cart, pricing] = await Promise.all([
+    apiGet<Cart>("/cart", { ...shopper }).catch(
+      () => ({ items: [], totalCents: 0, totalCount: 0 }) as Cart,
+    ),
+    getPricing(locale),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -56,7 +60,7 @@ export default async function CartPage() {
                     <p className="text-muted-foreground text-sm">{item.variantName}</p>
                   ) : null}
                   <p className="text-sm">
-                    {formatMoney(item.priceCents, item.currency, locale)}
+                    {pricing.format(item.priceCents)}
                   </p>
                 </div>
                 <CartLineActions
@@ -70,7 +74,7 @@ export default async function CartPage() {
                   }}
                 />
                 <p className="w-24 text-right font-medium">
-                  {formatMoney(item.priceCents * item.quantity, item.currency, locale)}
+                  {pricing.format(item.priceCents * item.quantity)}
                 </p>
               </li>
             ))}
@@ -79,11 +83,11 @@ export default async function CartPage() {
           <div className="ml-auto w-full max-w-sm space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t("cart.subtotal")}</span>
-              <span>{formatMoney(cart.totalCents, undefined, locale)}</span>
+              <span>{pricing.format(cart.totalCents)}</span>
             </div>
             <div className="flex justify-between border-t pt-2 text-lg font-semibold">
               <span>{t("cart.total")}</span>
-              <span>{formatMoney(cart.totalCents, undefined, locale)}</span>
+              <span>{pricing.format(cart.totalCents)}</span>
             </div>
             <Link
               href="/checkout"

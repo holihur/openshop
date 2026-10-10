@@ -35,6 +35,9 @@ export async function POST(request: Request) {
     provider?: string;
     address?: Record<string, string>;
     origin?: string;
+    couponCode?: string;
+    useWallet?: boolean;
+    points?: number;
   };
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -46,6 +49,11 @@ export async function POST(request: Request) {
   if (body.addressId) orderBody.addressId = body.addressId;
   if (body.email) orderBody.email = body.email;
   if (body.address) orderBody.address = body.address;
+  // The discount levers travel with the order so the API prices them inside the
+  // same transaction that reserves stock.
+  if (body.couponCode) orderBody.couponCode = body.couponCode;
+  if (body.useWallet) orderBody.useWallet = true;
+  if (body.points && body.points > 0) orderBody.points = body.points;
 
   const orderRes = await fetch(`${API_BASE}/api/v1/orders`, {
     method: "POST",

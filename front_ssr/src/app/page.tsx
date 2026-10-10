@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { apiList } from "@/lib/api";
 import { ProductCard } from "@/components/product-card";
 import { getSiteConfig } from "@/lib/session";
+import { getPricing } from "@/lib/pricing";
 import { brandColor, contrastForeground, withAlpha } from "@/lib/theme";
 import { localeFromHeader, translator } from "@/lib/i18n";
 import type { Product } from "@/lib/types";
@@ -14,13 +15,16 @@ import type { Product } from "@/lib/types";
  * shopper receives finished HTML, so the first paint needs no JavaScript.
  */
 export default async function HomePage() {
-  const locale = localeFromHeader((await headers()).get("accept-language"));
+  // The layout already resolved the locale; the page needs it for the pricing
+  // and the copy.
+  const { locale } = await import("@/app/layout").then((m) => m.resolveLocale().then((l) => ({ locale: l })));
   const t = translator(locale);
-  const [site, featured] = await Promise.all([
+  const [site, featured, pricing] = await Promise.all([
     getSiteConfig().catch(() => null),
     apiList<Product>("/products?pageSize=8&sort=newest", { revalidate: 60, tags: ["catalog"] }).catch(
       () => ({ items: [] as Product[], total: 0, page: 1, pageSize: 8 }),
     ),
+    getPricing(locale),
   ]);
 
   const brand = brandColor(site?.themeColor);
@@ -86,7 +90,7 @@ export default async function HomePage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {featured.items.map((product) => (
-              <ProductCard key={product.id} product={product} locale={locale} />
+              <ProductCard key={product.id} product={product} locale={locale} format={pricing.format} />
             ))}
           </div>
         </section>

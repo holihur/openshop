@@ -5,6 +5,7 @@ import { apiList } from "@/lib/api";
 import { SignOutButton } from "@/components/sign-out-button";
 import { formatDate, formatMoney } from "@/lib/format";
 import { translator } from "@/lib/i18n";
+import { getPricing } from "@/lib/pricing";
 import { getShopper } from "@/lib/session";
 import { resolveLocale } from "@/app/layout";
 import type { Order } from "@/lib/types";
@@ -16,9 +17,12 @@ export default async function OrdersPage() {
 
   const locale = await resolveLocale();
   const t = translator(locale);
-  const orders = await apiList<Order>("/orders?pageSize=20", { token: shopper.token }).catch(
-    () => ({ items: [] as Order[], total: 0, page: 1, pageSize: 20 }),
-  );
+  const [orders, pricing] = await Promise.all([
+    apiList<Order>("/orders?pageSize=20", { token: shopper.token }).catch(
+      () => ({ items: [] as Order[], total: 0, page: 1, pageSize: 20 }),
+    ),
+    getPricing(locale),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -52,7 +56,7 @@ export default async function OrdersPage() {
                 <td className="text-muted-foreground py-3">{formatDate(order.createdAt, locale)}</td>
                 <td className="py-3">{order.status}</td>
                 <td className="py-3 text-right font-medium">
-                  {formatMoney(order.totalCents, order.currency, locale)}
+                  {pricing.format(order.totalCents)}
                 </td>
               </tr>
             ))}

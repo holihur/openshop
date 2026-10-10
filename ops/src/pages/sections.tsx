@@ -107,6 +107,7 @@ export function AdminCurrency() {
                   <TableHead>{t("ops.currency")}</TableHead>
                   <TableHead>{t("ops.rateMicro")}</TableHead>
                   <TableHead>{t("ops.rate")}</TableHead>
+                  <TableHead>{t("ops.rateMeaning")}</TableHead>
                   <TableHead>{t("ops.updated")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -116,12 +117,27 @@ export function AdminCurrency() {
                   <TableCell>1,000,000</TableCell>
                   <TableCell>1</TableCell>
                   <TableCell className="text-muted-foreground text-sm">—</TableCell>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {t("ops.rateExample", {
+                      base: data?.base ?? "base",
+                      value: "1",
+                      currency: data?.base ?? "base",
+                    })}
+                  </TableCell>
                 </TableRow>
                 {data?.rates.map((r: ExchangeRate) => (
                   <TableRow key={r.currency}>
                     <TableCell className="font-medium">{r.currency}</TableCell>
                     <TableCell>{r.rateMicro.toLocaleString()}</TableCell>
                     <TableCell>{(r.rateMicro / 1_000_000).toFixed(4)}</TableCell>
+                    {/* Spelled out, because the direction decides the price. */}
+                    <TableCell className="text-muted-foreground text-xs">
+                      {t("ops.rateExample", {
+                        base: data?.base ?? "base",
+                        value: (r.rateMicro / 1_000_000).toFixed(2),
+                        currency: r.currency,
+                      })}
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {formatDate(r.updatedAt)}
                     </TableCell>

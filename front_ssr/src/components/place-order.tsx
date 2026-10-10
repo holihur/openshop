@@ -15,13 +15,20 @@ export function PlaceOrder({
   methods,
   estimates,
   providers,
+  wallet,
+  points,
   labels,
+  cartSubtotalCents,
 }: {
   signedIn: boolean;
   addresses: Address[];
   methods: ShippingMethod[];
   estimates: DeliveryEstimate[];
   providers: PaymentMethod[];
+  /** Wallet balance and points available, when the shopper is signed in. */
+  wallet: { balanceCents: number; currency: string } | null;
+  points: { balance: number } | null;
+  cartSubtotalCents: number;
   labels: {
     address: string;
     shipping: string;
@@ -39,6 +46,12 @@ export function PlaceOrder({
     businessDays: string;
     scan: string;
     scanWith: string;
+    coupon: string;
+    apply: string;
+    discount: string;
+    wallet: string;
+    points: string;
+    invalidCoupon: string;
   };
 }) {
   const [addressId, setAddressId] = useState(addresses.find((a) => a.default)?.id ?? addresses[0]?.id ?? "");
@@ -57,6 +70,11 @@ export function PlaceOrder({
   const [saving, setSaving] = useState(false);
   // WeChat Pay returns a code to scan instead of a URL to open.
   const [qr, setQr] = useState<{ svg: string; provider: string } | null>(null);
+  // Optional money levers, all priced by the API.
+  const [coupon, setCoupon] = useState("");
+  const [discountCents, setDiscountCents] = useState(0);
+  const [useWallet, setUseWallet] = useState(false);
+  const [pointsToUse, setPointsToUse] = useState("");
 
   const estimateFor = (methodId: string) => estimates.find((e) => e.methodId === methodId);
 
@@ -74,6 +92,9 @@ export function PlaceOrder({
           email: signedIn ? undefined : email,
           shippingMethodId,
           provider,
+          couponCode: coupon || undefined,
+          useWallet: useWallet && Boolean(wallet?.balanceCents),
+          points: Number.parseInt(pointsToUse || "0", 10) || undefined,
           origin: window.location.origin,
         }),
       });
@@ -176,6 +197,82 @@ export function PlaceOrder({
           );
         })}
       </fieldset>
+
+      {/* Coupons, wallet and points all change the amount the API will charge,
+          so the discount is priced by the API rather than guessed here. */}
+      <fieldset className="space-y-3">
+        <legend className="font-medium">{labels.coupon}</legend>
+        <div className="flex gap-2">
+          <input
+            value={coupon}
+            onChange={(event) => setCoupon(event.target.value.toUpperCase())}
+            placeholder={labels.coupon}
+            aria-label={labels.coupon}
+            className="border-input h-9 flex-1 rounded-md border px-3"
+          />
+          <button
+            type="button"
+            onClick={async () => {
+              setError("");
+              try {
+                const res = await fetch("/api/coupons/preview", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ code: coupon, subtotalCents: cartSubtotalCents }),
+                });
+                const payload = (await res.json().catch(() => ({}))) as {
+                  data?: { discountCents?: number };
+                  error?: { message?: string };
+                };
+                if (!res.ok) throw new Error(payload.error?.message ?? labels.invalidCoupon);
+                setDiscountCents(payload.data?.discountCents ?? 0);
+              } catch (cause) {
+                setDiscountCents(0);
+                setError(cause instanceof Error ? cause.message : labels.invalidCoupon);
+              }
+            }}
+            className="rounded-md border px-4 text-sm"
+          >
+            {labels.apply}
+          </button>
+        </div>
+        {discountCents > 0 ? (
+          <p className="text-sm text-green-700 dark:text-green-400">
+            {labels.discount}: −{(discountCents / 100).toFixed(2)}
+          </p>
+        ) : null}
+      </fieldset>
+
+      {(wallet?.balanceCents || points?.balance) ? (
+        <fieldset className="space-y-2">
+          <legend className="font-medium">{labels.payment}</legend>
+          {wallet?.balanceCents ? (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={useWallet}
+                onChange={(event) => setUseWallet(event.target.checked)}
+              />
+              {labels.wallet} ({(wallet.balanceCents / 100).toFixed(2)})
+            </label>
+          ) : null}
+          {points?.balance ? (
+            <label className="flex items-center gap-2 text-sm">
+              {labels.points}
+              <input
+                type="number"
+                min={0}
+                max={points.balance}
+                value={pointsToUse}
+                onChange={(event) => setPointsToUse(event.target.value)}
+                aria-label={labels.points}
+                className="border-input h-9 w-28 rounded-md border px-2"
+              />
+              <span className="text-muted-foreground">/ {points.balance}</span>
+            </label>
+          ) : null}
+        </fieldset>
+      ) : null}
 
       <fieldset className="space-y-2">
         <legend className="font-medium">{labels.payment}</legend>

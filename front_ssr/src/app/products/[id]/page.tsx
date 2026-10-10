@@ -8,6 +8,7 @@ import { AddToCartButton } from "@/components/add-to-cart";
 import { ReviewForm } from "@/components/review-form";
 import { formatMoney, localizedName } from "@/lib/format";
 import { translator } from "@/lib/i18n";
+import { getPricing } from "@/lib/pricing";
 import { resolveLocale } from "@/app/layout";
 import { getShopper, isSignedIn } from "@/lib/session";
 import { WishlistButton } from "@/components/wishlist-button";
@@ -69,6 +70,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
       : Promise.resolve(false),
   ]);
   const reviewPages = Math.max(1, Math.ceil(reviews.total / reviews.pageSize));
+  // Prices are shown in the shopper's chosen currency; settlement stays in the
+  // store's base currency.
+  const pricing = await getPricing(locale);
   const title = localizedName(product, locale);
   const outOfStock = product.stock <= 0;
 
@@ -143,9 +147,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
               ★ {product.rating?.toFixed(1)} · {t("product.reviews", { count: product.reviewCount })}
             </p>
           ) : null}
-          <p className="text-2xl font-semibold">
-            {formatMoney(product.priceCents, product.currency, locale)}
-          </p>
+          <p className="text-2xl font-semibold">{pricing.format(product.priceCents)}</p>
           <p className={outOfStock ? "text-sm text-red-600" : "text-muted-foreground text-sm"}>
             {outOfStock ? t("product.outOfStock") : t("product.inStock", { count: product.stock })}
           </p>
@@ -161,7 +163,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
               <p className="text-muted-foreground">
                 {estimate.freeRemainingCents > 0
                   ? t("delivery.freeRemaining", {
-                      amount: formatMoney(estimate.freeRemainingCents, product.currency, locale),
+                      amount: pricing.format(estimate.freeRemainingCents),
                     })
                   : t("delivery.freeReached")}
               </p>

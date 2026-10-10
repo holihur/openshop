@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 
 import { apiGet, apiList } from "@/lib/api";
 import { AccountNav } from "@/components/account-nav";
-import { formatMoney } from "@/lib/format";
 import { translator } from "@/lib/i18n";
+import { getPricing } from "@/lib/pricing";
 import { getShopper } from "@/lib/session";
 import { resolveLocale } from "@/app/layout";
 import type { Order, PointsAccount, Wallet } from "@/lib/types";
@@ -17,19 +17,20 @@ export default async function AccountPage() {
   const locale = await resolveLocale();
   const t = translator(locale);
   const auth = { token: shopper.token };
-  const [wallet, points, orders] = await Promise.all([
+  const [wallet, points, orders, pricing] = await Promise.all([
     apiGet<Wallet>("/wallet", auth).catch(() => null),
     apiGet<PointsAccount>("/points", auth).catch(() => null),
     apiList<Order>("/orders?pageSize=3", auth).catch(
       () => ({ items: [] as Order[], total: 0, page: 1, pageSize: 3 }),
     ),
+    getPricing(locale),
   ]);
 
   const cards = [
     {
       href: "/account/wallet",
       label: t("account.wallet"),
-      value: wallet ? formatMoney(wallet.balanceCents, wallet.currency, locale) : "—",
+      value: wallet ? pricing.format(wallet.balanceCents) : "—",
     },
     {
       href: "/account/points",
@@ -67,7 +68,7 @@ export default async function AccountPage() {
                   {order.orderNo}
                 </Link>
                 <span>{order.status}</span>
-                <span>{formatMoney(order.totalCents, order.currency, locale)}</span>
+                <span>{pricing.format(order.totalCents)}</span>
               </li>
             ))}
           </ul>

@@ -4,6 +4,7 @@ import { apiGet } from "@/lib/api";
 import { PlaceOrder } from "@/components/place-order";
 import { formatMoney } from "@/lib/format";
 import { translator } from "@/lib/i18n";
+import { getPricing } from "@/lib/pricing";
 import { getShopper } from "@/lib/session";
 import { resolveLocale } from "@/app/layout";
 import type {
@@ -11,7 +12,9 @@ import type {
   Cart,
   DeliveryEstimate,
   PaymentMethod,
+  PointsAccount,
   ShippingMethod,
+  Wallet,
 } from "@/lib/types";
 
 /**
@@ -30,7 +33,7 @@ export default async function CheckoutPage() {
   );
   if (cart.items.length === 0) redirect("/cart");
 
-  const [methods, estimates, providers, addresses] = await Promise.all([
+  const [methods, estimates, providers, addresses, wallet, points, pricing] = await Promise.all([
     apiGet<ShippingMethod[]>("/shipping-methods", { revalidate: 60, tags: ["shipping"] }).catch(
       () => [] as ShippingMethod[],
     ),
@@ -42,6 +45,14 @@ export default async function CheckoutPage() {
     shopper.token
       ? apiGet<Address[]>("/addresses", { token: shopper.token }).catch(() => [] as Address[])
       : Promise.resolve([] as Address[]),
+    // The wallet and points levers only exist for a signed-in shopper.
+    shopper.token
+      ? apiGet<Wallet>("/wallet", { token: shopper.token }).catch(() => null)
+      : Promise.resolve(null),
+    shopper.token
+      ? apiGet<PointsAccount>("/points", { token: shopper.token }).catch(() => null)
+      : Promise.resolve(null),
+    getPricing(locale),
   ]);
 
   return (
@@ -52,6 +63,9 @@ export default async function CheckoutPage() {
         methods={methods.filter((method) => method.active)}
         estimates={estimates}
         providers={providers}
+        wallet={wallet}
+        points={points}
+        cartSubtotalCents={cart.totalCents}
         labels={{
           address: t("checkout.address"),
           shipping: t("cart.shipping"),
@@ -67,6 +81,12 @@ export default async function CheckoutPage() {
           placing: t("cart.updating"),
           failed: t("error.generic"),
           businessDays: t("checkout.deliveryIn"),
+          coupon: t("checkout.coupon"),
+          apply: t("checkout.apply"),
+          discount: t("checkout.discount"),
+          wallet: t("checkout.wallet"),
+          points: t("checkout.points"),
+          invalidCoupon: t("checkout.invalidCoupon"),
           scan: t("checkout.scan"),
           scanWith: t("checkout.scanWith"),
         }}
@@ -80,13 +100,13 @@ export default async function CheckoutPage() {
               <span>
                 {item.title} × {item.quantity}
               </span>
-              <span>{formatMoney(item.priceCents * item.quantity, item.currency, locale)}</span>
+              <span>{pricing.format(item.priceCents * item.quantity)}</span>
             </li>
           ))}
         </ul>
         <div className="flex justify-between border-t pt-2 text-lg font-semibold">
           <span>{t("cart.total")}</span>
-          <span>{formatMoney(cart.totalCents, undefined, locale)}</span>
+          <span>{pricing.format(cart.totalCents)}</span>
         </div>
       </aside>
     </div>

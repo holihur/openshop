@@ -4,6 +4,7 @@ import { apiGet } from "@/lib/api";
 import { AccountNav } from "@/components/account-nav";
 import { ProductCard } from "@/components/product-card";
 import { translator } from "@/lib/i18n";
+import { getPricing } from "@/lib/pricing";
 import { getShopper } from "@/lib/session";
 import { resolveLocale } from "@/app/layout";
 import type { Product } from "@/lib/types";
@@ -15,9 +16,10 @@ export default async function WishlistPage() {
 
   const locale = await resolveLocale();
   const t = translator(locale);
-  const items = await apiGet<Product[]>("/wishlist", { token: shopper.token }).catch(
-    () => [] as Product[],
-  );
+  const [items, pricing] = await Promise.all([
+    apiGet<Product[]>("/wishlist", { token: shopper.token }).catch(() => [] as Product[]),
+    getPricing(locale),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -31,7 +33,7 @@ export default async function WishlistPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {items.map((product) => (
-            <ProductCard key={product.id} product={product} locale={locale} />
+            <ProductCard key={product.id} product={product} locale={locale} format={pricing.format} />
           ))}
         </div>
       )}

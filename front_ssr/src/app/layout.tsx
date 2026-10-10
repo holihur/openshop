@@ -3,9 +3,11 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 
 import { CartBadge } from "@/components/cart-badge";
+import { CurrencySwitcher } from "@/components/currency-switcher";
 import { NotificationBadge } from "@/components/notification-badge";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { getSiteConfig, isSignedIn } from "@/lib/session";
+import { getPricing } from "@/lib/pricing";
 import { brandColor, contrastForeground, withAlpha } from "@/lib/theme";
 import { localeFromHeader, translator, type Locale } from "@/lib/i18n";
 
@@ -34,7 +36,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const t = translator(locale);
   // The storefront configuration lives in the ops console, so the header, the
   // theme and the announcement reflect whatever the operator last saved.
-  const [site, signedIn] = await Promise.all([getSiteConfig().catch(() => null), isSignedIn()]);
+  const [site, signedIn, pricing] = await Promise.all([
+    getSiteConfig().catch(() => null),
+    isSignedIn(),
+    getPricing(locale),
+  ]);
   const brand = brandColor(site?.themeColor);
   const onBrand = contrastForeground(brand);
   const storeName = site?.tagline?.trim() || "openshop";
@@ -75,6 +81,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </nav>
             <div className="ml-auto flex items-center gap-4 text-sm">
               <LocaleSwitcher locale={locale} />
+              <CurrencySwitcher current={pricing.currency} available={pricing.available} />
               <Link href="/cart" className="flex items-center gap-1.5 hover:opacity-70">
                 <span
                   className="grid size-7 place-items-center rounded-full"
