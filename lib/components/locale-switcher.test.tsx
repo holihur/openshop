@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { LocaleSwitcher } from "@lib/components/locale-switcher";
 import { I18nProvider } from "@lib/i18n";
-import { catalogs } from "@lib/i18n/messages";
+import { zh } from "@lib/i18n/messages.zh";
 
 function renderSwitcher() {
   return render(
@@ -34,6 +34,6 @@ describe("LocaleSwitcher", () => {
     await userEvent.selectOptions(select, "zh");
     expect(select.value).toBe("zh");
     // The accessible label now comes from the Chinese catalogue.
-    expect(screen.getByLabelText(catalogs.zh["common.language"])).toBe(select);
+    expect(screen.getByLabelText(zh["common.language"])).toBe(select);
   });
 });

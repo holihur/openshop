@@ -1,10 +1,20 @@
-import { catalogs, type Locale, type MessageKey } from "./messages";
+import { en, type Locale, type MessageKey } from "./messages";
 
 type Vars = Record<string, string | number>;
 
 // Module-level locale so non-component code (hooks, toast helpers) can
 // translate without a React context. The provider keeps it in sync.
 let currentLocale: Locale = "en";
+
+/**
+ * Catalogues loaded so far. English is always present, and the provider fills
+ * the others in as they arrive, so this stays in step with the React tree.
+ */
+const catalogues: Partial<Record<Locale, Record<MessageKey, string>>> = { en };
+
+export function registerCatalogue(locale: Locale, catalogue: Record<MessageKey, string>): void {
+  catalogues[locale] = catalogue;
+}
 
 export function setCurrentLocale(locale: Locale): void {
   currentLocale = locale;
@@ -23,8 +33,8 @@ function interpolate(template: string, vars?: Vars): string {
 
 /** Translate a key using the active locale. Usable outside React components. */
 export function t(key: MessageKey, vars?: Vars): string {
-  const catalog = catalogs[currentLocale] ?? catalogs.en;
-  return interpolate(catalog[key] ?? catalogs.en[key] ?? key, vars);
+  const catalog = catalogues[currentLocale] ?? en;
+  return interpolate(catalog[key] ?? en[key] ?? key, vars);
 }
 
 /**

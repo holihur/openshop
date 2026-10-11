@@ -299,6 +299,14 @@ type ShippingZoneRepository interface {
 	FindRate(ctx context.Context, zoneID, methodID string) (*domain.ShippingRate, error)
 }
 
+// RoleRepository stores operator-defined roles. The built-in roles live in code.
+type RoleRepository interface {
+	List(ctx context.Context) ([]domain.Role, error)
+	Find(ctx context.Context, key string) (*domain.Role, error)
+	Upsert(ctx context.Context, role *domain.Role) error
+	Delete(ctx context.Context, key string) error
+}
+
 // AuditRepository persists the append-only audit trail.
 type AuditRepository interface {
 	Create(ctx context.Context, entry *domain.AuditLog) error

@@ -54,6 +54,9 @@ type AuthService struct {
 	// social links external identities; it is optional so the ops binary, which
 	// has no social sign-in, can build the same service.
 	social port.SocialAccountRepository
+	// roles resolves custom roles; nil means only the roles defined in code.
+	roles  port.RoleResolver
+	anyOps bool
 }
 
 type AuthConfig struct {
@@ -62,6 +65,9 @@ type AuthConfig struct {
 	// AllowedRoles restricts this surface's sessions to a set of roles so the
 	// storefront and the ops console cannot be crossed (empty allows any).
 	AllowedRoles []domain.UserRole
+	// AllowAnyOpsRole additionally accepts any role an operator has defined, so a
+	// custom console role can sign in. It is never set on the storefront.
+	AllowAnyOpsRole bool
 }
 
 func NewAuthService(
@@ -75,11 +81,13 @@ func NewAuthService(
 	cfg AuthConfig,
 	settings *SettingsService,
 	social port.SocialAccountRepository,
+	roles port.RoleResolver,
 ) *AuthService {
 	return &AuthService{
 		users: users, hasher: hasher, tokens: tokens, cache: cache, ids: ids, clock: clock, mailer: mailer,
 		accessTTL: cfg.AccessTTL, refreshTTL: cfg.RefreshTTL, settings: settings,
 		allowedRoles: cfg.AllowedRoles, social: social,
+		roles: roles, anyOps: cfg.AllowAnyOpsRole,
 	}
 }
 
@@ -176,7 +184,7 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (*AuthResult, er
 	if user.Locked(s.clock.Now()) {
 		return nil, domain.ErrAccountLocked
 	}
-	if !s.roleAllowed(user.Role) {
+	if !s.roleAllowed(ctx, user.Role) {
 		// Wrong surface for this account (e.g. an admin on the storefront).
 		return nil, domain.ErrUnauthorized
 	}
@@ -238,7 +246,7 @@ func (s *AuthService) OIDC(ctx context.Context, identity *port.Identity) (*AuthR
 	} else if err != nil {
 		return nil, err
 	}
-	if !s.roleAllowed(user.Role) {
+	if !s.roleAllowed(ctx, user.Role) {
 		return nil, domain.ErrUnauthorized
 	}
 	if !user.CanLogin() {
@@ -277,7 +285,7 @@ func (s *AuthService) Social(ctx context.Context, identity *port.Identity) (*Aut
 		account.Name, account.AvatarURL, account.Email = identity.Name, identity.AvatarURL, identity.Email
 		account.UpdatedAt = now
 		_ = s.social.Upsert(ctx, account)
-		if !s.roleAllowed(user.Role) || !user.CanLogin() {
+		if !s.roleAllowed(ctx, user.Role) || !user.CanLogin() {
 			return nil, domain.ErrForbidden
 		}
 		return s.issue(ctx, user, "")
@@ -335,7 +343,7 @@ func (s *AuthService) Social(ctx context.Context, identity *port.Identity) (*Aut
 	}); err != nil {
 		return nil, err
 	}
-	if !s.roleAllowed(user.Role) || !user.CanLogin() {
+	if !s.roleAllowed(ctx, user.Role) || !user.CanLogin() {
 		return nil, domain.ErrForbidden
 	}
 	return s.issue(ctx, user, "")
@@ -409,7 +417,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthRe
 	if !user.CanLogin() {
 		return nil, domain.ErrForbidden
 	}
-	if !s.roleAllowed(user.Role) {
+	if !s.roleAllowed(ctx, user.Role) {
 		// A refresh token from the other surface cannot mint a token here.
 		return nil, domain.ErrUnauthorized
 	}
@@ -500,7 +508,12 @@ func (s *AuthService) baseURL(ctx context.Context, key string) string {
 }
 
 // roleAllowed reports whether a user role may hold a session on this surface.
-func (s *AuthService) roleAllowed(role domain.UserRole) bool {
+func (s *AuthService) roleAllowed(ctx context.Context, role domain.UserRole) bool {
+	// A console session may carry any role an operator has defined; the
+	// storefront is restricted to the shoppers' role.
+	if s.anyOps && s.roles != nil && s.roles.IsOpsRole(ctx, string(role)) {
+		return true
+	}
 	if len(s.allowedRoles) == 0 {
 		return true
 	}

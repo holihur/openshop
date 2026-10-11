@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -73,7 +74,7 @@ func (h *Handler) Login(c *gin.Context) {
 			ResourceType: "user", ResourceID: res.User.ID, IP: c.ClientIP(),
 		})
 	}
-	response.OK(c, ToAuthView(res))
+	response.OK(c, h.ToAuthView(c.Request.Context(), res))
 }
 
 func (h *Handler) Refresh(c *gin.Context) {
@@ -87,7 +88,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 		response.Fail(c, err)
 		return
 	}
-	response.OK(c, ToAuthView(res))
+	response.OK(c, h.ToAuthView(c.Request.Context(), res))
 }
 
 func (h *Handler) Logout(c *gin.Context) {
@@ -109,7 +110,7 @@ func (h *Handler) Me(c *gin.Context) {
 	}
 	response.OK(c, UserView{
 		ID: user.ID, Email: user.Email, Phone: user.Phone, Name: user.Name, Role: string(user.Role),
-		EmailVerified: user.EmailVerified, Permissions: permissionStrings(user.Role),
+		EmailVerified: user.EmailVerified, Permissions: h.permissionStrings(c.Request.Context(), user.Role),
 	})
 }
 
@@ -146,8 +147,13 @@ func maskIdentifier(id string) string {
 	return "***"
 }
 
-func permissionStrings(role domain.UserRole) []string {
+// permissionStrings lists a role's permissions for the console, resolving
+// operator-defined roles as well as the built-in ones.
+func (h *Handler) permissionStrings(ctx context.Context, role domain.UserRole) []string {
 	perms := domain.Permissions(role)
+	if h.Roles != nil {
+		perms = h.Roles.Permissions(ctx, string(role))
+	}
 	if len(perms) == 0 {
 		return nil
 	}
@@ -158,12 +164,12 @@ func permissionStrings(role domain.UserRole) []string {
 	return out
 }
 
-func ToAuthView(res *service.AuthResult) AuthView {
+func (h *Handler) ToAuthView(ctx context.Context, res *service.AuthResult) AuthView {
 	return AuthView{
 		User: UserView{
 			ID: res.User.ID, Email: res.User.Email, Phone: res.User.Phone,
 			Name: res.User.Name, Role: string(res.User.Role), EmailVerified: res.User.EmailVerified,
-			Permissions: permissionStrings(res.User.Role),
+			Permissions: h.permissionStrings(ctx, res.User.Role),
 		},
 		AccessToken:  res.AccessToken,
 		RefreshToken: res.RefreshToken,

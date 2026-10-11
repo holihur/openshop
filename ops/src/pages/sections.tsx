@@ -676,7 +676,7 @@ export function AdminDashboard() {
       {data.lowStock.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>{t("ops.lowStock", { count: data.lowStock.length })}</CardTitle>
+            <CardTitle>{t("ops.lowStockCount", { count: data.lowStock.length })}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {data.lowStock.slice(0, 10).map((item) => (

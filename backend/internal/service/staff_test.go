@@ -17,16 +17,16 @@ func newStaffFixture() (*StaffService, *fakeUserRepo, *AuthService) {
 	users := newFakeUserRepo()
 	auth := NewAuthService(users, fakeHasher{}, fakeTokens{}, newFakeCache(), &seqIDs{},
 		fixedClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)}, &fakeMailer{},
-		AuthConfig{AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour}, nil, nil,
+		AuthConfig{AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour}, nil, nil, nil,
 	)
-	return NewStaffService(users, fakeHasher{}, &seqIDs{}, fixedClock{t: fixtureNow}, auth), users, auth
+	return NewStaffService(users, fakeHasher{}, &seqIDs{}, fixedClock{t: fixtureNow}, auth, nil), users, auth
 }
 
 func TestCreateStaffGeneratesAPasswordOnce(t *testing.T) {
 	svc, users, _ := newStaffFixture()
 	ctx := context.Background()
 
-	result, err := svc.Create(ctx, CreateStaffInput{Email: "Agent@Example.com", Role: domain.RoleSupport})
+	result, err := svc.Create(ctx, "admin-1", CreateStaffInput{Email: "Agent@Example.com", Role: domain.RoleSupport})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -56,20 +56,20 @@ func TestCreateStaffRejectsAShopperRole(t *testing.T) {
 	ctx := context.Background()
 
 	// A customer role cannot operate the console, so it must not be assignable.
-	if _, err := svc.Create(ctx, CreateStaffInput{Email: "x@example.com", Role: domain.RoleCustomer}); !errors.Is(err, domain.ErrInvalidArgument) {
+	if _, err := svc.Create(ctx, "admin-1", CreateStaffInput{Email: "x@example.com", Role: domain.RoleCustomer}); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("expected invalid argument, got %v", err)
 	}
-	if _, err := svc.Create(ctx, CreateStaffInput{Email: "", Role: domain.RoleSupport}); !errors.Is(err, domain.ErrInvalidArgument) {
+	if _, err := svc.Create(ctx, "admin-1", CreateStaffInput{Email: "", Role: domain.RoleSupport}); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("expected invalid argument for a missing email, got %v", err)
 	}
-	if _, err := svc.Create(ctx, CreateStaffInput{Email: "y@example.com", Role: domain.RoleSupport, Password: "short"}); !errors.Is(err, domain.ErrInvalidArgument) {
+	if _, err := svc.Create(ctx, "admin-1", CreateStaffInput{Email: "y@example.com", Role: domain.RoleSupport, Password: "short"}); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("expected invalid argument for a short password, got %v", err)
 	}
 
-	if _, err := svc.Create(ctx, CreateStaffInput{Email: "dup@example.com", Role: domain.RoleSupport}); err != nil {
+	if _, err := svc.Create(ctx, "admin-1", CreateStaffInput{Email: "dup@example.com", Role: domain.RoleSupport}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if _, err := svc.Create(ctx, CreateStaffInput{Email: "DUP@example.com", Role: domain.RoleCatalog}); !errors.Is(err, domain.ErrConflict) {
+	if _, err := svc.Create(ctx, "admin-1", CreateStaffInput{Email: "DUP@example.com", Role: domain.RoleCatalog}); !errors.Is(err, domain.ErrConflict) {
 		t.Fatalf("expected a conflict for a duplicate email, got %v", err)
 	}
 }
@@ -85,7 +85,7 @@ func TestStaffListExcludesShoppers(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("seed shopper: %v", err)
 	}
-	if _, err := svc.Create(ctx, CreateStaffInput{Email: "agent@example.com", Role: domain.RoleSupport}); err != nil {
+	if _, err := svc.Create(ctx, "admin-1", CreateStaffInput{Email: "agent@example.com", Role: domain.RoleSupport}); err != nil {
 		t.Fatalf("seed staff: %v", err)
 	}
 
@@ -111,12 +111,12 @@ func TestStaffCannotLockTheShopOut(t *testing.T) {
 
 	// The only administrator cannot demote themselves...
 	role := domain.RoleSupport
-	if _, err := svc.Update(ctx, admin.ID, admin.ID, UpdateStaffInput{Role: &role}); !errors.Is(err, domain.ErrInvalidArgument) {
+	if _, err := svc.Update(ctx, admin.ID, "admin", admin.ID, UpdateStaffInput{Role: &role}); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("expected self-demotion to be refused, got %v", err)
 	}
 	// ...nor disable themselves...
 	disabled := domain.UserDisabled
-	if _, err := svc.Update(ctx, admin.ID, admin.ID, UpdateStaffInput{Status: &disabled}); !errors.Is(err, domain.ErrInvalidArgument) {
+	if _, err := svc.Update(ctx, admin.ID, "admin", admin.ID, UpdateStaffInput{Status: &disabled}); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("expected self-disable to be refused, got %v", err)
 	}
 
@@ -129,11 +129,11 @@ func TestStaffCannotLockTheShopOut(t *testing.T) {
 	if err := users.Create(ctx, other); err != nil {
 		t.Fatalf("seed second admin: %v", err)
 	}
-	if _, err := svc.Update(ctx, "admin-2", "admin-1", UpdateStaffInput{Role: &role}); err != nil {
+	if _, err := svc.Update(ctx, "admin-2", "admin", "admin-1", UpdateStaffInput{Role: &role}); err != nil {
 		t.Fatalf("demoting one of two administrators should work: %v", err)
 	}
 	// With only admin-2 left, they can no longer be demoted by anybody.
-	if _, err := svc.Update(ctx, "admin-1", "admin-2", UpdateStaffInput{Role: &role}); !errors.Is(err, domain.ErrConflict) {
+	if _, err := svc.Update(ctx, "admin-1", "admin", "admin-2", UpdateStaffInput{Role: &role}); !errors.Is(err, domain.ErrConflict) {
 		t.Fatalf("expected the last administrator to be protected, got %v", err)
 	}
 }
@@ -149,11 +149,11 @@ func TestStaffInvalidStatusIsRejected(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	bogus := domain.UserStatus("suspended")
-	if _, err := svc.Update(ctx, "someone-else", agent.ID, UpdateStaffInput{Status: &bogus}); !errors.Is(err, domain.ErrInvalidArgument) {
+	if _, err := svc.Update(ctx, "someone-else", "admin", agent.ID, UpdateStaffInput{Status: &bogus}); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("expected invalid argument, got %v", err)
 	}
 	role := domain.UserRole("root")
-	if _, err := svc.Update(ctx, "someone-else", agent.ID, UpdateStaffInput{Role: &role}); !errors.Is(err, domain.ErrInvalidArgument) {
+	if _, err := svc.Update(ctx, "someone-else", "admin", agent.ID, UpdateStaffInput{Role: &role}); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("expected invalid argument for an unknown role, got %v", err)
 	}
 }

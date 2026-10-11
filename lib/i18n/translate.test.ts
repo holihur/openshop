@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { catalogs } from "@lib/i18n/messages";
+import { en } from "@lib/i18n/messages";
+import { registerCatalogue } from "@lib/i18n/translate";
+import { zh } from "@lib/i18n/messages.zh";
+
+const catalogs = { en, zh };
 import { getCurrentLocale, setCurrentLocale, t } from "@lib/i18n/translate";
 
 describe("translate", () => {
@@ -17,12 +21,18 @@ describe("translate", () => {
     expect(t("common.pageOf", { page: 1 })).toContain("{total}");
   });
 
-  it("switches locale", () => {
+  it("switches locale once its catalogue has loaded", () => {
+    // Catalogues arrive on demand, so switching the locale is not enough on its
+    // own. Until the messages land the key must resolve to English rather than
+    // to a raw key, which is what the shopper would otherwise see.
     setCurrentLocale("zh");
     expect(getCurrentLocale()).toBe("zh");
-    expect(t("common.cancel")).toBe(catalogs.zh["common.cancel"]);
+    expect(t("common.cancel")).toBe(en["common.cancel"]);
+
+    registerCatalogue("zh", zh);
+    expect(t("common.cancel")).toBe(zh["common.cancel"]);
     setCurrentLocale("en");
-    expect(t("common.cancel")).toBe(catalogs.en["common.cancel"]);
+    expect(t("common.cancel")).toBe(en["common.cancel"]);
   });
 
   it("returns the key itself for an unknown key", () => {

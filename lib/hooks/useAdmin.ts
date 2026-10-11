@@ -483,11 +483,28 @@ export interface StaffMember {
 }
 
 export interface RoleMatrix {
-  role: string;
+  /** Set for a built-in role. */
+  role?: string;
+  /** Set for an operator-defined role; the key is its identity. */
+  key?: string;
+  name?: string;
+  custom?: boolean;
   permissions: string[];
   description: string;
   members: number;
   catalog: string[];
+}
+
+/** The identity of a role, whichever kind it is. */
+export function roleId(role: RoleMatrix): string {
+  return role.key ?? role.role ?? "";
+}
+
+export interface RoleInput {
+  key?: string;
+  name: string;
+  description?: string;
+  permissions: string[];
 }
 
 export interface StaffInput {
@@ -521,6 +538,38 @@ export function useRoleMatrix() {
     queryKey: ["admin", "roles"],
     queryFn: () => api.get<RoleMatrix[]>("/ops/roles"),
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useCreateRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: RoleInput) => api.post<RoleMatrix>("/ops/roles", input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "roles"] });
+    },
+  });
+}
+
+export function useUpdateRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, input }: { key: string; input: Omit<RoleInput, "key"> }) =>
+      api.patch<RoleMatrix>(`/ops/roles/${key}`, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "roles"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "staff"] });
+    },
+  });
+}
+
+export function useDeleteRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (key: string) => api.del<void>(`/ops/roles/${encodeURIComponent(key)}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "roles"] });
+    },
   });
 }
 

@@ -43,8 +43,13 @@ var SettingDefs = []SettingDef{
 		Default: "", Description: "Homepage banner background image URL"},
 	{Key: "store.hero_cta_url", Group: "store", Type: SettingString,
 		Default: "/products", Description: "Homepage banner button target"},
+	{Key: "store.announcements", Group: "store", Type: SettingJSON,
+		Default: "[]",
+		Description: `Site-wide announcements, shown on every storefront page with paging. ` +
+			`Example: [{"message":"Free shipping over ¥99","url":"/products"}]. ` +
+			`A single "store.announcement" is still honoured when this list is empty.`},
 	{Key: "store.announcement", Group: "store", Type: SettingString,
-		Default: "", Description: "Site-wide announcement shown on every storefront page (empty hides it)"},
+		Default: "", Description: "Single site-wide announcement (used when the list above is empty)"},
 	{Key: "store.announcement_url", Group: "store", Type: SettingString,
 		Default: "", Description: "Optional link the announcement points to"},
 	{Key: "store.feature1_title", Group: "store", Type: SettingString,

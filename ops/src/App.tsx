@@ -1,37 +1,45 @@
+import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+
+import { RouteFallback } from "@lib/components/route-fallback";
 
 import { AdminRoute } from "@/components/admin-route";
 import { OpsLayout } from "@/components/OpsLayout";
-import { DashboardPage } from "@/pages/Dashboard";
-import { ProductsPage } from "@/pages/Products";
-import { OrdersPage } from "@/pages/Orders";
-import { OrderDetailPage } from "@/pages/OrderDetail";
-import { ProductDetailPage } from "@/pages/ProductDetail";
-import { CategoriesPage } from "@/pages/Categories";
-import { SettingsPage } from "@/pages/Settings";
-import { StaffPage } from "./pages/Staff";
-import { ReconciliationPage } from "./pages/Reconciliation";
-import { CouponsPage } from "@/pages/Coupons";
-import { ReviewsPage } from "@/pages/Reviews";
-import { ReturnsPage } from "@/pages/Returns";
-import { TicketsPage } from "@/pages/Tickets";
-import { TicketDetailPage } from "@/pages/TicketDetail";
-import { CommissionsPage } from "@/pages/Commissions";
-import { WithdrawalsPage } from "@/pages/Withdrawals";
-import { TokensPage } from "@/pages/Tokens";
-import { OutboxPage } from "@/pages/Outbox";
-import { ProductNewPage } from "@/pages/ProductNew";
-import { CouponNewPage } from "@/pages/CouponNew";
-import { CategoryNewPage } from "@/pages/CategoryNew";
-import { CustomersPage } from "@/pages/Customers";
-import { CustomerDetailPage } from "@/pages/CustomerDetail";
-import { ShippingPage } from "@/pages/Shipping";
-import { AuditPage } from "@/pages/Audit";
-import { CurrencyPage } from "@/pages/Currency";
-import { OpsLoginPage } from "@/pages/Login";
+// Each screen is a separate chunk: the console opens with the shell and the
+// dashboard, and the rest arrive on demand.
+const DashboardPage = lazy(() => import("@/pages/Dashboard").then((m) => ({ default: m.DashboardPage })));
+const ProductsPage = lazy(() => import("@/pages/Products").then((m) => ({ default: m.ProductsPage })));
+const ProductNewPage = lazy(() => import("@/pages/ProductNew").then((m) => ({ default: m.ProductNewPage })));
+const ProductDetailPage = lazy(() => import("@/pages/ProductDetail").then((m) => ({ default: m.ProductDetailPage })));
+const CategoriesPage = lazy(() => import("@/pages/Categories").then((m) => ({ default: m.CategoriesPage })));
+const CategoryNewPage = lazy(() => import("@/pages/CategoryNew").then((m) => ({ default: m.CategoryNewPage })));
+const OrdersPage = lazy(() => import("@/pages/Orders").then((m) => ({ default: m.OrdersPage })));
+const OrderDetailPage = lazy(() => import("@/pages/OrderDetail").then((m) => ({ default: m.OrderDetailPage })));
+const CustomersPage = lazy(() => import("@/pages/Customers").then((m) => ({ default: m.CustomersPage })));
+const CustomerDetailPage = lazy(() => import("@/pages/CustomerDetail").then((m) => ({ default: m.CustomerDetailPage })));
+const CouponsPage = lazy(() => import("@/pages/Coupons").then((m) => ({ default: m.CouponsPage })));
+const CouponNewPage = lazy(() => import("@/pages/CouponNew").then((m) => ({ default: m.CouponNewPage })));
+const ReviewsPage = lazy(() => import("@/pages/Reviews").then((m) => ({ default: m.ReviewsPage })));
+const ReturnsPage = lazy(() => import("@/pages/Returns").then((m) => ({ default: m.ReturnsPage })));
+const TicketsPage = lazy(() => import("@/pages/Tickets").then((m) => ({ default: m.TicketsPage })));
+const TicketDetailPage = lazy(() => import("@/pages/TicketDetail").then((m) => ({ default: m.TicketDetailPage })));
+const CommissionsPage = lazy(() => import("@/pages/Commissions").then((m) => ({ default: m.CommissionsPage })));
+const WithdrawalsPage = lazy(() => import("@/pages/Withdrawals").then((m) => ({ default: m.WithdrawalsPage })));
+const TokensPage = lazy(() => import("@/pages/Tokens").then((m) => ({ default: m.TokensPage })));
+const OutboxPage = lazy(() => import("@/pages/Outbox").then((m) => ({ default: m.OutboxPage })));
+const ShippingPage = lazy(() => import("@/pages/Shipping").then((m) => ({ default: m.ShippingPage })));
+const AuditPage = lazy(() => import("@/pages/Audit").then((m) => ({ default: m.AuditPage })));
+const CurrencyPage = lazy(() => import("@/pages/Currency").then((m) => ({ default: m.CurrencyPage })));
+const SettingsPage = lazy(() => import("@/pages/Settings").then((m) => ({ default: m.SettingsPage })));
+const StaffPage = lazy(() => import("@/pages/Staff").then((m) => ({ default: m.StaffPage })));
+const ReconciliationPage = lazy(() => import("@/pages/Reconciliation").then((m) => ({ default: m.ReconciliationPage })));
+const RolesPage = lazy(() => import("@/pages/Roles").then((m) => ({ default: m.RolesPage })));
+const RoleNewPage = lazy(() => import("@/pages/RoleDetail").then((m) => ({ default: m.RoleNewPage })));
+const OpsLoginPage = lazy(() => import("@/pages/Login").then((m) => ({ default: m.OpsLoginPage })));
 
 export default function App() {
   return (
+    <Suspense fallback={<RouteFallback />}>
     <Routes>
       <Route path="login" element={<OpsLoginPage />} />
       <Route element={<AdminRoute />}>
@@ -60,6 +68,9 @@ export default function App() {
           <Route path="audit" element={<AuditPage />} />
           <Route path="reconciliation" element={<ReconciliationPage />} />
           <Route path="staff" element={<StaffPage />} />
+          <Route path="roles" element={<RolesPage />} />
+          <Route path="roles/new" element={<RoleNewPage />} />
+          <Route path="roles/:key" element={<RoleNewPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="settings/:group" element={<SettingsPage />} />
           <Route path="currency" element={<CurrencyPage />} />
@@ -67,5 +78,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }

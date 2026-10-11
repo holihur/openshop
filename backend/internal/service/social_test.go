@@ -64,7 +64,7 @@ func newSocialAuthFixture(settings map[string]string) (*AuthService, *fakeUserRe
 			AccessTTL: time.Hour, RefreshTTL: 24 * time.Hour,
 			AllowedRoles: []domain.UserRole{domain.RoleCustomer},
 		},
-		newTestSettings(settings), social,
+		newTestSettings(settings), social, nil,
 	)
 	return svc, users, social
 }

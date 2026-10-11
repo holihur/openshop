@@ -82,10 +82,19 @@ func Auth(tokens port.TokenIssuer, auth *service.AuthService, pats *service.PATS
 	}
 }
 
-// RequireOps guards an endpoint behind an operations role.
-func RequireOps() gin.HandlerFunc {
+// RequireOps guards an endpoint behind an operations role. The resolver decides
+// what counts as one, so an operator-defined role works like a built-in role.
+func RequireOps(roles port.RoleResolver) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !domain.IsOpsRole(Role(c)) {
+		if roles == nil {
+			if !domain.IsOpsRole(Role(c)) {
+				forbidden(c, "operations role required")
+				return
+			}
+			c.Next()
+			return
+		}
+		if !roles.IsOpsRole(c.Request.Context(), string(Role(c))) {
 			forbidden(c, "operations role required")
 			return
 		}
@@ -97,9 +106,9 @@ func RequireOps() gin.HandlerFunc {
 // run after Auth so the role is available on the context. A personal access
 // token must additionally grant the matching scope, so a token can never do
 // more than its scope list, and never more than its owner's role.
-func RequirePermission(perm domain.Permission) gin.HandlerFunc {
+func RequirePermission(roles port.RoleResolver, perm domain.Permission) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !domain.HasPermission(Role(c), perm) {
+		if !hasPermission(roles, c, perm) {
 			forbidden(c, "missing permission: "+string(perm))
 			return
 		}
@@ -109,6 +118,15 @@ func RequirePermission(perm domain.Permission) gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+// hasPermission consults the resolver when one is wired, and falls back to the
+// code-defined matrix otherwise (the storefront binary has no role service).
+func hasPermission(roles port.RoleResolver, c *gin.Context, perm domain.Permission) bool {
+	if roles == nil {
+		return domain.HasPermission(Role(c), perm)
+	}
+	return roles.HasPermission(c.Request.Context(), string(Role(c)), perm)
 }
 
 // RequireScope guards an endpoint behind one explicit token scope. Browser

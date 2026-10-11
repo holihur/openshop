@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { KeyRound, Plus, ShieldCheck, UserCog } from "lucide-react";
+import { Link } from "react-router-dom";
+import { KeyRound, Plus, UserCog } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@lib/components/ui/badge";
@@ -11,12 +12,11 @@ import { Skeleton } from "@lib/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@lib/components/ui/table";
 import { errorMessage } from "@lib/errors";
 import { useI18n } from "@lib/i18n";
-import { appropriateRoles } from "@lib/staff";
 import { useAuth } from "@lib/auth";
+import { roleId, useRoleMatrix } from "@lib/hooks/useAdmin";
 import {
   useCreateStaff,
   useResetStaffPassword,
-  useRoleMatrix,
   useStaff,
   useUpdateStaff,
 } from "@lib/hooks/useAdmin";
@@ -31,18 +31,22 @@ export function StaffPage() {
   const { t } = useI18n();
   const { user } = useAuth();
   const { data, isLoading } = useStaff();
-  const { data: roles } = useRoleMatrix();
   const create = useCreateStaff();
   const update = useUpdateStaff();
   const resetPassword = useResetStaffPassword();
 
-  const [tab, setTab] = useState<"staff" | "roles">("staff");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState("support");
   const [issued, setIssued] = useState<{ email: string; password: string } | null>(null);
 
-  const assignable = useMemo(() => appropriateRoles(), []);
+  // Roles come from the matrix, so a custom role is assignable as soon as it
+  // exists.
+  const { data: roles } = useRoleMatrix();
+  const assignable = useMemo(
+    () => (roles ?? []).map((role) => ({ id: roleId(role), name: role.name ?? roleId(role) })),
+    [roles],
+  );
   const members = data?.items ?? [];
 
   function onCreate(event: FormEvent) {
@@ -84,24 +88,13 @@ export function StaffPage() {
           <h1 className="text-xl font-semibold">{t("staff.title")}</h1>
           <p className="text-muted-foreground text-sm">{t("staff.subtitle")}</p>
         </div>
-        <div className="flex gap-1">
-          <Button
-            variant={tab === "staff" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTab("staff")}
-          >
+        {/* Roles have their own page: two subjects, two screens. */}
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/roles">
             <UserCog className="size-4" />
-            {t("staff.tabStaff")}
-          </Button>
-          <Button
-            variant={tab === "roles" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTab("roles")}
-          >
-            <ShieldCheck className="size-4" />
-            {t("staff.tabRoles")}
-          </Button>
-        </div>
+            {t("roles.title")}
+          </Link>
+        </Button>
       </div>
 
       {/* A generated password is shown exactly once: it is never retrievable. */}
@@ -120,8 +113,7 @@ export function StaffPage() {
         </Card>
       )}
 
-      {tab === "staff" ? (
-        <>
+      <>
           <Card>
             <CardHeader>
               <CardTitle>{t("staff.add")}</CardTitle>
@@ -151,8 +143,8 @@ export function StaffPage() {
                     className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                   >
                     {assignable.map((r) => (
-                      <option key={r} value={r}>
-                        {t(`staff.role.${r}` as never)}
+                      <option key={r.id} value={r.id}>
+                        {r.name}
                       </option>
                     ))}
                   </select>
@@ -209,9 +201,9 @@ export function StaffPage() {
                               }
                               className="border-input bg-background h-8 rounded-md border px-2 text-sm disabled:opacity-60"
                             >
-                              {assignable.map((r) => (
-                                <option key={r} value={r}>
-                                  {t(`staff.role.${r}` as never)}
+                              {assignable.map((option) => (
+                                <option key={option.id} value={option.id}>
+                                  {option.name}
                                 </option>
                               ))}
                             </select>
@@ -262,35 +254,7 @@ export function StaffPage() {
             </CardContent>
           </Card>
           <p className="text-muted-foreground text-xs">{t("staff.guards")}</p>
-        </>
-      ) : (
-        <div className="space-y-4">
-          {roles?.map((matrix) => (
-            <Card key={matrix.role}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {t(`staff.role.${matrix.role}` as never)}
-                  <Badge variant="secondary">
-                    {t("staff.members", { count: matrix.members })}
-                  </Badge>
-                </CardTitle>
-                <p className="text-muted-foreground text-sm">{matrix.description}</p>
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-1">
-                {matrix.role === "admin" ? (
-                  <Badge variant="success">{t("staff.everything")}</Badge>
-                ) : (
-                  matrix.permissions.map((permission) => (
-                    <Badge key={permission} variant="outline" className="font-mono text-xs">
-                      {permission}
-                    </Badge>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      </>
     </div>
   );
 }

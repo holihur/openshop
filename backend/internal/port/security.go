@@ -1,6 +1,7 @@
 package port
 
 import (
+	"context"
 	"time"
 
 	"github.com/holihur/openshop/internal/domain"
@@ -28,6 +29,15 @@ type TokenClaims struct {
 type TokenIssuer interface {
 	Issue(claims TokenClaims) (string, error)
 	Verify(token string) (*TokenClaims, error)
+}
+
+// RoleResolver turns a role into permissions. Permission checks go through it
+// so operator-defined roles are enforced by the same middleware as the roles
+// defined in code.
+type RoleResolver interface {
+	Permissions(ctx context.Context, role string) []domain.Permission
+	HasPermission(ctx context.Context, role string, perm domain.Permission) bool
+	IsOpsRole(ctx context.Context, role string) bool
 }
 
 // Clock is injected so time-dependent behaviour is testable and workers agree

@@ -20,6 +20,8 @@ export interface SiteConfig {
   publicUrl: string;
   hero: SiteHero;
   announcement: { message: string; url: string };
+  /** The banner messages, in order; the storefront pages through them. */
+  announcements?: { message: string; url: string }[];
   features: SiteFeature[];
   tagline: string;
   themeColor: string;

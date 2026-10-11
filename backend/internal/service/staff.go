@@ -22,19 +22,24 @@ type StaffService struct {
 	ids    port.IDGenerator
 	clock  port.Clock
 	auth   *AuthService
+	roles  *RoleService
 }
 
-func NewStaffService(users port.UserRepository, hasher port.PasswordHasher, ids port.IDGenerator, clock port.Clock, auth *AuthService) *StaffService {
-	return &StaffService{users: users, hasher: hasher, ids: ids, clock: clock, auth: auth}
+func NewStaffService(users port.UserRepository, hasher port.PasswordHasher, ids port.IDGenerator, clock port.Clock, auth *AuthService, roles *RoleService) *StaffService {
+	return &StaffService{users: users, hasher: hasher, ids: ids, clock: clock, auth: auth, roles: roles}
 }
 
 // RoleView describes a role and what it can do, for the console's role matrix.
 type RoleView struct {
-	Role        domain.UserRole     `json:"role"`
+	// Key identifies a custom role; Role is set for the built-in ones.
+	Key         string              `json:"key,omitempty"`
+	Role        domain.UserRole     `json:"role,omitempty"`
+	Name        string              `json:"name,omitempty"`
 	Permissions []domain.Permission `json:"permissions"`
 	Description string              `json:"description"`
 	Members     int                 `json:"members"`
 	Catalog     []domain.Permission `json:"catalog"`
+	Custom      bool                `json:"custom,omitempty"`
 }
 
 // CreateStaffInput is a new console user.
@@ -63,6 +68,16 @@ func (s *StaffService) List(ctx context.Context, f domain.UserFilter) (domain.Pa
 	return s.users.List(ctx, f)
 }
 
+// MembersOf counts the console users holding a role. It gates deleting a custom
+// role: accounts left on a role that no longer exists could not sign in.
+func (s *StaffService) MembersOf(ctx context.Context, role string) (int, error) {
+	page, err := s.users.List(ctx, domain.UserFilter{Role: rolePtr(domain.UserRole(role)), PageSize: 1})
+	if err != nil {
+		return 0, err
+	}
+	return int(page.Total), nil
+}
+
 // Roles describes every console role and its permissions, plus how many people
 // hold it. The permission list is the same one the middleware enforces, so the
 // screen cannot drift from the truth.
@@ -79,14 +94,36 @@ func (s *StaffService) Roles(ctx context.Context) ([]RoleView, error) {
 	catalog := make([]domain.Permission, 0, len(domain.AllPermissions()))
 	catalog = append(catalog, domain.AllPermissions()...)
 
-	out := make([]RoleView, 0, len(domain.OpsRoles()))
-	for _, role := range domain.OpsRoles() {
+	roles := domain.OpsRoles()
+	var custom []domain.Role
+	if s.roles != nil {
+		for _, role := range s.roles.All(ctx) {
+			if role.Builtin {
+				continue
+			}
+			custom = append(custom, role)
+		}
+	}
+
+	out := make([]RoleView, 0, len(roles)+len(custom))
+	for _, role := range roles {
 		out = append(out, RoleView{
 			Role:        role,
 			Permissions: domain.Permissions(role),
 			Description: roleDescription(role),
 			Members:     counts[role],
 			Catalog:     catalog,
+		})
+	}
+	for _, role := range custom {
+		out = append(out, RoleView{
+			Key:         role.Key,
+			Name:        role.Name,
+			Permissions: role.Permissions,
+			Description: role.Description,
+			Members:     counts[domain.UserRole(role.Key)],
+			Catalog:     catalog,
+			Custom:      true,
 		})
 	}
 	return out, nil
@@ -109,12 +146,18 @@ func roleDescription(role domain.UserRole) string {
 // Create adds a console user. When no password is supplied a strong one is
 // generated and returned exactly once, so an operator can hand it over without
 // the service ever storing a weak default.
-func (s *StaffService) Create(ctx context.Context, in CreateStaffInput) (*StaffResult, error) {
+func (s *StaffService) Create(ctx context.Context, actorRole string, in CreateStaffInput) (*StaffResult, error) {
 	email := normalizeEmail(in.Email)
 	if email == "" {
 		return nil, fmt.Errorf("%w: an email address is required", domain.ErrInvalidArgument)
 	}
-	if !domain.IsOpsRole(in.Role) {
+	if s.roles != nil {
+		// Any role a console account may hold: the built-in ones and the ones an
+		// operator has defined (validated against the actor's own permissions).
+		if err := s.roles.ValidateRoleForAssignment(ctx, actorRole, string(in.Role)); err != nil {
+			return nil, err
+		}
+	} else if !domain.IsOpsRole(in.Role) {
 		return nil, fmt.Errorf("%w: %q cannot sign in to the console", domain.ErrInvalidArgument, in.Role)
 	}
 	if _, err := s.users.FindByEmail(ctx, email); err == nil {
@@ -156,14 +199,18 @@ func (s *StaffService) Create(ctx context.Context, in CreateStaffInput) (*StaffR
 // Update changes a console user's name, role or status. It refuses changes that
 // would lock the operator out of their own console or leave the shop with no
 // active administrator.
-func (s *StaffService) Update(ctx context.Context, actorID, id string, in UpdateStaffInput) (*domain.User, error) {
+func (s *StaffService) Update(ctx context.Context, actorID, actorRole, id string, in UpdateStaffInput) (*domain.User, error) {
 	user, err := s.users.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
 	if in.Role != nil && *in.Role != user.Role {
-		if !domain.IsOpsRole(*in.Role) {
+		if s.roles != nil {
+			if err := s.roles.ValidateRoleForAssignment(ctx, actorRole, string(*in.Role)); err != nil {
+				return nil, err
+			}
+		} else if !domain.IsOpsRole(*in.Role) {
 			return nil, fmt.Errorf("%w: %q cannot sign in to the console", domain.ErrInvalidArgument, *in.Role)
 		}
 		if id == actorID {

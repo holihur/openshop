@@ -1,34 +1,40 @@
+import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@lib/components/protected-route";
+import { RouteFallback } from "@lib/components/route-fallback";
 import { HomePage } from "@/pages/Home";
 import { ProductsPage } from "@/pages/Products";
 import { ProductDetailPage } from "@/pages/ProductDetail";
-import { CartPage } from "@/pages/Cart";
-import { OrdersPage } from "@/pages/Orders";
-import { OrderDetailPage } from "@/pages/OrderDetail";
-import { LoginPage } from "@/pages/Login";
-import { RegisterPage } from "@/pages/Register";
-import { ForgotPasswordPage } from "@/pages/ForgotPassword";
-import { ResetPasswordPage } from "@/pages/ResetPassword";
-import { VerifyEmailPage } from "@/pages/VerifyEmail";
-import { GuestOrderPage } from "@/pages/GuestOrder";
-import { OidcCallbackPage } from "@/pages/OidcCallback";
-import { SupportPage } from "@/pages/Support";
-import { TicketDetailPage } from "@/pages/TicketDetail";
-import { PaymentResultPage } from "@/pages/PaymentResult";
-import { AddressesPage } from "@/pages/Addresses";
-import { WishlistPage } from "@/pages/Wishlist";
-import { AccountSettingsPage } from "@/pages/AccountSettings";
-import { WalletPage } from "@/pages/Wallet";
-import { RewardsPage } from "@/pages/Rewards";
-import { NotificationsPage } from "@/pages/Notifications";
-import { AccountTokensPage } from "@/pages/AccountTokens";
-import { NotFoundPage } from "@/pages/NotFound";
+
+// Screens are separate chunks so the storefront opens with the shell and the
+// catalog, and the account or checkout code arrives when it is needed.
+const CartPage = lazy(() => import("@/pages/Cart").then((m) => ({ default: m.CartPage })));
+const OrdersPage = lazy(() => import("@/pages/Orders").then((m) => ({ default: m.OrdersPage })));
+const OrderDetailPage = lazy(() => import("@/pages/OrderDetail").then((m) => ({ default: m.OrderDetailPage })));
+const LoginPage = lazy(() => import("@/pages/Login").then((m) => ({ default: m.LoginPage })));
+const RegisterPage = lazy(() => import("@/pages/Register").then((m) => ({ default: m.RegisterPage })));
+const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPassword").then((m) => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import("@/pages/ResetPassword").then((m) => ({ default: m.ResetPasswordPage })));
+const VerifyEmailPage = lazy(() => import("@/pages/VerifyEmail").then((m) => ({ default: m.VerifyEmailPage })));
+const GuestOrderPage = lazy(() => import("@/pages/GuestOrder").then((m) => ({ default: m.GuestOrderPage })));
+const OidcCallbackPage = lazy(() => import("@/pages/OidcCallback").then((m) => ({ default: m.OidcCallbackPage })));
+const SupportPage = lazy(() => import("@/pages/Support").then((m) => ({ default: m.SupportPage })));
+const TicketDetailPage = lazy(() => import("@/pages/TicketDetail").then((m) => ({ default: m.TicketDetailPage })));
+const PaymentResultPage = lazy(() => import("@/pages/PaymentResult").then((m) => ({ default: m.PaymentResultPage })));
+const AddressesPage = lazy(() => import("@/pages/Addresses").then((m) => ({ default: m.AddressesPage })));
+const WishlistPage = lazy(() => import("@/pages/Wishlist").then((m) => ({ default: m.WishlistPage })));
+const AccountSettingsPage = lazy(() => import("@/pages/AccountSettings").then((m) => ({ default: m.AccountSettingsPage })));
+const WalletPage = lazy(() => import("@/pages/Wallet").then((m) => ({ default: m.WalletPage })));
+const RewardsPage = lazy(() => import("@/pages/Rewards").then((m) => ({ default: m.RewardsPage })));
+const NotificationsPage = lazy(() => import("@/pages/Notifications").then((m) => ({ default: m.NotificationsPage })));
+const AccountTokensPage = lazy(() => import("@/pages/AccountTokens").then((m) => ({ default: m.AccountTokensPage })));
+const NotFoundPage = lazy(() => import("@/pages/NotFound").then((m) => ({ default: m.NotFoundPage })));
 
 export default function App() {
   return (
+    <Suspense fallback={<RouteFallback />}>
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<HomePage />} />
@@ -64,5 +70,6 @@ export default function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
+    </Suspense>
   );
 }

@@ -51,7 +51,7 @@ func (h *Handler) Register(c *gin.Context) {
 	if h.Commission != nil && req.ReferralCode != "" {
 		_ = h.Commission.ApplyReferral(c.Request.Context(), req.ReferralCode, res.User.ID)
 	}
-	response.Created(c, handler.ToAuthView(res))
+	response.Created(c, h.ToAuthView(c.Request.Context(), res))
 }
 
 func (h *Handler) VerifyEmail(c *gin.Context) {

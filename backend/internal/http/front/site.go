@@ -2,6 +2,7 @@ package front
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -18,14 +19,15 @@ type siteHeroView struct {
 }
 
 type siteView struct {
-	PublicURL         string               `json:"publicUrl"`
-	Hero              siteHeroView         `json:"hero"`
-	Announcement      siteAnnouncementView `json:"announcement"`
-	Features          []siteFeatureView    `json:"features"`
-	Tagline           string               `json:"tagline"`
-	ThemeColor        string               `json:"themeColor"`
-	AllowRegistration bool                 `json:"allowRegistration"`
-	OIDCEnabled       bool                 `json:"oidcEnabled"`
+	PublicURL         string                 `json:"publicUrl"`
+	Hero              siteHeroView           `json:"hero"`
+	Announcement      siteAnnouncementView   `json:"announcement"`
+	Announcements     []siteAnnouncementView `json:"announcements"`
+	Features          []siteFeatureView      `json:"features"`
+	Tagline           string                 `json:"tagline"`
+	ThemeColor        string                 `json:"themeColor"`
+	AllowRegistration bool                   `json:"allowRegistration"`
+	OIDCEnabled       bool                   `json:"oidcEnabled"`
 	// Wallet withdrawal hints let the storefront hide the form and show the
 	// operator's instructions without a second request.
 	WithdrawalEnabled      bool   `json:"withdrawalEnabled"`
@@ -46,6 +48,37 @@ type siteView struct {
 type oidcProviderView struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+// siteAnnouncements returns the banner messages, in order. The list setting is
+// the source of truth; the single-announcement setting is honoured when the list
+// is empty, so an operator upgrading does not lose their message.
+func (h *Handler) siteAnnouncements(ctx context.Context) []siteAnnouncementView {
+	out := make([]siteAnnouncementView, 0, 4)
+	if raw := strings.TrimSpace(h.Settings.String(ctx, "store.announcements")); raw != "" {
+		var configured []siteAnnouncementView
+		if err := json.Unmarshal([]byte(raw), &configured); err != nil {
+			h.Logger.Warn("store.announcements is not valid JSON", "error", err)
+		}
+		for _, item := range configured {
+			if strings.TrimSpace(item.Message) == "" {
+				continue
+			}
+			out = append(out, siteAnnouncementView{
+				Message: strings.TrimSpace(item.Message),
+				URL:     strings.TrimSpace(item.URL),
+			})
+		}
+	}
+	if len(out) == 0 {
+		if message := strings.TrimSpace(h.Settings.String(ctx, "store.announcement")); message != "" {
+			out = append(out, siteAnnouncementView{
+				Message: message,
+				URL:     strings.TrimSpace(h.Settings.String(ctx, "store.announcement_url")),
+			})
+		}
+	}
+	return out
 }
 
 // siteFeatureViews returns only the feature cards that have content. An empty
@@ -100,6 +133,11 @@ type siteAnnouncementView struct {
 // can change the homepage from the ops console without a redeploy.
 func (h *Handler) GetSite(c *gin.Context) {
 	ctx := c.Request.Context()
+	announcements := h.siteAnnouncements(ctx)
+	firstAnnouncement := siteAnnouncementView{}
+	if len(announcements) > 0 {
+		firstAnnouncement = announcements[0]
+	}
 	response.OK(c, siteView{
 		PublicURL: h.Settings.String(ctx, "store.public_url"),
 		Hero: siteHeroView{
@@ -108,10 +146,8 @@ func (h *Handler) GetSite(c *gin.Context) {
 			Image:    h.Settings.String(ctx, "store.hero_image_url"),
 			CtaURL:   h.Settings.String(ctx, "store.hero_cta_url"),
 		},
-		Announcement: siteAnnouncementView{
-			Message: h.Settings.String(ctx, "store.announcement"),
-			URL:     h.Settings.String(ctx, "store.announcement_url"),
-		},
+		Announcement:           firstAnnouncement,
+		Announcements:          announcements,
 		Features:               siteFeatureViews(ctx, h),
 		Tagline:                h.Settings.String(ctx, "store.tagline"),
 		ThemeColor:             h.Settings.String(ctx, "store.theme_color"),

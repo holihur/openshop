@@ -91,6 +91,8 @@ func allowedRoles(s Surface) []domain.UserRole {
 // or internal/http/ops) needs to build its engine. Injecting the builder keeps
 // each binary free of the other surface: the linker drops whatever is unused.
 type HTTPDeps struct {
+	// Roles resolves a role to its permissions, including operator-defined ones.
+	Roles    port.RoleResolver
 	Config   *config.Config
 	Handler  *handler.Handler
 	Tokens   port.TokenIssuer
@@ -287,10 +289,16 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	}
 
 	// --- services ---
+	// Roles, including the ones an operator creates. Every permission check goes
+	// through this service, so a custom role is enforced like a built-in one.
+	roleSvc := service.NewRoleService(postgres.NewRoleRepository(db), clock, cache)
 	authSvc := service.NewAuthService(users, hasher, tokens, cache, ids, clock, mailer, service.AuthConfig{
 		AccessTTL: cfg.JWT.AccessTTL, RefreshTTL: cfg.JWT.RefreshTTL,
 		AllowedRoles: allowedRoles(surface),
-	}, settingsSvc, socialAccountRepo)
+		// The console accepts any role an operator has defined; the storefront
+		// stays restricted to shoppers.
+		AllowAnyOpsRole: surface == SurfaceOps,
+	}, settingsSvc, socialAccountRepo, roleSvc)
 	catalogSvc := service.NewCatalogService(categories, products, variantRepo, faqRepo, cache, ids, clock, cfg.App.Currency, settingsSvc)
 	couponSvc := service.NewCouponService(couponRepo, ids, clock)
 	reviewSvc := service.NewReviewService(reviewRepo, products, orders, cache, ids, clock)
@@ -298,7 +306,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	auditSvc := service.NewAuditService(auditRepo, ids, clock, log)
 	currencySvc := service.NewCurrencyService(currencyRepo, cfg.App.Currency, cache)
 	customerSvc := service.NewCustomerService(users, clock)
-	staffSvc := service.NewStaffService(users, hasher, ids, clock, authSvc)
+	staffSvc := service.NewStaffService(users, hasher, ids, clock, authSvc, roleSvc)
 	// The money invariants: used by the background check and by the console.
 	reconciliationSvc := service.NewReconciliationService(
 		postgres.NewReconciliationRepository(db), auditSvc, promMetrics, log, 200)
@@ -345,7 +353,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 	h := &handler.Handler{
 		Auth: authSvc, Catalog: catalogSvc, Orders: orderSvc, Payments: paymentSvc,
 		Coupons: couponSvc, Reviews: reviewSvc, Shipping: shippingSvc, Audit: auditSvc,
-		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Wallet: walletSvc, Points: pointsSvc, Commission: commissionSvc, Withdrawals: withdrawalSvc, Notifications: notificationSvc, PATs: patSvc, Outbox: outbox, Settings: settingsSvc, Customers: customerSvc, Staff: staffSvc, Reconciliation: reconciliationSvc, OIDC: oidcSvc, Social: socialSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
+		Currency: currencySvc, Returns: returnSvc, Tickets: ticketSvc, Wallet: walletSvc, Points: pointsSvc, Commission: commissionSvc, Withdrawals: withdrawalSvc, Notifications: notificationSvc, PATs: patSvc, Outbox: outbox, Settings: settingsSvc, Customers: customerSvc, Staff: staffSvc, Reconciliation: reconciliationSvc, Roles: roleSvc, RoleSvc: roleSvc, OIDC: oidcSvc, Social: socialSvc, Storage: objectStore, Cache: cache, IDs: ids, Logger: log,
 		Metrics: promMetrics.Handler(),
 		Checks: []handler.ReadinessCheck{
 			{Name: "postgres", Check: db.Ping},
@@ -361,6 +369,7 @@ func New(ctx context.Context, cfg *config.Config, opts Options) (*App, error) {
 		addr = cfg.HTTP.Addr
 	}
 	engine := opts.BuildHTTP(HTTPDeps{
+		Roles:  roleSvc,
 		Config: cfg, Handler: h, Tokens: tokens, Auth: authSvc,
 		Cache: cache, Limiter: limiter, Metrics: promMetrics, Tracer: tracer, Settings: settingsSvc,
 		Cart: cartSvc, Addresses: addressSvc, Wishlist: wishlistSvc, Account: accountSvc, Analytics: analyticsSvc,

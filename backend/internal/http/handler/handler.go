@@ -44,6 +44,8 @@ type Handler struct {
 	Social         *service.SocialService
 	Staff          *service.StaffService
 	Reconciliation *service.ReconciliationService
+	Roles          port.RoleResolver
+	RoleSvc        *service.RoleService
 	Storage        port.ObjectStorage
 	Cache          port.Cache
 	IDs            port.IDGenerator

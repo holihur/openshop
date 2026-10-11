@@ -25,6 +25,8 @@ export interface Site {
   publicUrl: string;
   hero: { title: string; subtitle: string; image: string; ctaUrl: string };
   announcement: { message: string; url: string };
+  /** The banner messages, in order; the storefront pages through them. */
+  announcements?: { message: string; url: string }[];
   features: { title: string; text: string }[];
   tagline: string;
   themeColor: string;

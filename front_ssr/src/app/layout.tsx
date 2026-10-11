@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
 
+import { AnnouncementBar } from "@/components/announcement-bar";
 import { CartBadge } from "@/components/cart-badge";
 import { CurrencySwitcher } from "@/components/currency-switcher";
 import { NotificationBadge } from "@/components/notification-badge";
@@ -44,6 +45,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const brand = brandColor(site?.themeColor);
   const onBrand = contrastForeground(brand);
   const storeName = site?.tagline?.trim() || "openshop";
+  // The list is the source of truth; the single setting is a legacy fallback.
+  const listed = (site?.announcements ?? []).filter((item) => item.message?.trim());
+  const bannerMessages =
+    listed.length > 0
+      ? listed
+      : site?.announcement?.message?.trim()
+        ? [{ message: site.announcement.message, url: site.announcement.url }]
+        : [];
 
   return (
     <html lang={locale}>
@@ -119,19 +128,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               )}
             </div>
           </div>
-          {site?.announcement?.message ? (
-            <p
-              className="px-4 py-2 text-center text-sm"
+          {bannerMessages.length > 0 ? (
+            <div
+              className="px-4 py-2 text-sm"
               style={{ background: withAlpha(brand, 0.08), color: brand }}
             >
-              {site.announcement.url ? (
-                <Link href={site.announcement.url} className="underline">
-                  {site.announcement.message}
-                </Link>
-              ) : (
-                site.announcement.message
-              )}
-            </p>
+              <AnnouncementBar announcements={bannerMessages} locale={locale} />
+            </div>
           ) : null}
         </header>
 

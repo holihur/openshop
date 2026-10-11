@@ -767,6 +767,16 @@ picks black or white text for contrast (so a pale brand stays readable), washes
 the hero and announcement in it, and uses it for buttons and links. Prices use
 the narrow currency symbol, so a card reads `¥199.00` rather than `CN¥199.00`.
 
+## Frontend loading
+
+Both SPAs load on demand: every screen is its own chunk, fetched when it is first
+opened, so the shell and the dashboard (or the catalog, for the storefront)
+arrive first. The message catalogues are split the same way — English is part of
+the first load, and the Chinese catalogue is a separate chunk fetched only when
+that language is selected, with English as the fallback until it lands. Together
+this took the console's first-load JavaScript from ~605 KB to ~420 KB, and the
+storefront's from ~588 KB to ~468 KB, before the on-demand chunks.
+
 ## Two storefronts
 
 There are two storefronts and they iterate independently:
@@ -842,6 +852,18 @@ deliberately conservative — it flags money that definitively did not arrive or
 definitively arrived twice, rather than demanding exact equality, so a legitimate
 partial-refund sequence is not reported as a fault.
 
+## Console navigation and roles
+
+The console has outgrown a flat menu, so the sidebar is grouped (Overview,
+Catalog, Sales, Customers & money, Store settings, Access & audit) with each
+group collapsible:
+
+* the whole sidebar folds to an icon rail, and both the rail and the per-group
+  collapsed state are remembered in the browser;
+* the menu can be searched, which opens every group and shows the matches with
+  their group;
+* any entry can be pinned to a "Pinned" section at the top.
+
 ## Staff and roles
 
 The console manages the people who operate it under **Staff & roles**
@@ -859,9 +881,25 @@ service refuses to remove the last active administrator. Every change writes an
 audit entry. A password reset also ends every existing session for that user,
 because the session that prompted the reset must not keep working.
 
-Roles are fixed in code (`admin` is a superuser; `support`, `catalog` and
-`finance` hold the subsets defined in `internal/domain/rbac.go`); each API route
-is guarded by a permission, and the sidebar hides what the caller cannot use.
+Roles come in two kinds. The four built-in ones live in code (`admin` is a
+superuser; `support`, `catalog` and `finance` hold the subsets defined in
+`internal/domain/rbac.go`) and cannot be edited, because their meaning is part
+of existing audit entries. **Custom roles** are created in the console: pick a
+key, a name and the permissions. Every permission check resolves through the role
+service (cached for 30 seconds), so a custom role is enforced by exactly the same
+middleware as a built-in one and a change applies without a restart.
+
+Three rules keep custom roles safe:
+
+* a role can only grant permissions its author already holds, and a role can only
+  be assigned by someone who holds everything it grants — a role manager cannot
+  promote themselves;
+* a role that still has members cannot be deleted, since those accounts would be
+  left with a role that grants nothing;
+* a permission outside the catalogue is rejected, so a typo cannot create a
+  permission no route checks.
+
+The roles screen is a list, with the create/edit form on its own page.
 
 ## Social sign-in
 
@@ -880,6 +918,14 @@ and `social.alipay.enabled` / `social.alipay.app_id` (ops console → Auth), wit
 is switched off or missing a credential is simply absent from `/site`, so the
 sign-in page never renders a button that cannot work. Alipay's token exchange is
 RSA2-signed, reusing the shared signing package.
+
+## Announcements
+
+The storefront banner is a **list** (`store.announcements`, a JSON array of
+`{message, url}`), paged inside a single line so the bar keeps its height however
+much the operator has to say. A single `store.announcement` is still honoured
+when the list is empty, so an upgrade does not lose the existing message, and the
+`/site` payload carries both the list and the first entry.
 
 ## Search
 
