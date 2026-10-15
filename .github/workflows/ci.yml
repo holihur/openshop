@@ -133,7 +133,7 @@ jobs:
       # without it `docker build` fails immediately with "BuildKit is enabled
       # but the buildx component is missing". Installing buildx explicitly makes
       # the build deterministic.
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Build backend image (API + embedded SPAs)
         run: |
           docker version
